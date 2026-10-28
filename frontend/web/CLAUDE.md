@@ -31,7 +31,7 @@ Light theme:
 | `raised` | `#FFFFFF` | overlays, popovers |
 | `ink` | `#1C1B19` | primary text |
 | `ink-muted` | `#55524C` | secondary text |
-| `ink-faint` | `#8A857C` | metadata, labels |
+| `ink-faint` | `#67625A` | metadata, labels (see the contrast note) |
 | `hairline` | `#E2DCD0` | 1px borders |
 | `hairline-strong` | `#CFC7B8` | emphasised borders, scrollbars |
 
@@ -45,7 +45,7 @@ Dark theme:
 | `raised` | `#211F1C` | overlays |
 | `ink` | `#F0EBE1` | warm off-white text |
 | `ink-muted` | `#A8A29A` | secondary text |
-| `ink-faint` | `#75706A` | metadata |
+| `ink-faint` | `#908B82` | metadata (see the contrast note) |
 | `hairline` | `#2B2A27` | 1px borders |
 | `hairline-strong` | `#3B3935` | emphasised borders |
 
@@ -56,12 +56,29 @@ Accent and data (one accent only — muted champagne gold):
 | `gold` | `#B8975A` | `#C9A869` | the single accent; focus rings, claim marks, active states |
 | `gold-soft` | `#DFCFA8` | `#6E5C38` | gold at low emphasis |
 | `on-gold` | `#1C1B19` | `#121212` | text on a filled gold surface (6.2:1) |
+| `gold-ink` | `#7A6134` | `#C9A869` | **gold used as TEXT** — see below |
 | `--c-gold-wash` | `rgba(184,151,90,.10)` | `rgba(201,168,105,.12)` | active backgrounds, selection |
 | `sage` | `#6B7F62` | `#8CA37F` | **positive** data only |
 | `terracotta` | `#A85C45` | `#C47A5E` | **negative** data only |
 | `series-1..4` | `#9A938A` `#B4ADA2` `#7D766E` `#C8C1B5` | same ramp, inverted | neutral data series |
 
 Charts use gold, sage, terracotta and the warm-grey series ramp. Nothing else.
+
+**`gold` vs `gold-ink`.** `gold` is tuned for strokes, fills, borders and rules.
+As 11px text on a gold wash it measures **2.3:1** and fails AA, so all small
+gold *type* — tags, claim ids, micro labels — uses `gold-ink`, which is a
+darker champagne in light mode and the accent itself in dark. If you are
+colouring text gold, you want `text-gold-ink`.
+
+**`ink-faint` is contrast-tuned, not eyeballed.** It carries 11px metadata, so
+it is set against the darkest ground it ever sits on — a gold wash over sunken
+(`#EBE4D7`) — and clears 4.5:1 there. The earlier `#8A857C` measured 3.1:1 and
+failed. Do not lighten it back.
+
+Supporting tokens, all derived from the accent: `--c-grid` (the hero's
+technical grid), `--c-edge` (the gold top-edge light used by `.edge-gold`),
+`--c-sheen` (the cursor-following sheen used by `.sheen`), `--c-thread` (the
+lineage highlight).
 
 The one sanctioned place raw colour values appear outside `src/index.css` is
 `src/hooks/useChartColors.ts`, which reads the tokens off the document at
@@ -122,6 +139,42 @@ numbers through `src/lib/format.ts` — never with bare `toString()`.
 - Respect `prefers-reduced-motion`: CSS is handled globally in `index.css`;
   for Framer Motion, read `useReducedMotion()` and skip the animation.
 
+## 3a. Signature craft
+
+These are the details that make the product feel made rather than assembled.
+They are cheap to break and hard to notice breaking, so they are listed here.
+
+| Device | Where | How |
+| --- | --- | --- |
+| **Technical grid** | hero only | `TechnicalGrid` — two drifting rules (24px and 120px) on independent cycles, radially masked so it has no visible edge. Frozen under reduced motion. |
+| **Glass plinth** | hero ask box | translucent surface + `backdrop-blur-xl` + `.edge-gold`. Its gold border **traces itself** on focus: one SVG rect with `pathLength={1}` whose `strokeDashoffset` animates 1 → 0 over 600ms. |
+| **Gold top edge** | cards, palette, plinth | `.edge-gold` — a 1px gradient brightest at the centre, lifting to full on hover. |
+| **Cursor sheen** | hero plinth, evidence cards | `.sheen` + `useSheen`, which writes `--mx`/`--my` in one rAF per frame. |
+| **Travelling light** | live pipeline | a point of gold runs the hairline between a finished stage and the one still running. |
+| **Count-up** | single-value evidence | `CountUp`, ease-out quint. See the SAFE-8 note below. |
+| **Lineage thread** | claim ↔ evidence ↔ query | `LineageProvider`; hovering or focusing any one lights all three. |
+
+Glass blur remains overlay-only: top bar, palette, popovers, scrims, the
+floating composer, the plinth. Never on a plain content card.
+
+## 3b. The frontend computes nothing (SAFE-8)
+
+The interface displays what the `AnswerEnvelope` contains. It does not derive,
+aggregate, re-round or infer a single figure.
+
+- `CountUp` animates the *presentation* of a value the envelope already holds.
+  Its final frame is that value through `formatNumber`, intermediate frames are
+  `aria-hidden`, and the accessible name is the final value from first render.
+- Follow-up questions (`lib/followUps.ts`) are **templates** filled from
+  `scope.metric` and `scope.window` only. They contain no number, finding or
+  insight of ours, and the file returns nothing rather than offer a question
+  the backend cannot answer.
+- `TrustPanel` reports only what the envelope evidences. A check means the
+  envelope positively says so; a dash means it does not say, and we show a dash
+  rather than imply a pass.
+- `briefingToMarkdown` transcribes. If a field is absent, its section is
+  omitted — never filled in.
+
 ## 4. Accessibility
 
 - Gold focus rings, 2px with 2px offset, via `:focus-visible`. Never remove an
@@ -129,8 +182,21 @@ numbers through `src/lib/format.ts` — never with bare `toString()`.
 - WCAG AA contrast minimum for all text in both themes.
 - Interactive elements are real `button`/`a`/`input` elements with accessible
   names. Decorative marks get `aria-hidden`.
-- `Esc` closes every popover and overlay. Keyboard: `Ctrl/Cmd+K` focuses the
-  question box, `Enter` submits.
+- Keyboard: **`Ctrl/Cmd+K` opens the command palette** (it no longer focuses
+  the question box — the palette is the one entry point for asking and for
+  every action), `Enter` submits, `Shift+Enter` adds a newline, `P` enters
+  presentation mode, `Esc` closes every overlay. Single-letter shortcuts are
+  ignored while typing and with any modifier held.
+- **Prefer content-derived accessible names over `aria-label`.** A label that
+  restates visible text can only drift from it; where both exist they must
+  agree (axe's `label-content-name-mismatch`). The claim superscript is the
+  worked example: the `<sup>` is `aria-hidden` and the detail is `sr-only`
+  text *inside* the button, so the name is built from the button's own content.
+- Any element with its own scrollbar needs `tabIndex={0}` and a label, or a
+  keyboard user cannot scroll it.
+- `<dt>`/`<dd>` must be direct children of the `<dl>` or of a **single**
+  wrapping `<div>`. Decorations go inside the `<dt>`, positioned absolutely —
+  not as another nesting level.
 - Skeleton loaders are shaped like the content that replaces them, so there is
   **no layout shift**. Skeletons are `aria-hidden`.
 
@@ -234,6 +300,18 @@ Two rules learned from probing the live backend:
 not reuse any of its colours** — it is a dark neon-blue design and violates
 every rule above.
 
+## 5a. Product surfaces
+
+| Surface | File | Note |
+| --- | --- | --- |
+| Command palette | `components/palette/CommandPalette.tsx` | Ask, reopen a past answer, and the few actions worth a keystroke. Substring matching over a short curated list — not fuzzy, because predictability is what makes a palette feel fast. Free text is always offered as a question. |
+| How this was computed | `components/queries/QueryList.tsx` | The SQL is a first-class section directly under the conclusion, **expanded by default** — the product's whole promise is that you can check the arithmetic. Line-numbered gutter, hand-rolled highlighter (every library ships a purple theme), copy with a drawn-on tick. |
+| Lineage | `components/briefing/LineageContext.tsx` | Derived strictly from `claim.source.id` and `evidence[].source_claims`. It never invents a relationship the backend did not assert. |
+| Hero figures | `lib/evidenceTitle.ts` | A lookup returning exactly one row and one column is a headline number, not a table. Titles come from `scope`, never from reading the data — and a comparative run's two identical titles are disambiguated by position, because `scope` only carries the current window. |
+| Follow-ups | `lib/followUps.ts` | See SAFE-8 above. Governed metrics only, window must include the year. |
+| Export | `lib/exportBriefing.ts`, print block in `index.css` | "Copy as briefing" is Markdown; "Download PDF" is the browser's own print dialogue against the print stylesheet — the most reliable PDF route, no library, no sandbox exception. `data-print="hide" / "show" / "flow"` control what the printed report does. |
+| Presentation mode | `components/PresentationMode.tsx` | Renders the **same** `Briefing` with `presenting`, so there is exactly one place the answer is designed. |
+
 ## 6. Status handling
 
 Every `RunStatus` gets a designed state, never a bare error string:
@@ -249,8 +327,8 @@ simulated event stream, so the design can be reviewed with no backend running.
 Mock data lives in `src/lib/mock/` and must stay contract-accurate — it is the
 only place `next_actions` and `closest_answerable` are ever populated.
 
-`envelopes.ts` holds eight scenarios covering all six statuses (three distinct
-`answered` shapes: lookup, anomaly, driver). `transport.ts` satisfies the same
+`envelopes.ts` holds nine scenarios covering all six statuses (four distinct
+`answered` shapes: lookup, comparative, anomaly, driver). `transport.ts` satisfies the same
 `RunTransport` interface as the live transport, so `useRun` is identical in both
 modes, and its simulated stream respects the conditional stages — a clarify run
 emits no step 7, 9 or 11, because the real backend would not either.
@@ -272,6 +350,25 @@ state is one click away.
   `X | None` → `X | null` (present-and-null, not optional).
 - One component per file, named after the file. Keep `src/lib` free of React.
 - Comments explain *why*, at the density of the surrounding code.
+
+## 8a. Quality gates
+
+Both must be clean before committing. The accessibility gate is not optional:
+the colour and contrast tokens were set *from* its measurements.
+
+```bash
+npm run typecheck      # strict; must stay clean
+npm run build          # must stay clean
+# the colour rule, mechanically:
+grep -rniE "purple|violet|lavender|indigo|magenta|pink|fuchsia" src/
+```
+
+The last command should match only the comment lines that *state* the rule.
+
+Screenshots and the axe audit are driven with Playwright against the dev server
+in mock mode, in both themes, at desktop and mobile widths. Current status:
+**0 axe violations** (wcag2a/2aa/21a/21aa, minor excluded) across hero, answer
+and palette in both themes, and **0 console errors**.
 
 ## 9. Commands
 
