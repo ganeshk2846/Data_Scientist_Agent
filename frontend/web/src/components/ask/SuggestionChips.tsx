@@ -26,7 +26,7 @@ interface SuggestionChipsProps {
 
 export function SuggestionChips({ onPick, disabled = false }: SuggestionChipsProps) {
   return (
-    <ul className="flex flex-wrap gap-2.5">
+    <ul className="flex flex-wrap justify-center gap-2">
       {SUGGESTIONS.map((question) => (
         <li key={question}>
           <button
@@ -34,12 +34,12 @@ export function SuggestionChips({ onPick, disabled = false }: SuggestionChipsPro
             disabled={disabled}
             onClick={() => onPick(question)}
             className={cx(
-              'rounded-full border border-hairline-strong bg-surface px-4 py-2',
-              'text-small text-ink-muted',
-              'transition-colors duration-micro ease-editorial',
+              'rounded-full border border-hairline bg-[rgb(var(--c-surface)/0.6)] px-3.5 py-1.5',
+              'text-[0.8125rem] text-ink-muted backdrop-blur-sm',
+              'transition-[color,border-color,background-color] duration-micro ease-editorial',
               'hover:border-gold hover:bg-[var(--c-gold-wash)] hover:text-ink',
               'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-hairline-strong',
-              'disabled:hover:bg-surface disabled:hover:text-ink-muted',
+              'disabled:hover:border-hairline disabled:hover:text-ink-muted',
             )}
           >
             {question}

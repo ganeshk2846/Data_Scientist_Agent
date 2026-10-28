@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
+import { CornerDownLeft } from 'lucide-react';
 import type { RefObject } from 'react';
 
 import { AskBox } from './AskBox';
-import { SuggestionChips } from './SuggestionChips';
+import { SUGGESTIONS, SuggestionChips } from './SuggestionChips';
+import { TechnicalGrid } from '@/components/hero/TechnicalGrid';
 import { Kbd } from '@/components/ui/Button';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -15,7 +17,9 @@ interface AskHeroProps {
   disabled?: boolean;
 }
 
-/** The empty state: one large question field and four ways in. */
+const EASE = [0.22, 0.61, 0.36, 1] as const;
+
+/** The empty state: a centred stage, one question, four ways in. */
 export function AskHero({
   value,
   onChange,
@@ -25,45 +29,76 @@ export function AskHero({
   disabled = false,
 }: AskHeroProps) {
   const reduced = useReducedMotion();
+  const step = (index: number) => ({
+    initial: reduced ? false : { opacity: 0, y: 14 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.6, delay: reduced ? 0 : index * 0.1, ease: EASE },
+  });
 
   return (
-    <motion.div
-      initial={reduced ? false : { opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.22, 0.61, 0.36, 1] }}
-      className="mx-auto max-w-3xl pt-6 sm:pt-16"
-    >
-      <p className="text-micro uppercase text-ink-faint">Decision intelligence</p>
-      <h1 className="mt-5 text-h1 text-ink sm:text-display">Ask your data anything.</h1>
-      <p className="mt-5 max-w-prose font-serif text-body-serif font-light text-ink-muted">
-        Governed, read-only analysis of 100,000 Brazilian e-commerce orders. Every
-        figure in every answer traces back to a numbered claim and the SQL that
-        produced it.
-      </p>
+    <div className="relative">
+      <TechnicalGrid />
 
-      <div className="mt-10">
-        <AskBox
-          ref={inputRef}
-          value={value}
-          onChange={onChange}
-          onSubmit={onSubmit}
-          disabled={disabled}
-          size="hero"
-        />
-      </div>
+      <div className="relative mx-auto max-w-2xl px-1 pb-4 pt-10 text-center sm:pt-16">
+        <motion.p
+          {...step(0)}
+          className="text-micro uppercase tracking-label text-ink-faint"
+        >
+          Decision intelligence
+        </motion.p>
 
-      <div className="mt-8">
-        <p className="text-micro uppercase text-ink-faint">Try one of these</p>
-        <div className="mt-4">
+        <motion.h1
+          {...step(1)}
+          className="mx-auto mt-6 max-w-xl text-balance font-serif text-[2.5rem] leading-[1.08] tracking-[-0.022em] text-ink sm:text-[3.5rem]"
+        >
+          Ask your data anything.
+        </motion.h1>
+
+        {/* Sans, and deliberately smaller: the serif headline owns this stage. */}
+        <motion.p
+          {...step(2)}
+          className="mx-auto mt-5 max-w-[30rem] text-balance text-[0.9375rem] leading-[1.6] text-ink-muted"
+        >
+          Governed, read-only analysis of 100,000 Brazilian e-commerce orders. Every
+          figure traces to a numbered claim and the SQL behind it.
+        </motion.p>
+
+        <motion.div {...step(3)} className="mt-10 text-left">
+          <AskBox
+            ref={inputRef}
+            value={value}
+            onChange={onChange}
+            onSubmit={onSubmit}
+            disabled={disabled}
+            examples={SUGGESTIONS}
+            size="hero"
+          />
+        </motion.div>
+
+        <motion.div {...step(4)} className="mt-7">
           <SuggestionChips onPick={onPickSuggestion} disabled={disabled} />
-        </div>
-      </div>
+        </motion.div>
 
-      <p className="mt-10 flex items-center gap-1.5 text-[0.6875rem] text-ink-faint">
-        <Kbd>⌘</Kbd>
-        <Kbd>K</Kbd>
-        <span className="ml-1">focuses this field from anywhere</span>
-      </p>
-    </motion.div>
+        <motion.div
+          {...step(5)}
+          className="mt-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5 text-[0.6875rem] text-ink-faint"
+        >
+          <span className="flex items-center gap-1.5">
+            <Kbd>⌘</Kbd>
+            <Kbd>K</Kbd>
+            <span className="ml-1">command palette</span>
+          </span>
+          <span aria-hidden className="h-2.5 w-px bg-hairline-strong" />
+          <span className="flex items-center gap-1.5">
+            <Kbd>
+              <CornerDownLeft size={10} strokeWidth={2} aria-hidden />
+            </Kbd>
+            <span className="ml-1">ask</span>
+          </span>
+          <span aria-hidden className="h-2.5 w-px bg-hairline-strong" />
+          <span>Read-only · never computes a number</span>
+        </motion.div>
+      </div>
+    </div>
   );
 }

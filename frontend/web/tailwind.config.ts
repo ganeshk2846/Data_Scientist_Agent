@@ -28,6 +28,7 @@ export default {
         gold: channel('--c-gold'),
         'gold-soft': channel('--c-gold-soft'),
         'on-gold': channel('--c-on-gold'),
+        'gold-ink': channel('--c-gold-ink'),
         sage: channel('--c-sage'),
         terracotta: channel('--c-terracotta'),
         series: {
@@ -81,6 +82,20 @@ export default {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
         },
+        // The hero grid drifts by exactly one cell, so the loop is seamless.
+        'grid-drift': {
+          '0%': { transform: 'translate3d(0, 0, 0)' },
+          '100%': { transform: 'translate3d(24px, 24px, 0)' },
+        },
+        'grid-drift-slow': {
+          '0%': { transform: 'translate3d(0, 0, 0)' },
+          '100%': { transform: 'translate3d(-120px, 120px, 0)' },
+        },
+        // The backend-status dot: a slow, soft breath, not a blink.
+        'pulse-soft': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.45', transform: 'scale(0.88)' },
+        },
       },
       maxWidth: {
         canvas: '68rem',
@@ -88,6 +103,10 @@ export default {
       },
       spacing: {
         rail: '17rem',
+        'rail-collapsed': '4rem',
+      },
+      letterSpacing: {
+        label: '0.14em',
       },
     },
   },
