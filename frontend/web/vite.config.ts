@@ -10,6 +10,18 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Framer Motion is large and changes rarely. Recharts is not listed:
+        // the chart components are lazy-loaded, so it splits out on its own and
+        // a lookup-only run never downloads it.
+        manualChunks: {
+          motion: ['framer-motion'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

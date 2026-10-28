@@ -2,11 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { AskBox } from '@/components/ask/AskBox';
 import { AskHero } from '@/components/ask/AskHero';
+import { Briefing } from '@/components/briefing/Briefing';
+import { BriefingSkeleton } from '@/components/briefing/BriefingSkeleton';
 import { PipelineTrack } from '@/components/pipeline/PipelineTrack';
 import { AppShell } from '@/components/shell/AppShell';
 import type { BackendState } from '@/components/shell/TopBar';
 import { Card, SectionLabel } from '@/components/ui/Card';
-import { SkeletonParagraph } from '@/components/ui/Skeleton';
 import { useAskHotkey } from '@/hooks/useHotkeys';
 import { useRun, liveTransport } from '@/hooks/useRun';
 import { useSession } from '@/hooks/useSession';
@@ -126,23 +127,10 @@ export default function App() {
             reconnecting={state.reconnecting}
           />
 
-          {/* Stage 3 replaces this with the full executive briefing. */}
-          {inFlight ? (
-            <Card className="p-6 sm:p-8">
-              <SectionLabel>Briefing</SectionLabel>
-              <div className="mt-5">
-                <SkeletonParagraph lines={4} />
-              </div>
-            </Card>
-          ) : null}
+          {inFlight ? <BriefingSkeleton /> : null}
 
           {state.envelope ? (
-            <Card className="p-6 sm:p-8">
-              <SectionLabel>{state.envelope.status}</SectionLabel>
-              <p className="mt-4 max-w-prose font-serif text-body-serif font-light text-ink">
-                {state.envelope.conclusion ?? 'No conclusion was produced for this run.'}
-              </p>
-            </Card>
+            <Briefing envelope={state.envelope} theme={theme.resolved} />
           ) : null}
 
           {state.failure ? (
