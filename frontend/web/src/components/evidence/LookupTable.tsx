@@ -35,11 +35,20 @@ export function LookupTable({ output }: { output: LookupOutput }) {
 
   return (
     <div>
-      {/* Wide results scroll inside their own container, never the page. */}
-      <div className="-mx-1 overflow-x-auto px-1">
+      {/* Wide and tall results scroll inside their own container, never the
+          page — a 23-row series must not bury the chart beneath it. */}
+      {/* tabIndex makes the scroll region reachable, so a keyboard user can
+          actually scroll a long result; the label says what they are in. */}
+      <div
+        data-print="flow"
+        tabIndex={0}
+        role="region"
+        aria-label={`Result rows for ${output.query_id}`}
+        className="-mx-1 max-h-[22rem] overflow-auto px-1"
+      >
         <table className="w-full min-w-full border-collapse text-small">
           <thead>
-            <tr className="border-b border-hairline-strong">
+            <tr className="sticky top-0 z-10 border-b border-hairline-strong bg-surface">
               {output.columns.map((column, index) => (
                 <th
                   key={column.name}

@@ -32,6 +32,8 @@ export interface RunState {
   failure: { title: string; detail: string; kind: 'offline' | 'request' } | null;
   /** True while the SSE transport is between attempts. */
   reconnecting: boolean;
+  /** Wall clock at submission, so the elapsed timer measures the run. */
+  startedAt: number | null;
 }
 
 export const IDLE_RUN: RunState = {
@@ -45,6 +47,7 @@ export const IDLE_RUN: RunState = {
   envelope: null,
   failure: null,
   reconnecting: false,
+  startedAt: null,
 };
 
 export type RunAction =
@@ -133,6 +136,7 @@ export function runReducer(state: RunState, action: RunAction): RunState {
         phase: 'submitting',
         question: action.question,
         localId: action.localId,
+        startedAt: Date.now(),
       };
     case 'accepted':
       return { ...state, runId: action.runId, phase: 'streaming' };
