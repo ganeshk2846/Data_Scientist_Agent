@@ -98,10 +98,20 @@ export function deriveSeries(blocks: readonly EvidenceBlock[]): readonly SeriesP
     );
     if (timeIndex === -1) continue;
 
+    /**
+     * Declared types are not dependable: the governed compiler reports its
+     * measures as the bare type "number", which no SQL type name matches. So
+     * the declared type is only a hint, and the real test is whether the column
+     * actually holds numbers.
+     */
+    const holdsNumbers = (index: number) =>
+      lookup.rows.some((row) => typeof row[index] === 'number');
+
     const measureIndex = names.findIndex(
       (_, index) =>
         index !== timeIndex &&
-        /int|real|float|numeric|decimal|double/.test(types[index] ?? ''),
+        (/int|real|float|numeric|number|decimal|double|money/.test(types[index] ?? '') ||
+          holdsNumbers(index)),
     );
     if (measureIndex === -1) continue;
 

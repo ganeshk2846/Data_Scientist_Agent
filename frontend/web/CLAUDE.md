@@ -205,6 +205,30 @@ stages that are never emitted — do not copy it.
 | 11 | `origin` is stamped per run, not per query | Show the SQL origin badge **once at run level**, not on each query card. |
 | 12 | There is no `/api/health` | Probe `GET /api/runs/__probe__`: a network failure means offline, a 404 means online. |
 | 13 | `GET /` serves the legacy `frontend/index.html` | Out of scope. This app runs on the Vite dev server. Serving the built bundle would need a backend change. |
+| 14 | **The driver path raises.** Every driver question returns `error`: `backend/src/orchestrator.py` fails with `_contribution_table() got multiple values for argument 'current'`. Reproduced directly against the orchestrator. | `DriverBars` is built to contract and verified against mock data, but is unreachable live. Do not put a driver question in the suggestion chips. Fixing it means changing `backend/`, which is out of scope. |
+| 15 | Lookup measures are declared with the bare column type `"number"`, which matches no SQL type name | `deriveSeries` treats the declared type as a hint only and falls back to sniffing whether the column actually holds numbers. Without this, live anomaly runs lost their series and dropped to the range-bar fallback. |
+
+### Verified suggestion chips
+
+The four hero chips in `src/components/ask/SuggestionChips.tsx` are **verified to
+return a full `answered` briefing** against the live backend. Re-verify before
+changing any of them:
+
+| Chip | Route | Shape |
+| --- | --- | --- |
+| How many orders were there in August 2018? | `lookup` | 1 query, 1 claim, 6 stages |
+| Why did revenue spike in November 2017? | `anomaly`, `driver` | anomaly `unusual`, 14-point series, 7 stages |
+| How did revenue in 2018 compare to 2017? | `lookup` | 2 queries, 3 claims, comparative narrative |
+| Was order count unusual in August 2018? | `anomaly`, `driver` | anomaly `within_normal_range`, 23-point series |
+
+Two rules learned from probing the live backend:
+
+- The **anomaly** route only answers when the question names both a governed
+  metric (`gmv`, `revenue`, `order_count`, `aov`) and an explicit window
+  **including the year**. "Why did revenue drop in August?" clarifies; "…in
+  August 2018?" answers.
+- The **driver** route additionally needs a dimension — and then still raises
+  (gap 14), so it cannot be demonstrated live at all.
 
 `frontend/index.html` is the legacy UI. **Do not modify or delete it, and do
 not reuse any of its colours** — it is a dark neon-blue design and violates

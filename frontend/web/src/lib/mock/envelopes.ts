@@ -478,6 +478,138 @@ LIMIT 50`,
   run_metrics: { latency_ms: 1642, tokens: 0, queries: 2, rows: 54, retries: 0 },
 };
 
+/* ---------- answered: a comparative lookup (two queries, three claims) ---------- */
+
+/**
+ * Mirrors a real captured run of "How did revenue in 2018 compare to 2017?" —
+ * including the derived C3 claim the backend attributes to "Q1+Q2", and the
+ * noisy token list it carries (the year numbers and three roundings of the
+ * percentage all become approved tokens).
+ */
+const COMPARATIVE: AnswerEnvelope = {
+  ...base('mock-comparative-revenue', 'answered'),
+  route: {
+    labels: ['lookup'],
+    confidence: 0.9,
+    reason:
+      'The catalog keywords and the governed registry identify a lookup with enough confidence to answer directly.',
+  },
+  conclusion:
+    'The governed revenue in 2018 was 8,594,831.98 compared to 7,092,491.65 in 2017, representing an increase of 1,502,340.33 (21.18%).',
+  scope: {
+    metric: 'revenue',
+    window: '2018-01-01/2019-01-01',
+    filters: [],
+    grain: 'year',
+    data_range: null,
+    governed: true,
+  },
+  evidence: [
+    {
+      module: 'lookup',
+      output: {
+        query_id: 'Q1',
+        columns: [{ name: 'revenue', type: 'number' }],
+        rows: [[8594831.98]],
+        row_count: 1,
+        truncated: false,
+      },
+      source_claims: ['C1'],
+    },
+    {
+      module: 'lookup',
+      output: {
+        query_id: 'Q2',
+        columns: [{ name: 'revenue', type: 'number' }],
+        rows: [[7092491.65]],
+        row_count: 1,
+        truncated: false,
+      },
+      source_claims: ['C2'],
+    },
+  ],
+  claims: [
+    {
+      claim_id: 'C1',
+      text: 'The governed query Q1 supplied the cited numeric values.',
+      numbers: [
+        { token: '8,594,831.98', value: 8594831.98, unit: null },
+        { token: '1', value: 1, unit: null },
+      ],
+      source: { type: 'query', id: 'Q1' },
+      grade: 1,
+      kind: 'fact',
+    },
+    {
+      claim_id: 'C2',
+      text: 'The governed query Q2 supplied the cited numeric values.',
+      numbers: [
+        { token: '7,092,491.65', value: 7092491.65, unit: null },
+        { token: '1', value: 1, unit: null },
+      ],
+      source: { type: 'query', id: 'Q2' },
+      grade: 1,
+      kind: 'fact',
+    },
+    {
+      claim_id: 'C3',
+      text: 'The governed query Q1+Q2 supplied the cited numeric values.',
+      numbers: [
+        { token: '1,502,340.33', value: 1502340.33, unit: null },
+        { token: '21.1821', value: 21.18212335153049, unit: null },
+        { token: '21.18', value: 21.18, unit: null },
+        { token: '21.2', value: 21.2, unit: null },
+        { token: '2,018', value: 2018, unit: null },
+        { token: '2,017', value: 2017, unit: null },
+        { token: '1', value: 1, unit: null },
+      ],
+      source: { type: 'query', id: 'Q1+Q2' },
+      grade: 1,
+      kind: 'comparison',
+    },
+  ],
+  method: [{ name: 'governed_sql', params: { queries: 2 } }],
+  queries: [
+    {
+      query_id: 'Q1',
+      sql: `SELECT
+  SUM(op.payment_value) AS revenue
+FROM "order_payments" AS op
+JOIN "orders" AS o ON op.order_id = o.order_id
+WHERE o.order_status NOT IN ('canceled', 'unavailable')
+  AND o.order_purchase_timestamp >= '2018-01-01'
+  AND o.order_purchase_timestamp < '2019-01-01'
+LIMIT 1`,
+      status: 'ok',
+      duration_ms: 702,
+      rows_scanned: null,
+      est_cost: null,
+      origin: 'compiler',
+      repair_of: null,
+      validation_mode: 'enterprise',
+    },
+    {
+      query_id: 'Q2',
+      sql: `SELECT
+  SUM(op.payment_value) AS revenue
+FROM "order_payments" AS op
+JOIN "orders" AS o ON op.order_id = o.order_id
+WHERE o.order_status NOT IN ('canceled', 'unavailable')
+  AND o.order_purchase_timestamp >= '2017-01-01'
+  AND o.order_purchase_timestamp < '2018-01-01'
+LIMIT 1`,
+      status: 'ok',
+      duration_ms: 575,
+      rows_scanned: null,
+      est_cost: null,
+      origin: 'compiler',
+      repair_of: null,
+      validation_mode: 'enterprise',
+    },
+  ],
+  run_metrics: { latency_ms: 1291, tokens: 0, queries: 2, rows: 2, retries: 0 },
+};
+
 /* ---------- the non-answered statuses ---------- */
 
 const CLARIFY: AnswerEnvelope = {
@@ -573,8 +705,15 @@ export const MOCK_SCENARIOS: readonly MockScenario[] = [
     stages: { sql: true, analysts: false },
   },
   {
+    id: 'comparative',
+    question: 'How did revenue in 2018 compare to 2017?',
+    status: 'answered',
+    envelope: COMPARATIVE,
+    stages: { sql: true, analysts: false },
+  },
+  {
     id: 'anomaly',
-    question: 'Was August 2018 unusual for orders?',
+    question: 'Was order count unusual in August 2018?',
     status: 'answered',
     envelope: ANOMALY,
     stages: { sql: true, analysts: true },
@@ -647,6 +786,9 @@ export function pickScenario(question: string): MockScenario {
     // same question with a quarter resolves to driver attribution.
     if (/\bq[1-4]\b|\b20\d\d\b/.test(text)) return byId('driver') ?? MOCK_SCENARIOS[0]!;
     return byId('clarify') ?? MOCK_SCENARIOS[0]!;
+  }
+  if (/compare|compared to|versus| vs |year over year/.test(text)) {
+    return byId('comparative') ?? MOCK_SCENARIOS[0]!;
   }
   if (/how many|count|total/.test(text)) return byId('lookup') ?? MOCK_SCENARIOS[0]!;
   return byId('clarify') ?? MOCK_SCENARIOS[0]!;

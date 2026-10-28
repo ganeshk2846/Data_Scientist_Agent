@@ -1,11 +1,22 @@
 import { cx } from '@/lib/cx';
 
-/** The four approved starting questions, in the brief's order. */
+/**
+ * Four questions verified to return a full `answered` briefing against the live
+ * backend. Two governed lookups (one comparative, which runs two queries and
+ * yields three claims) and two anomaly runs — one inside the normal range, one
+ * outside it — so the banded chart is exercised in both verdicts.
+ *
+ * Every chip must stay verified. The anomaly route only answers when the
+ * question names BOTH a governed metric (gmv, revenue, order_count, aov) and an
+ * explicit time window including the year; drop the year and the router
+ * clarifies instead. Driver questions are deliberately absent: the backend's
+ * driver path currently raises, so every one of them returns `error`.
+ */
 export const SUGGESTIONS: readonly string[] = [
   'How many orders were there in August 2018?',
-  'Why did revenue drop in August?',
-  "What's driving shipping delays?",
-  'Revenue by state last quarter',
+  'Why did revenue spike in November 2017?',
+  'How did revenue in 2018 compare to 2017?',
+  'Was order count unusual in August 2018?',
 ];
 
 interface SuggestionChipsProps {
