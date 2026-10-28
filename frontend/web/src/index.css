@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   DESIGN TOKENS — the single source of truth for colour.
+   STRICT RULE: no purple, violet, lavender, indigo, magenta or pink. Ever.
+   Anywhere. Not in colour, gradient, shadow, glow, focus ring, selection or
+   hover state. See CLAUDE.md before touching this block.
+   ========================================================================= */
+
+:root {
+  /* Light — warm ivory ground, deep ink text, hairline warm greys. */
+  --c-bg: 247 244 238;               /* #F7F4EE */
+  --c-bg-sunken: 241 237 229;        /* #F1EDE5 */
+  --c-surface: 253 251 247;          /* #FDFBF7 */
+  --c-surface-raised: 255 255 255;   /* #FFFFFF */
+
+  --c-ink: 28 27 25;                 /* #1C1B19 */
+  --c-ink-muted: 85 82 76;           /* #55524C */
+  --c-ink-faint: 138 133 124;        /* #8A857C */
+
+  --c-hairline: 226 220 208;         /* #E2DCD0 */
+  --c-hairline-strong: 207 199 184;  /* #CFC7B8 */
+
+  /* The one accent: muted champagne gold. */
+  --c-gold: 184 151 90;              /* #B8975A */
+  --c-gold-soft: 223 207 168;        /* #DFCFA8 */
+  --c-gold-wash: rgba(184, 151, 90, 0.10);
+  /* Text sitting on a filled gold surface. 6.2:1 against gold. */
+  --c-on-gold: 28 27 25;
+
+  /* Data semantics. */
+  --c-sage: 107 127 98;              /* #6B7F62  positive */
+  --c-sage-wash: rgba(107, 127, 98, 0.14);
+  --c-terracotta: 168 92 69;         /* #A85C45  negative */
+  --c-terracotta-wash: rgba(168, 92, 69, 0.14);
+
+  /* Neutral warm-grey series ramp. */
+  --c-series-1: 154 147 138;         /* #9A938A */
+  --c-series-2: 180 173 162;         /* #B4ADA2 */
+  --c-series-3: 125 118 110;         /* #7D766E */
+  --c-series-4: 200 193 181;         /* #C8C1B5 */
+
+  /* Warm-tinted shadow stack. */
+  --c-shadow-hairline: rgba(28, 27, 25, 0.07);
+  --c-shadow-a: rgba(28, 27, 25, 0.04);
+  --c-shadow-b: rgba(28, 27, 25, 0.07);
+  --c-shadow-c: rgba(28, 27, 25, 0.06);
+
+  --grain-opacity: 0.030;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Dark — onyx/charcoal ground, warm off-white text. */
+  --c-bg: 18 18 18;                  /* #121212 */
+  --c-bg-sunken: 13 13 12;           /* #0D0D0C */
+  --c-surface: 26 26 24;             /* #1A1A18 */
+  --c-surface-raised: 33 31 28;      /* #211F1C */
+
+  --c-ink: 240 235 225;              /* #F0EBE1 */
+  --c-ink-muted: 168 162 154;        /* #A8A29A */
+  --c-ink-faint: 117 112 106;        /* #75706A */
+
+  --c-hairline: 43 42 39;            /* #2B2A27 */
+  --c-hairline-strong: 59 57 53;     /* #3B3935 */
+
+  --c-gold: 201 168 105;             /* #C9A869 */
+  --c-gold-soft: 110 92 56;          /* #6E5C38 */
+  --c-gold-wash: rgba(201, 168, 105, 0.12);
+  --c-on-gold: 18 18 18;
+
+  --c-sage: 140 163 127;             /* #8CA37F */
+  --c-sage-wash: rgba(140, 163, 127, 0.16);
+  --c-terracotta: 196 122 94;        /* #C47A5E */
+  --c-terracotta-wash: rgba(196, 122, 94, 0.16);
+
+  /* Same ramp, inverted so the lightest reads first on a dark ground. */
+  --c-series-1: 200 193 181;         /* #C8C1B5 */
+  --c-series-2: 154 147 138;         /* #9A938A */
+  --c-series-3: 180 173 162;         /* #B4ADA2 */
+  --c-series-4: 125 118 110;         /* #7D766E */
+
+  --c-shadow-hairline: rgba(0, 0, 0, 0.55);
+  --c-shadow-a: rgba(0, 0, 0, 0.40);
+  --c-shadow-b: rgba(0, 0, 0, 0.45);
+  --c-shadow-c: rgba(0, 0, 0, 0.50);
+
+  --grain-opacity: 0.045;
+
+  color-scheme: dark;
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans text-body antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    min-height: 100vh;
+  }
+
+  /* Every number in this product is tabular. */
+  .tnum,
+  th,
+  td,
+  input,
+  code,
+  pre {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: var(--c-gold-wash);
+    color: rgb(var(--c-ink));
+  }
+
+  /* Gold focus ring, never a coloured glow. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-gold));
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  h1, h2, h3 {
+    @apply font-serif;
+    font-weight: 400;
+  }
+
+  /* Warm, restrained scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--c-hairline-strong)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--c-hairline-strong));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ============================================================================
+   PAPER GRAIN — a fixed, non-interactive tint over the whole page.
+   ========================================================================= */
+
+.paper-grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ============================================================================
+   MOTION — slow, smooth, never bouncy; and fully removable.
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
