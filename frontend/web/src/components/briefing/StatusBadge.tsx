@@ -7,7 +7,7 @@ import type { RunStatus } from '@/types/envelope';
  */
 const TONE: Record<RunStatus, string> = {
   answered: 'border-sage text-sage bg-sage-wash',
-  clarify: 'border-gold text-gold bg-[var(--c-gold-wash)]',
+  clarify: 'border-gold text-gold-ink bg-[var(--c-gold-wash)]',
   refused: 'border-hairline-strong text-ink-muted bg-sunken',
   blocked: 'border-terracotta text-terracotta bg-terracotta-wash',
   insufficient_evidence: 'border-hairline-strong text-ink-muted bg-sunken',
@@ -57,7 +57,7 @@ export function Tag({
 }) {
   const tones = {
     neutral: 'border-hairline-strong text-ink-muted',
-    gold: 'border-gold text-gold bg-[var(--c-gold-wash)]',
+    gold: 'border-gold text-gold-ink bg-[var(--c-gold-wash)]',
     sage: 'border-sage text-sage bg-sage-wash',
     terracotta: 'border-terracotta text-terracotta bg-terracotta-wash',
   } as const;

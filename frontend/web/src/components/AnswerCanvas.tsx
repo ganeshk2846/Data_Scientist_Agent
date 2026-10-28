@@ -20,6 +20,7 @@ interface AnswerCanvasProps {
   onAsk: (question: string) => void;
   onClarify: (answer: string, clarificationOf: string) => void;
   onRetry: () => void;
+  onPresent: () => void;
 }
 
 /**
@@ -33,6 +34,7 @@ export function AnswerCanvas({
   onAsk,
   onClarify,
   onRetry,
+  onPresent,
 }: AnswerCanvasProps) {
   // A client-side failure never reached a status, so it is handled first.
   if (state.failure) {
@@ -70,7 +72,15 @@ export function AnswerCanvas({
 
   switch (envelope.status) {
     case 'answered':
-      return <Briefing envelope={envelope} theme={theme} />;
+      return (
+        <Briefing
+          envelope={envelope}
+          theme={theme}
+          question={state.question}
+          onAsk={onAsk}
+          onPresent={onPresent}
+        />
+      );
 
     case 'clarify':
       return (
@@ -111,6 +121,7 @@ export function AnswerCanvas({
           {envelope.queries.length > 0 ? (
             <QueryList
               queries={envelope.queries}
+              claims={envelope.claims}
               origin={envelope.queries[0]?.origin ?? null}
             />
           ) : null}

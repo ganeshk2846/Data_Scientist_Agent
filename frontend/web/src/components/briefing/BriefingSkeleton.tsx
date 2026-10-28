@@ -25,8 +25,8 @@ export function BriefingSkeleton() {
         </div>
         <Hairline className="my-7" />
         <div className="flex flex-wrap gap-x-10 gap-y-4">
-          {['6rem', '8rem', '5rem'].map((width) => (
-            <div key={width} className="space-y-2">
+          {['6rem', '8rem', '5rem'].map((width, index) => (
+            <div key={index} className="space-y-2">
               <SkeletonLine width="3.5rem" />
               <SkeletonLine width={width} />
             </div>
@@ -59,8 +59,9 @@ export function BriefingSkeleton() {
 
       <footer className="border-t border-hairline pt-5">
         <div className="flex flex-wrap gap-x-10 gap-y-3">
-          {['5rem', '4.5rem', '4rem', '5rem'].map((width) => (
-            <SkeletonLine key={width} width={width} />
+          {/* Keyed by position: these widths intentionally repeat. */}
+          {['5rem', '4.5rem', '4rem', '5rem'].map((width, index) => (
+            <SkeletonLine key={index} width={width} />
           ))}
         </div>
         <div className="mt-4">

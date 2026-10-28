@@ -37,7 +37,7 @@ export function MockBar({
                   'rounded-full border px-3.5 py-1.5 text-[0.6875rem]',
                   'transition-colors duration-micro ease-editorial',
                   active
-                    ? 'border-gold bg-[var(--c-gold-wash)] text-gold'
+                    ? 'border-gold bg-[var(--c-gold-wash)] text-gold-ink'
                     : 'border-hairline-strong text-ink-muted hover:border-gold hover:text-ink',
                 )}
               >

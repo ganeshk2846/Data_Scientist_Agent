@@ -56,7 +56,7 @@ export function RouteStrip({
 /** Scope as a quiet definition row. Only fields the backend actually set. */
 export function ScopeLine({ scope }: { scope: EnvelopeScope }) {
   const items: readonly (readonly [string, string])[] = [
-    ...(scope.metric ? ([['Metric', scope.metric]] as const) : []),
+    ...(scope.metric ? ([['Metric', humanise(scope.metric)]] as const) : []),
     ...(scope.window
       ? ([['Window', formatWindow(scope.window) ?? scope.window]] as const)
       : []),
@@ -64,7 +64,9 @@ export function ScopeLine({ scope }: { scope: EnvelopeScope }) {
     ...(scope.filters.length > 0
       ? ([['Filters', scope.filters.join(', ')]] as const)
       : []),
-    ...(scope.data_range ? ([['Data range', scope.data_range]] as const) : []),
+    ...(scope.data_range
+      ? ([['Data range', formatWindow(scope.data_range) ?? scope.data_range]] as const)
+      : []),
   ];
 
   if (items.length === 0 && !scope.governed) return null;
@@ -165,7 +167,7 @@ export function NextActions({ actions }: { actions: readonly ActionOption[] }) {
             <Collapsible
               summary={
                 <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
-                  <span className="font-mono text-[0.6875rem] tabular-nums text-gold">
+                  <span className="font-mono text-[0.6875rem] tabular-nums text-gold-ink">
                     {String(action.rank).padStart(2, '0')}
                   </span>
                   <span className="min-w-0 flex-1 font-serif text-[1.0625rem] text-ink">
