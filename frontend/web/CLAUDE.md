@@ -63,6 +63,12 @@ Accent and data (one accent only — muted champagne gold):
 
 Charts use gold, sage, terracotta and the warm-grey series ramp. Nothing else.
 
+The one sanctioned place raw colour values appear outside `src/index.css` is
+`src/hooks/useChartColors.ts`, which reads the tokens off the document at
+runtime for Recharts and keeps a literal copy of the **light** palette as a
+fallback for when `getComputedStyle` returns nothing. Keep those in sync with
+the tokens; add nothing new there.
+
 ---
 
 ## 1. Design direction
@@ -218,6 +224,18 @@ reply box that re-asks with `clarification_of`), `refused` (missing +
 simulated event stream, so the design can be reviewed with no backend running.
 Mock data lives in `src/lib/mock/` and must stay contract-accurate — it is the
 only place `next_actions` and `closest_answerable` are ever populated.
+
+`envelopes.ts` holds eight scenarios covering all six statuses (three distinct
+`answered` shapes: lookup, anomaly, driver). `transport.ts` satisfies the same
+`RunTransport` interface as the live transport, so `useRun` is identical in both
+modes, and its simulated stream respects the conditional stages — a clarify run
+emits no step 7, 9 or 11, because the real backend would not either.
+`pickScenario` routes the four hero suggestion chips to the same statuses the
+live backend actually returns for them (verified: lookup → answered, August
+revenue → clarify, shipping delays → clarify, revenue by state → error).
+
+Under `?mock=1` a `MockBar` lists every scenario as a chip, so each designed
+state is one click away.
 
 ## 8. Code conventions
 

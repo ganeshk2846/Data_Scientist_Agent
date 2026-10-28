@@ -1,0 +1,159 @@
+import { Briefing } from '@/components/briefing/Briefing';
+import { BriefingSkeleton } from '@/components/briefing/BriefingSkeleton';
+import { QueryList } from '@/components/queries/QueryList';
+import {
+  BlockedState,
+  ClarifyState,
+  ErrorState,
+  InsufficientEvidenceState,
+  OfflineState,
+  RefusedState,
+} from '@/components/states/RunStates';
+import { CaveatCallout, RunMetricsFooter } from '@/components/briefing/BriefingParts';
+import type { ResolvedTheme } from '@/lib/theme';
+import type { RunState } from '@/lib/runState';
+import { isRunInFlight } from '@/lib/runState';
+
+interface AnswerCanvasProps {
+  state: RunState;
+  theme: ResolvedTheme;
+  onAsk: (question: string) => void;
+  onClarify: (answer: string, clarificationOf: string) => void;
+  onRetry: () => void;
+}
+
+/**
+ * Chooses what the main canvas shows for a run: the full briefing for an
+ * answered envelope, a designed state for every other status, and the skeleton
+ * while the run is still in flight.
+ */
+export function AnswerCanvas({
+  state,
+  theme,
+  onAsk,
+  onClarify,
+  onRetry,
+}: AnswerCanvasProps) {
+  // A client-side failure never reached a status, so it is handled first.
+  if (state.failure) {
+    return state.failure.kind === 'offline' ? (
+      <OfflineState detail={state.failure.detail} onRetry={onRetry} />
+    ) : (
+      <ErrorState
+        detail={state.failure.detail}
+        streamError={state.streamError}
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  if (isRunInFlight(state.phase)) {
+    // The clarify event arrives before the terminal one, so it can be shown
+    // while the envelope is still being collected.
+    if (state.clarify && state.runId) {
+      return (
+        <ClarifyState
+          clarification={{
+            what_understood: state.clarify.what_understood,
+            what_needs_clarification: state.clarify.what_needs_clarification,
+          }}
+          runId={state.runId}
+          onClarify={onClarify}
+        />
+      );
+    }
+    return <BriefingSkeleton />;
+  }
+
+  const envelope = state.envelope;
+  if (!envelope) return null;
+
+  switch (envelope.status) {
+    case 'answered':
+      return <Briefing envelope={envelope} theme={theme} />;
+
+    case 'clarify':
+      return (
+        <div className="space-y-10">
+          {envelope.clarification ? (
+            <ClarifyState
+              clarification={envelope.clarification}
+              runId={envelope.run_id}
+              onClarify={onClarify}
+            />
+          ) : null}
+          <Tail envelope={envelope} />
+        </div>
+      );
+
+    case 'refused':
+      return (
+        <div className="space-y-10">
+          {envelope.refusal ? (
+            <RefusedState refusal={envelope.refusal} onAsk={onAsk} />
+          ) : null}
+          <Tail envelope={envelope} />
+        </div>
+      );
+
+    case 'blocked':
+      return (
+        <div className="space-y-10">
+          {envelope.block ? <BlockedState block={envelope.block} /> : null}
+          <Tail envelope={envelope} />
+        </div>
+      );
+
+    case 'insufficient_evidence':
+      return (
+        <div className="space-y-10">
+          <InsufficientEvidenceState envelope={envelope} />
+          {envelope.queries.length > 0 ? (
+            <QueryList
+              queries={envelope.queries}
+              origin={envelope.queries[0]?.origin ?? null}
+            />
+          ) : null}
+          <Tail envelope={envelope} skipCaveats />
+        </div>
+      );
+
+    case 'error':
+      return (
+        <div className="space-y-10">
+          <ErrorState
+            detail={envelope.caveats[0] ?? envelope.route.reason}
+            streamError={state.streamError}
+            onRetry={onRetry}
+          />
+          <Tail envelope={envelope} skipCaveats />
+        </div>
+      );
+  }
+}
+
+/** Shared footer matter: caveats, then the metrics strip. */
+function Tail({
+  envelope,
+  skipCaveats = false,
+}: {
+  envelope: NonNullable<RunState['envelope']>;
+  skipCaveats?: boolean;
+}) {
+  return (
+    <>
+      {!skipCaveats ? (
+        <CaveatCallout
+          caveats={envelope.caveats}
+          causalBoundaryNote={envelope.causal_boundary_note}
+        />
+      ) : null}
+      <RunMetricsFooter
+        metrics={envelope.run_metrics}
+        method={envelope.method}
+        provenance={envelope.provenance}
+        contractVersion={envelope.contract_version}
+      />
+    </>
+  );
+}
