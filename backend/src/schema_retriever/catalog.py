@@ -10,15 +10,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
-
-from sqlalchemy import inspect as sqlalchemy_inspect
-from sqlalchemy.engine import Connection
-from sqlalchemy.exc import SQLAlchemyError
 
 from contracts.models import ContractModel
 from gateway.connection import ConnectionManager
+from sqlalchemy import inspect as sqlalchemy_inspect
+from sqlalchemy.engine import Connection
+from sqlalchemy.exc import SQLAlchemyError
 
 _SENSITIVE_PARTS = (
     "password",
@@ -129,11 +128,7 @@ class SchemaCatalog(ContractModel):
             return None
         lowered = column.lower()
         return next(
-            (
-                entry
-                for entry in table_entry.columns
-                if entry.name.lower() == lowered
-            ),
+            (entry for entry in table_entry.columns if entry.name.lower() == lowered),
             None,
         )
 
@@ -255,6 +250,18 @@ class JoinEdge:
         raise ValueError(f"{table!r} is not part of edge {self.edge_id}")
 
 
+_GOVERNED_APPROVED_EDGES: frozenset[str] = frozenset(
+    {
+        "order_items.order_id=orders.order_id",
+        "order_payments.order_id=orders.order_id",
+        "customers.customer_id=orders.customer_id",
+        "order_items.product_id=products.product_id",
+        "order_reviews.order_id=orders.order_id",
+        "order_items.seller_id=sellers.seller_id",
+    }
+)
+
+
 @dataclass(frozen=True, slots=True)
 class JoinGraph:
     """Deterministic join paths over shared ID columns in the catalog."""
@@ -262,15 +269,20 @@ class JoinGraph:
     edges: tuple[JoinEdge, ...] = ()
 
     @classmethod
-    def from_catalog(cls, catalog: SchemaCatalog) -> JoinGraph:
+    def from_catalog(
+        cls,
+        catalog: SchemaCatalog,
+        *,
+        approved_edges: Iterable[str] | None = None,
+    ) -> JoinGraph:
         tables = catalog.tables
         edges: list[JoinEdge] = []
+        approved_set = _GOVERNED_APPROVED_EDGES | frozenset(approved_edges or ())
         table_by_name = {table.name.lower(): table for table in tables}
         for table in tables:
             for foreign_key in table.foreign_keys:
-                if (
-                    not foreign_key.columns
-                    or len(foreign_key.columns) != len(foreign_key.referred_columns)
+                if not foreign_key.columns or len(foreign_key.columns) != len(
+                    foreign_key.referred_columns
                 ):
                     continue
                 referred = table_by_name.get(foreign_key.referred_table.lower())
@@ -308,21 +320,29 @@ class JoinGraph:
                 ):
                     continue
                 column = candidates[0]
+                temp_edge = JoinEdge(
+                    left_table=left.name,
+                    left_column=left_columns[column],
+                    right_table=right.name,
+                    right_column=right_columns[column],
+                    status="proposed",
+                )
+                edge_status = (
+                    "approved" if temp_edge.edge_id in approved_set else "proposed"
+                )
                 edges.append(
                     JoinEdge(
                         left_table=left.name,
                         left_column=left_columns[column],
                         right_table=right.name,
                         right_column=right_columns[column],
-                        status="proposed",
+                        status=edge_status,
                     )
                 )
         edges.sort(key=lambda edge: edge.edge_id)
         return cls(edges=tuple(edges))
 
-    def find_path(
-        self, start: str, end: str
-    ) -> tuple[JoinEdge, ...] | None:
+    def find_path(self, start: str, end: str) -> tuple[JoinEdge, ...] | None:
         start_key = start.lower()
         end_key = end.lower()
         if start_key == end_key:
@@ -330,9 +350,7 @@ class JoinGraph:
         if start_key not in self._adjacency() or end_key not in self._adjacency():
             return None
 
-        queue: deque[tuple[str, tuple[JoinEdge, ...]]] = deque(
-            [(start_key, ())]
-        )
+        queue: deque[tuple[str, tuple[JoinEdge, ...]]] = deque([(start_key, ())])
         visited = {start_key}
         adjacency = self._adjacency()
 
@@ -374,9 +392,7 @@ class JoinGraph:
             neighbors.setdefault(right, []).append((left, edge))
 
         return {
-            table: tuple(
-                sorted(items, key=lambda item: (item[0], item[1].edge_id))
-            )
+            table: tuple(sorted(items, key=lambda item: (item[0], item[1].edge_id)))
             for table, items in neighbors.items()
         }
 

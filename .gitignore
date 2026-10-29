@@ -1,17 +1,14 @@
-.cadra/
-.opencode/
-dataagent/
-
-# Database files & SQLite WAL / SHM sidecars
-*.sqlite*
-*.db*
-data/
-
-# Python cache, virtual environments & test artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+.cadra/
+.opencode/node_modules/
+.opencode/package-lock.json
+.opencode/commands/
 .pytest_cache/
 .coverage
 htmlcov/
@@ -27,3 +24,5 @@ backend/traces/
 TextToSQL/data/raw/
 TextToSQL/data/metric_registry.json
 TextToSQL/data/*.lock
+bird_data/
+eval/
