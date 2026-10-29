@@ -178,41 +178,56 @@ Data_Scientist_Agent/
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e backend/
+   pip install -e "backend[dev]"
+   pip install -r TextToSQL/requirements-dev.txt
    ```
 
+TextToSQL's CPU embeddings and spreadsheet intake dependencies are optional;
+install `TextToSQL/requirements-embeddings.txt` or
+`TextToSQL/requirements-uci-intake.txt` only when using those features.
+
+The Olist SQLite warehouse is not included in this repository. Obtain or build
+it through a source whose terms permit your intended use, then set
+`DS_AGENT_DATABASE` to its local path before running the database-backed API,
+CLI, or integration tests. See [deployment readiness](docs/DEPLOYMENT_READINESS.md)
+for the missing-fixture and authentication limitations.
+
 ### Running the Test Suite (TDD)
-Execute the comprehensive test suite verifying contracts, read-only gateway, Ingress Guard, and AST validation:
+Run backend tests from `backend/`. Tests that use Olist's fixed data and expected
+aggregates require the separately obtained database described above; unit tests
+using temporary SQLite databases do not.
 ```bash
 cd backend
 python -m pytest
 ```
 
-```text
-platform win32 -- Python 3.14.7, pytest-9.1.1
-collected 229 items
+### Running the API
+Configure a distinct random bearer token for each user through the deployment
+secret manager. `DS_AGENT_API_TOKENS` is a JSON object mapping stable user IDs to
+tokens of at least 32 characters. Do not commit token values or expose a shared
+server token in public client code. For local development, set the variable in
+the shell before starting the API; the example below is a shape only:
 
-........................................................................ [ 33%]
-........................................................................ [ 67%]
-.....................................................................    [100%]
-
-229 passed in 9.95s
+```powershell
+$env:DS_AGENT_API_TOKENS = '{"alice":"replace-with-a-random-secret-of-at-least-32-characters"}'
+$env:DS_AGENT_TOKEN = 'the-same-token-configured-for-this-user'
 ```
 
-### Running the API
 Start the FastAPI server from `backend/` (no Ollama required for governed questions):
 ```bash
 uvicorn app:app --app-dir src --reload
 ```
 
-Start a run, stream its progress, then fetch the final envelope:
+Send the token in the `Authorization` header. The static workbench asks for a
+token at runtime and keeps it only in page memory:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/ask \
-  -H "Content-Type: application/json" \
+curl.exe -X POST http://127.0.0.1:8000/api/ask `
+  -H "Authorization: Bearer $env:DS_AGENT_TOKEN" `
+  -H "Content-Type: application/json" `
   -d '{"question":"How many orders were there in August 2018?","session_id":"demo"}'
 
-curl -N http://127.0.0.1:8000/api/runs/<run_id>/events
-curl http://127.0.0.1:8000/api/runs/<run_id>
+curl.exe -N -H "Authorization: Bearer $env:DS_AGENT_TOKEN" http://127.0.0.1:8000/api/runs/<run_id>/events
+curl.exe -H "Authorization: Bearer $env:DS_AGENT_TOKEN" http://127.0.0.1:8000/api/runs/<run_id>
 ```
 
 SSE events use monotonically increasing `seq` values and support reconnect with

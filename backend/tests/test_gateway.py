@@ -1,21 +1,19 @@
 """Integration tests for the read-only local gateway (SAFE-2, SQL-9).
 
-The fixture database is the workspace's ``brazil_ecommerce.sqlite`` (one level
-above ``backend/``). ``orders`` holds 99,441 rows, so ``count(*)`` must return
-that single scalar in one result row.
+The fixture database is configured by ``DS_AGENT_DATABASE`` or defaults to the
+workspace's ``brazil_ecommerce.sqlite``. ``orders`` holds 99,441 rows, so
+``count(*)`` must return that single scalar in one result row.
 """
 
 import time
-from pathlib import Path
 
 import pytest
 
 from contracts.models import ExecutionResult, GatewayConfig
 from gateway.connection import ConnectionManager, UnsupportedDialectError
 from gateway.executor import QueryExecutor
+from dataset_fixtures import BACKEND_DIR, DB_PATH, requires_olist
 
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DB_PATH = (BACKEND_DIR / ".." / "brazil_ecommerce.sqlite").resolve()
 ORDERS_TOTAL = 99_441
 
 SLOW_QUERY = (
@@ -36,6 +34,8 @@ def gateway_config(*, timeout_ms: int = 5_000, connection_url: str | None = None
 
 @pytest.fixture
 def manager():
+    if not DB_PATH.is_file():
+        pytest.skip("Olist SQLite fixture is not present; set DS_AGENT_DATABASE")
     manager = ConnectionManager(gateway_config())
     try:
         yield manager
@@ -52,6 +52,7 @@ def test_connection_is_opened_read_only(manager):
     assert "mode=ro" in str(manager.engine.url)
 
 
+@requires_olist
 def test_relative_path_targets_the_workspace_database(monkeypatch):
     monkeypatch.chdir(BACKEND_DIR)
     manager = ConnectionManager(
@@ -115,6 +116,7 @@ def test_failed_writes_leave_the_database_intact(executor):
     assert orders.rows == ((ORDERS_TOTAL,),)
 
 
+@requires_olist
 def test_timeout_terminates_the_query_cleanly():
     manager = ConnectionManager(gateway_config(timeout_ms=50))
     executor = QueryExecutor(manager, max_rows=100)

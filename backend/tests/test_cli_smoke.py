@@ -1,6 +1,7 @@
 """End-to-end smoke test for the Day-1 terminal console."""
 
 import json
+import os
 from io import StringIO
 from pathlib import Path
 
@@ -10,11 +11,15 @@ from cli import CLI
 from contracts.models import GatewayConfig
 from gateway.connection import ConnectionManager
 from trace_logger import TraceLogger
+from dataset_fixtures import requires_olist
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-DB_PATH = (BACKEND_DIR / ".." / "brazil_ecommerce.sqlite").resolve()
+DB_PATH = Path(
+    os.environ.get("DS_AGENT_DATABASE", BACKEND_DIR / ".." / "brazil_ecommerce.sqlite")
+).expanduser().resolve()
 
 
+@requires_olist
 def test_cli_runs_end_to_end_without_crashing(monkeypatch, tmp_path):
     responses = iter(
         [
@@ -100,6 +105,7 @@ class NoCallReasoningClient:
         raise AssertionError("governed questions must not call the model")
 
 
+@requires_olist
 def test_cli_uses_the_governed_metric_fast_path(monkeypatch, tmp_path):
     responses = iter(["ask What was revenue?", "exit"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(responses))
@@ -149,6 +155,7 @@ def test_cli_uses_the_governed_metric_fast_path(monkeypatch, tmp_path):
     assert payload["reconciliation"]["caveats"] == []
 
 
+@requires_olist
 def test_cli_runs_an_anomaly_diagnostic_with_analyst_and_trace(monkeypatch, tmp_path):
     responses = iter(
         ["ask Why did orders drop in August 2018?", "exit"]
@@ -210,6 +217,7 @@ def test_cli_runs_an_anomaly_diagnostic_with_analyst_and_trace(monkeypatch, tmp_
     assert payload["execution"]["status"] == "ok"
 
 
+@requires_olist
 def test_cli_clarifies_vague_questions_and_refuses_out_of_scope_metrics(
     monkeypatch, tmp_path
 ):
@@ -269,6 +277,7 @@ def test_cli_clarifies_vague_questions_and_refuses_out_of_scope_metrics(
     )
 
 
+@requires_olist
 def test_cli_answers_a_natural_language_question(monkeypatch, tmp_path):
     responses = iter(
         [

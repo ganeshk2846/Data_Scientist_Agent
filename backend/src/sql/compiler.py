@@ -153,8 +153,9 @@ class SQLCompiler:
             columns.setdefault(table.lower(), set()).add(column)
 
         for edge in joins:
-            remember(edge.left_table, edge.left_column)
-            remember(edge.right_table, edge.right_column)
+            for left_column, right_column in edge.column_pairs:
+                remember(edge.left_table, left_column)
+                remember(edge.right_table, right_column)
 
         projections: list[str] = []
         intended: list[IntendedColumn] = []
@@ -352,6 +353,10 @@ class SQLCompiler:
                             f"dimension {dimension.name}"
                         )
             for edge in path:
+                if edge.status != "approved":
+                    raise MetricCompilationError(
+                        f"join edge {edge.edge_id} is not approved"
+                    )
                 if edge.edge_id not in seen:
                     seen.add(edge.edge_id)
                     ordered.append(edge)
@@ -487,10 +492,14 @@ class SQLCompiler:
                 if left in joined and right not in joined:
                     new_table = edge.right_table
                     new_alias = self._table_alias(new_table)
+                    join_predicates = " AND ".join(
+                        f"{self._table_alias(edge.left_table)}.{left_column} "
+                        f"= {new_alias}.{right_column}"
+                        for left_column, right_column in edge.column_pairs
+                    )
                     lines.append(
                         f'JOIN "{new_table}" AS {new_alias} '
-                        f"ON {self._table_alias(edge.left_table)}.{edge.left_column} "
-                        f"= {new_alias}.{edge.right_column}"
+                        f"ON {join_predicates}"
                     )
                     joined.add(right)
                     remaining.remove(edge)
@@ -498,10 +507,14 @@ class SQLCompiler:
                 elif right in joined and left not in joined:
                     new_table = edge.left_table
                     new_alias = self._table_alias(new_table)
+                    join_predicates = " AND ".join(
+                        f"{new_alias}.{left_column} "
+                        f"= {self._table_alias(edge.right_table)}.{right_column}"
+                        for left_column, right_column in edge.column_pairs
+                    )
                     lines.append(
                         f'JOIN "{new_table}" AS {new_alias} '
-                        f"ON {new_alias}.{edge.left_column} "
-                        f"= {self._table_alias(edge.right_table)}.{edge.right_column}"
+                        f"ON {join_predicates}"
                     )
                     joined.add(left)
                     remaining.remove(edge)

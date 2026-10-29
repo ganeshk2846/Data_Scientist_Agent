@@ -80,9 +80,19 @@ class CatalogColumn(ContractModel):
     values: tuple[str, ...] = ()
 
 
+class CatalogForeignKey(ContractModel):
+    """A database-declared relationship; inferred name matches are not proof."""
+
+    columns: tuple[str, ...]
+    referred_table: str
+    referred_columns: tuple[str, ...]
+
+
 class CatalogTable(ContractModel):
     name: str
     columns: tuple[CatalogColumn, ...] = ()
+    foreign_keys: tuple[CatalogForeignKey, ...] = ()
+    unique_keys: tuple[tuple[str, ...], ...] = ()
 
 
 class SchemaCatalog(ContractModel):
@@ -162,7 +172,37 @@ class SchemaCatalog(ContractModel):
                             values=values,
                         )
                     )
-                tables.append(CatalogTable(name=table_name, columns=tuple(columns)))
+                foreign_keys = tuple(
+                    CatalogForeignKey(
+                        columns=tuple(item.get("constrained_columns") or ()),
+                        referred_table=str(item["referred_table"]),
+                        referred_columns=tuple(item.get("referred_columns") or ()),
+                    )
+                    for item in inspector.get_foreign_keys(table_name)
+                    if item.get("constrained_columns")
+                    and item.get("referred_table")
+                    and item.get("referred_columns")
+                )
+                primary = inspector.get_pk_constraint(table_name)
+                unique_keys = {
+                    tuple(item.get("constrained_columns") or ())
+                    for item in (primary,)
+                    if item.get("constrained_columns")
+                }
+                unique_keys.update(
+                    tuple(item.get("column_names") or ())
+                    for item in inspector.get_unique_constraints(table_name)
+                    if item.get("column_names")
+                )
+                unique_keys.discard(())
+                tables.append(
+                    CatalogTable(
+                        name=table_name,
+                        columns=tuple(columns),
+                        foreign_keys=foreign_keys,
+                        unique_keys=tuple(sorted(unique_keys)),
+                    )
+                )
 
         entries = tuple(tables)
         return cls(version=_catalog_version(entries), tables=entries)
@@ -170,20 +210,33 @@ class SchemaCatalog(ContractModel):
 
 @dataclass(frozen=True, slots=True)
 class JoinEdge:
-    """An undirected foreign-key-like edge inferred from the catalog."""
+    """A declared or inferred relationship between two catalog tables."""
 
     left_table: str
     left_column: str
     right_table: str
     right_column: str
+    column_pairs: tuple[tuple[str, str], ...] = ()
+    status: str = "proposed"
+
+    def __post_init__(self) -> None:
+        if not self.column_pairs:
+            object.__setattr__(
+                self, "column_pairs", ((self.left_column, self.right_column),)
+            )
+        if self.status not in {"approved", "proposed"}:
+            raise ValueError("join status must be 'approved' or 'proposed'")
 
     @property
     def edge_id(self) -> str:
-        left = (self.left_table.lower(), self.left_column.lower())
-        right = (self.right_table.lower(), self.right_column.lower())
-        if left <= right:
-            return f"{left[0]}.{left[1]}={right[0]}.{right[1]}"
-        return f"{right[0]}.{right[1]}={left[0]}.{left[1]}"
+        parts = []
+        for left_column, right_column in self.column_pairs:
+            left = (self.left_table.lower(), left_column.lower())
+            right = (self.right_table.lower(), right_column.lower())
+            if right < left:
+                left, right = right, left
+            parts.append(f"{left[0]}.{left[1]}={right[0]}.{right[1]}")
+        return "&".join(sorted(parts))
 
     def other_table(self, table: str) -> str:
         lowered = table.lower()
@@ -212,6 +265,29 @@ class JoinGraph:
     def from_catalog(cls, catalog: SchemaCatalog) -> JoinGraph:
         tables = catalog.tables
         edges: list[JoinEdge] = []
+        table_by_name = {table.name.lower(): table for table in tables}
+        for table in tables:
+            for foreign_key in table.foreign_keys:
+                if (
+                    not foreign_key.columns
+                    or len(foreign_key.columns) != len(foreign_key.referred_columns)
+                ):
+                    continue
+                referred = table_by_name.get(foreign_key.referred_table.lower())
+                if referred is None:
+                    continue
+                edges.append(
+                    JoinEdge(
+                        left_table=table.name,
+                        left_column=foreign_key.columns[0],
+                        right_table=referred.name,
+                        right_column=foreign_key.referred_columns[0],
+                        column_pairs=tuple(
+                            zip(foreign_key.columns, foreign_key.referred_columns)
+                        ),
+                        status="approved",
+                    )
+                )
         for index, left in enumerate(tables):
             left_columns = {column.name.lower(): column.name for column in left.columns}
             for right in tables[index + 1 :]:
@@ -225,6 +301,12 @@ class JoinGraph:
                 )
                 if not candidates:
                     continue
+                if any(
+                    {edge.left_table.lower(), edge.right_table.lower()}
+                    == {left.name.lower(), right.name.lower()}
+                    for edge in edges
+                ):
+                    continue
                 column = candidates[0]
                 edges.append(
                     JoinEdge(
@@ -232,6 +314,7 @@ class JoinGraph:
                         left_column=left_columns[column],
                         right_table=right.name,
                         right_column=right_columns[column],
+                        status="proposed",
                     )
                 )
         edges.sort(key=lambda edge: edge.edge_id)
@@ -271,6 +354,8 @@ class JoinGraph:
     def edge_between(self, left: str, right: str) -> JoinEdge | None:
         lowered = (left.lower(), right.lower())
         for edge in self.edges:
+            if edge.status != "approved":
+                continue
             if {
                 edge.left_table.lower(),
                 edge.right_table.lower(),
@@ -281,6 +366,8 @@ class JoinGraph:
     def _adjacency(self) -> dict[str, tuple[tuple[str, JoinEdge], ...]]:
         neighbors: dict[str, list[tuple[str, JoinEdge]]] = {}
         for edge in self.edges:
+            if edge.status != "approved":
+                continue
             left = edge.left_table.lower()
             right = edge.right_table.lower()
             neighbors.setdefault(left, []).append((right, edge))

@@ -137,6 +137,32 @@ def test_rejects_a_table_outside_the_approved_schema():
     assert check(result, "allowlist").status == "fail"
 
 
+@pytest.mark.parametrize(
+    ("allowlist", "sql"),
+    [
+        (("orders",), "SELECT id FROM foreign_catalog.main.orders LIMIT 10"),
+        (("main.orders",), "SELECT id FROM foreign_catalog.orders LIMIT 10"),
+    ],
+)
+def test_rejects_unapproved_catalog_qualifiers(allowlist, sql):
+    result = SQLValidator(
+        allowlist, dialect=DIALECT, mode="benchmark"
+    ).validate(sql)
+
+    assert result.approved is False
+    assert check(result, "allowlist").status == "fail"
+
+
+def test_accepts_an_exact_catalog_qualified_allowlist_entry():
+    result = SQLValidator(
+        ("foreign_catalog.main.orders",),
+        dialect=DIALECT,
+        mode="benchmark",
+    ).validate("SELECT id FROM foreign_catalog.main.orders LIMIT 10")
+
+    assert result.approved is True
+
+
 def test_rejects_system_catalog_access():
     result = enterprise().validate(
         "SELECT table_name FROM information_schema.tables LIMIT 10"

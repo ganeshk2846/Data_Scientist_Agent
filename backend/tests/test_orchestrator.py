@@ -16,7 +16,12 @@ from contracts.models import (
 )
 from orchestrator import Orchestrator
 from router import Router
-from schema_retriever.catalog import CatalogColumn, CatalogTable, SchemaCatalog
+from schema_retriever.catalog import (
+    CatalogColumn,
+    CatalogForeignKey,
+    CatalogTable,
+    SchemaCatalog,
+)
 from sql.compiler import SQLCompiler
 from sql.reconciler import Reconciler
 
@@ -74,6 +79,13 @@ def _catalog() -> SchemaCatalog:
         tables=(
             CatalogTable(
                 name="orders",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("customer_id",),
+                        referred_table="customers",
+                        referred_columns=("customer_id",),
+                    ),
+                ),
                 columns=(
                     CatalogColumn(name="order_id", data_type="TEXT"),
                     CatalogColumn(name="customer_id", data_type="TEXT"),
@@ -93,6 +105,13 @@ def _catalog() -> SchemaCatalog:
             ),
             CatalogTable(
                 name="order_payments",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("order_id",),
+                        referred_table="orders",
+                        referred_columns=("order_id",),
+                    ),
+                ),
                 columns=(
                     CatalogColumn(name="order_id", data_type="TEXT"),
                     CatalogColumn(name="payment_value", data_type="REAL"),
@@ -133,7 +152,7 @@ def test_diagnostic_run_executes_one_series_query_and_anomaly():
         "Why did orders drop in August 2018?"
     )
 
-    assert outcome.status == "ok"
+    assert outcome.status == "ok", outcome.reason
     assert outcome.route_labels[0] == "anomaly"
     assert outcome.intent_label == "Diagnostic"
     assert len(outcome.queries) == 1
@@ -174,7 +193,7 @@ def test_governed_lookup_is_routed_through_compiler_and_executed():
     executor = FakeExecutor(scalar=500)
     outcome = _orchestrator(executor).run("How many orders in August 2018?")
 
-    assert outcome.status == "ok"
+    assert outcome.status == "ok", outcome
     assert outcome.route_labels == ("lookup",)
     assert outcome.candidate is not None
     assert outcome.candidate.origin == "compiler"
@@ -191,7 +210,7 @@ def test_comparative_lookup_executes_two_queries_and_completes():
     executor = FakeExecutor(scalar=500)
     outcome = _orchestrator(executor).run("difference in total sales in 2018 compared to 2017")
 
-    assert outcome.status == "ok"
+    assert outcome.status == "ok", outcome.reason
     assert outcome.route_labels == ("lookup",)
     assert outcome.intent_label == "Comparative"
     assert len(outcome.queries) == 2

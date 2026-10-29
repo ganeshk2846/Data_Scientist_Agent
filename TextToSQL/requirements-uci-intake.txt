@@ -1,0 +1,2 @@
+# Optional XLSX reader for the privacy-gated UCI intake command.
+openpyxl==3.1.5

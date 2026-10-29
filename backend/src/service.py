@@ -47,11 +47,12 @@ from router import Router
 from schema_retriever.catalog import SchemaCatalog
 from sql.compiler import SQLCompiler
 from sql.reconciler import Reconciler
-from trace_logger import TraceLogger
+from trace_logger import TraceLogger, mask_sensitive
 
-_DATABASE_PATH = (
-    Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
-).resolve()
+_DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
+_DATABASE_PATH = Path(
+    os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
+).expanduser().resolve()
 _TERMINAL_EVENTS = frozenset({"answer", "error"})
 _GOVERNED_ROUTES = frozenset({"lookup", "anomaly", "driver"})
 
@@ -136,6 +137,7 @@ def build_runtime(
 @dataclass(slots=True)
 class _RunRecord:
     run_id: str
+    owner_id: str
     question: str
     session_id: str
     clarification_of: str | None
@@ -160,6 +162,7 @@ class RunStore:
         self,
         run_id: str,
         *,
+        owner_id: str,
         question: str,
         session_id: str,
         clarification_of: str | None,
@@ -169,6 +172,7 @@ class RunStore:
                 raise ValueError(f"duplicate run id: {run_id}")
             self._runs[run_id] = _RunRecord(
                 run_id=run_id,
+                owner_id=owner_id,
                 question=question,
                 session_id=session_id,
                 clarification_of=clarification_of,
@@ -178,6 +182,10 @@ class RunStore:
     def exists(self, run_id: str) -> bool:
         with self._condition:
             return run_id in self._runs
+
+    def owner_id(self, run_id: str) -> str:
+        with self._condition:
+            return self._require(run_id).owner_id
 
     def append(
         self,
@@ -303,15 +311,26 @@ class RunService:
         self,
         question: str,
         *,
+        owner_id: str,
         session_id: str = "anonymous",
         clarification_of: str | None = None,
     ) -> str:
         cleaned = question.strip()
         if not cleaned:
             raise ValueError("question must not be empty")
+        if not owner_id.strip():
+            raise ValueError("owner_id must not be empty")
+        if clarification_of is not None:
+            try:
+                clarification_owner = self._store.owner_id(clarification_of)
+            except RunNotFoundError:
+                raise
+            if clarification_owner != owner_id:
+                raise RunNotFoundError(clarification_of)
         run_id = uuid.uuid4().hex
         self._store.create(
             run_id,
+            owner_id=owner_id,
             question=cleaned,
             session_id=session_id,
             clarification_of=clarification_of,
@@ -541,7 +560,9 @@ class RunService:
                 )
             self._store.complete(run_id, envelope)
         except Exception as exc:  # pragma: no cover - defensive boundary
-            envelope = _error_envelope(run_id, f"Run failed: {exc}")
+            envelope = _error_envelope(
+                run_id, f"Run failed: {mask_sensitive(str(exc))}"
+            )
             self._emit(
                 run_id,
                 "error",

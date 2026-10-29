@@ -10,11 +10,22 @@ from fastapi.testclient import TestClient
 from app import create_app
 from service import RunService, build_runtime
 from trace_logger import TraceLogger
+from dataset_fixtures import requires_olist
+
+_API_TOKENS = {"test-user": "a" * 40}
+
+
+def _test_client(app):
+    client = TestClient(app)
+    client.headers.update({"Authorization": f"Bearer {_API_TOKENS['test-user']}"})
+    return client
 
 
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
-    with TestClient(create_app(trace_dir=tmp_path / "traces")) as test_client:
+    with _test_client(
+        create_app(trace_dir=tmp_path / "traces", api_tokens=_API_TOKENS)
+    ) as test_client:
         yield test_client
 
 
@@ -51,6 +62,7 @@ def _events(client: TestClient, run_id: str, *, after: int | None = None):
     return events
 
 
+@requires_olist
 def test_ask_streams_ordered_events_and_returns_envelope(client: TestClient) -> None:
     run_id = _ask(client, "How many orders were there in August 2018?")
 
@@ -80,6 +92,7 @@ def test_ask_streams_ordered_events_and_returns_envelope(client: TestClient) -> 
     assert envelope["provenance"]["timestamp"].endswith("Z")
 
 
+@requires_olist
 def test_events_replay_only_after_last_event_id(client: TestClient) -> None:
     run_id = _ask(client, "How many orders were there in August 2018?")
     all_events = _events(client, run_id)
@@ -111,6 +124,7 @@ def test_unknown_run_returns_404(client: TestClient) -> None:
     assert client.get("/api/runs/missing/events").status_code == 404
 
 
+@requires_olist
 def test_invalid_last_event_id_returns_400(client: TestClient) -> None:
     run_id = _ask(client, "How many orders were there in August 2018?")
 
@@ -122,6 +136,7 @@ def test_invalid_last_event_id_returns_400(client: TestClient) -> None:
     assert response.status_code == 400
 
 
+@requires_olist
 def test_clarify_and_blocked_runs_still_produce_envelopes(client: TestClient) -> None:
     clarify_id = _ask(client, "What is the meaning of life?")
     clarify_events = _events(client, clarify_id)
@@ -151,13 +166,16 @@ def test_clarify_and_blocked_runs_still_produce_envelopes(client: TestClient) ->
     assert refused["refusal"]["closest_answerable"] is None
 
 
+@requires_olist
 def test_api_trace_uses_the_same_run_id(tmp_path: Path) -> None:
     trace_dir = tmp_path / "traces"
     service = RunService(
         lambda: build_runtime(),
         logger=TraceLogger(trace_dir),
     )
-    with TestClient(create_app(run_service=service)) as test_client:
+    with _test_client(
+        create_app(run_service=service, api_tokens=_API_TOKENS)
+    ) as test_client:
         run_id = _ask(test_client, "How many orders were there in August 2018?")
         test_client.get(f"/api/runs/{run_id}")
 
@@ -169,6 +187,7 @@ def test_api_trace_uses_the_same_run_id(tmp_path: Path) -> None:
     assert payload["fact_check"]["passed"] is True
 
 
+@requires_olist
 def test_fact_checker_removes_hallucinated_numbers_end_to_end(
     tmp_path: Path,
 ) -> None:
@@ -179,8 +198,12 @@ def test_fact_checker_removes_hallucinated_numbers_end_to_end(
         lambda: build_runtime(),
         narrator=hallucinating_narrator,
     )
-    with TestClient(
-        create_app(run_service=service, trace_dir=tmp_path / "traces")
+    with _test_client(
+        create_app(
+            run_service=service,
+            trace_dir=tmp_path / "traces",
+            api_tokens=_API_TOKENS,
+        )
     ) as test_client:
         run_id = _ask(
             test_client,
@@ -193,12 +216,15 @@ def test_fact_checker_removes_hallucinated_numbers_end_to_end(
     assert "999" not in envelope["conclusion"]
 
 
+@requires_olist
 def test_fully_hallucinated_narrative_falls_back_to_ledger(tmp_path: Path) -> None:
     service = RunService(
         lambda: build_runtime(),
         narrator=lambda outcome, ledger: "A hallucinated 999 appeared.",
     )
-    with TestClient(create_app(run_service=service)) as test_client:
+    with _test_client(
+        create_app(run_service=service, api_tokens=_API_TOKENS)
+    ) as test_client:
         run_id = _ask(
             test_client,
             "How many orders were there in August 2018?",
@@ -210,6 +236,7 @@ def test_fully_hallucinated_narrative_falls_back_to_ledger(tmp_path: Path) -> No
     assert "999" not in envelope["conclusion"]
 
 
+@requires_olist
 def test_ask_comparative_lookup_returns_answered_with_verified_difference(
     client: TestClient,
 ) -> None:

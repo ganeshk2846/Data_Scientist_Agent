@@ -786,8 +786,9 @@ class SQLGenerator:
             if item.table in needed:
                 needed[item.table].add(item.column)
         for edge in join_edges:
-            needed[edge.left_table].add(edge.left_column)
-            needed[edge.right_table].add(edge.right_column)
+            for left_column, right_column in edge.column_pairs:
+                needed[edge.left_table].add(left_column)
+                needed[edge.right_table].add(right_column)
         return needed
 
     def _allowlist(
@@ -850,13 +851,17 @@ class SQLGenerator:
                     )
                 left_alias = aliases[left]
                 right_alias = aliases[right]
-                if edge.left_table == left:
-                    left_column, right_column = edge.left_column, edge.right_column
-                else:
-                    left_column, right_column = edge.right_column, edge.left_column
+                predicates = []
+                for left_column, right_column in edge.column_pairs:
+                    if edge.left_table != left:
+                        left_column, right_column = right_column, left_column
+                    predicates.append(
+                        f"{left_alias}.{left_column} = "
+                        f"{right_alias}.{right_column}"
+                    )
                 from_clause += (
                     f"\nJOIN {right_alias} ON "
-                    f"{left_alias}.{left_column} = {right_alias}.{right_column}"
+                    + " AND ".join(predicates)
                 )
                 joined.add(right)
             prefix = "WITH " + ",\n".join(ctes) + "\n"

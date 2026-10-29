@@ -121,6 +121,71 @@ def test_masks_sensitive_fields_by_key():
     assert masked["items"][0]["token"] == MASK
 
 
+def test_masks_credentials_and_jwts_in_free_text():
+    from trace_logger import mask_sensitive
+
+    canaries = (
+        "sk-testcredential1234567890",
+        "AKIA1234567890ABCDEF",
+        "ghp_abcdefghijklmnopqrstuvwxyz123456",
+        "xoxb-" + "1234567890" + "-" + "abcdefghijklmnop",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYifQ.signature123456",
+    )
+    masked = mask_sensitive(" ".join(canaries) + " password=hunter2")
+
+    for canary in canaries:
+        assert canary not in masked
+    assert "hunter2" not in masked
+    assert masked.count(MASK) >= len(canaries) + 1
+
+
+def test_masks_values_under_sensitive_result_columns():
+    masked = mask_sensitive(
+        {
+            "columns": [
+                {"name": "customer_name", "type": "text"},
+                {"name": "order_count", "type": "integer"},
+            ],
+            "rows": [["Ada Lovelace", 4]],
+        }
+    )
+
+    assert masked["rows"] == [[MASK, 4]]
+
+
+def test_persisted_trace_redacts_credentials_and_sensitive_rows(tmp_path):
+    credential = "sk-testcredential1234567890"
+    execution = ExecutionResult(
+        query_id="Q1",
+        status="ok",
+        columns=(
+            ExecutionColumn(name="customer_name", type="text"),
+            ExecutionColumn(name="llm_api_key", type="text"),
+            ExecutionColumn(name="amount", type="integer"),
+        ),
+        row_count=1,
+        rows=(("Ada Lovelace", credential, 10),),
+        duration_ms=1,
+    )
+
+    record = TraceLogger(tmp_path).log(
+        question=f"password=hunter2 {credential}",
+        guard=passed_guard(),
+        execution=execution,
+    )
+    raw = record.path.read_text(encoding="utf-8")
+
+    assert "Ada Lovelace" not in raw
+    assert credential not in raw
+    assert "hunter2" not in raw
+    assert "10" in raw
+
+
+def test_trace_redaction_cannot_be_disabled(tmp_path):
+    with pytest.raises(ValueError, match="cannot be disabled"):
+        TraceLogger(tmp_path, mask=False)
+
+
 def test_logs_a_guard_block_without_validation_or_execution(tmp_path):
     logger = TraceLogger(tmp_path)
 

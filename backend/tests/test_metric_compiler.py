@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
 
 import pytest
 
@@ -15,10 +14,7 @@ from gateway.executor import QueryExecutor
 from schema_retriever.catalog import SchemaCatalog
 from sql.compiler import MetricCompilationError, SQLCompiler
 from sql.validator import SQLValidator
-
-BACKEND_DIR = Path(__file__).resolve().parents[1]
-DB_PATH = (BACKEND_DIR / ".." / "brazil_ecommerce.sqlite").resolve()
-
+from dataset_fixtures import DB_PATH
 
 class NoCallClient:
     """A client that fails the test if the governed path calls a model."""
@@ -29,6 +25,8 @@ class NoCallClient:
 
 @pytest.fixture(scope="module")
 def manager():
+    if not DB_PATH.is_file():
+        pytest.skip("Olist SQLite fixture is not present; set DS_AGENT_DATABASE")
     connection = ConnectionManager(
         GatewayConfig(
             datasource_id="brazil-ecommerce",
@@ -65,7 +63,7 @@ def _validator_for(compiled) -> SQLValidator:
     )
 
 
-def test_governed_questions_resolve_without_a_model(catalog):
+def test_governed_questions_resolve_without_a_model():
     registry = MetricRegistry.default()
     resolver = MetricResolver(registry, client=NoCallClient())
 

@@ -21,12 +21,12 @@ def _make_database(path):
             signup_date TEXT
         );
         CREATE TABLE orders (
-            order_id TEXT,
+            order_id TEXT PRIMARY KEY,
             order_status TEXT,
             payment_value REAL
         );
         CREATE TABLE order_payments (
-            order_id TEXT,
+            order_id TEXT REFERENCES orders(order_id),
             payment_sequential INTEGER,
             payment_type TEXT,
             payment_value REAL
@@ -88,6 +88,25 @@ def test_catalog_profiles_categorical_values_and_skips_private_columns(tmp_path)
     )
     assert catalog.get_table("order_payments") is not None
     assert catalog.version
+
+
+def test_catalog_records_declared_foreign_keys_and_unique_keys(tmp_path):
+    path = tmp_path / "shop.sqlite"
+    _make_database(path)
+    manager = _manager(path)
+
+    try:
+        catalog = SchemaCatalog.from_manager(manager)
+    finally:
+        manager.dispose()
+
+    orders = catalog.get_table("orders")
+    payments = catalog.get_table("order_payments")
+    assert orders is not None and orders.unique_keys == (("order_id",),)
+    assert payments is not None
+    assert payments.foreign_keys[0].columns == ("order_id",)
+    assert payments.foreign_keys[0].referred_table == "orders"
+    assert payments.foreign_keys[0].referred_columns == ("order_id",)
 
 
 def test_catalog_keeps_columns_but_drops_values_above_cardinality_limit(tmp_path):
