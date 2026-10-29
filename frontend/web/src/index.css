@@ -1,0 +1,517 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================================
+   DESIGN TOKENS — the single source of truth for colour.
+   STRICT RULE: no purple, violet, lavender, indigo, magenta or pink. Ever.
+   Anywhere. Not in colour, gradient, shadow, glow, focus ring, selection or
+   hover state. See CLAUDE.md before touching this block.
+   ========================================================================= */
+
+:root {
+  /* Light — warm ivory ground, deep ink text, hairline warm greys. */
+  --c-bg: 247 244 238;               /* #F7F4EE */
+  --c-bg-sunken: 241 237 229;        /* #F1EDE5 */
+  --c-surface: 253 251 247;          /* #FDFBF7 */
+  --c-surface-raised: 255 255 255;   /* #FFFFFF */
+  /* The fifth step: above `raised`, for a panel floating over an overlay. */
+  --c-surface-high: 255 255 255;     /* #FFFFFF */
+
+  --c-ink: 28 27 25;                 /* #1C1B19 */
+  --c-ink-muted: 85 82 76;           /* #55524C */
+  /* #67625A — darkened from #8A857C, which measured 3.1:1 and failed AA for
+     the 11px metadata it carries. Tuned against the DARKEST ground it sits on,
+     an accent wash over sunken (#EBE4D7), where it clears 4.5:1. */
+  --c-ink-faint: 103 98 90;          /* #67625A */
+
+  --c-hairline: 226 220 208;         /* #E2DCD0 */
+  --c-hairline-strong: 207 199 184;  /* #CFC7B8 */
+
+  /* Data semantics. */
+  --c-sage: 107 127 98;              /* #6B7F62  positive */
+  --c-sage-wash: rgb(107 127 98 / 0.14);
+  /* Sage used as TEXT. Like the accent, the stroke colour is not the type
+     colour: #6B7F62 as 13px type on sunken measures 3.7:1 and fails AA, so
+     small sage type uses this instead, which clears 4.95:1 there. */
+  --c-sage-ink: 91 107 82;           /* #5B6B52 */
+  --c-terracotta: 168 92 69;         /* #A85C45  negative */
+  --c-terracotta-wash: rgb(168 92 69 / 0.14);
+
+  /* Neutral warm-grey series ramp. */
+  --c-series-1: 154 147 138;         /* #9A938A */
+  --c-series-2: 180 173 162;         /* #B4ADA2 */
+  --c-series-3: 125 118 110;         /* #7D766E */
+  --c-series-4: 200 193 181;         /* #C8C1B5 */
+
+  /* ── Light, in two layers ────────────────────────────────────────────────
+     A real object is lit by an ambient fill and one key light, and both cast.
+     `a` is the contact shadow, `b` the key, `c` the long ambient throw. */
+  --c-shadow-hairline: rgb(28 27 25 / 0.07);
+  --c-shadow-a: rgb(28 27 25 / 0.045);
+  --c-shadow-b: rgb(28 27 25 / 0.062);
+  --c-shadow-c: rgb(28 27 25 / 0.05);
+  /* The barely perceptible highlight along a surface's own top edge. */
+  --c-lift: rgb(255 255 255 / 0.9);
+
+  --grain-opacity: 0.030;
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  /* Dark — five stepped onyx tones, never flat black. #0C0C0B is the floor;
+     each step up is a deliberate lift in luminance, so a card reads as a card
+     and an overlay above it still reads as above it. */
+  --c-bg: 20 20 19;                  /* #141413 */
+  --c-bg-sunken: 12 12 11;           /* #0C0C0B */
+  --c-surface: 28 28 26;             /* #1C1C1A */
+  --c-surface-raised: 37 36 33;      /* #252421 */
+  --c-surface-high: 46 45 41;        /* #2E2D29 */
+
+  --c-ink: 240 235 225;              /* #F0EBE1 */
+  --c-ink-muted: 168 162 154;        /* #A8A29A */
+  /* #908B82 — lightened from #75706A (3.9:1) to clear 4.5:1 on bg, surface
+     and raised alike. */
+  --c-ink-faint: 144 139 130;        /* #908B82 */
+
+  --c-hairline: 45 44 41;            /* #2D2C29 */
+  --c-hairline-strong: 62 60 56;     /* #3E3C38 */
+
+  --c-sage: 140 163 127;             /* #8CA37F */
+  --c-sage-wash: rgb(140 163 127 / 0.16);
+  /* On a dark ground the stroke sage already clears AA as type. */
+  --c-sage-ink: 140 163 127;         /* #8CA37F */
+  --c-terracotta: 196 122 94;        /* #C47A5E */
+  --c-terracotta-wash: rgb(196 122 94 / 0.16);
+
+  /* Same ramp, inverted so the lightest reads first on a dark ground. */
+  --c-series-1: 200 193 181;         /* #C8C1B5 */
+  --c-series-2: 154 147 138;         /* #9A938A */
+  --c-series-3: 180 173 162;         /* #B4ADA2 */
+  --c-series-4: 125 118 110;         /* #7D766E */
+
+  --c-shadow-hairline: rgb(0 0 0 / 0.55);
+  --c-shadow-a: rgb(0 0 0 / 0.42);
+  --c-shadow-b: rgb(0 0 0 / 0.46);
+  --c-shadow-c: rgb(0 0 0 / 0.52);
+  --c-lift: rgb(255 253 248 / 0.055);
+
+  --grain-opacity: 0.045;
+
+  color-scheme: dark;
+}
+
+/* ============================================================================
+   ACCENT VARIANTS — the Theme Atelier.
+   Each variant sets exactly four values. Everything else (the wash, the grid,
+   the edge light, the sheen, the lineage thread) is DERIVED from `--c-accent`,
+   so a variant can never leave a stray swatch of the old accent behind.
+   `on-accent` and `accent-ink` are measured, not eyeballed — see CLAUDE.md.
+   ========================================================================= */
+
+:root,
+:root[data-accent='champagne'] {
+  --c-accent: 184 151 90;            /* #B8975A  champagne gold */
+  --c-accent-soft: 223 207 168;      /* #DFCFA8 */
+  --c-on-accent: 28 27 25;           /* 6.2:1 on the accent */
+  --c-accent-ink: 122 97 52;         /* #7A6134 — the accent AS TEXT */
+}
+
+:root[data-accent='platinum'] {
+  --c-accent: 128 138 146;           /* #808A92  cool silver-grey */
+  --c-accent-soft: 198 205 211;      /* #C6CDD3 */
+  --c-on-accent: 28 27 25;
+  --c-accent-ink: 78 87 95;          /* #4E575F */
+}
+
+:root[data-accent='bronze'] {
+  --c-accent: 183 126 83;            /* #B77E53  warm copper */
+  --c-accent-soft: 221 188 162;      /* #DDBCA2 */
+  --c-on-accent: 28 27 25;
+  --c-accent-ink: 124 76 42;         /* #7C4C2A */
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'][data-accent='champagne'] {
+  --c-accent: 201 168 105;           /* #C9A869 */
+  --c-accent-soft: 110 92 56;        /* #6E5C38 */
+  --c-on-accent: 20 20 19;
+  /* On a dark ground the accent already clears AA, so text and stroke agree. */
+  --c-accent-ink: 201 168 105;
+}
+
+:root[data-theme='dark'][data-accent='platinum'] {
+  --c-accent: 173 182 190;           /* #ADB6BE */
+  --c-accent-soft: 74 82 89;         /* #4A5259 */
+  --c-on-accent: 20 20 19;
+  --c-accent-ink: 173 182 190;
+}
+
+:root[data-theme='dark'][data-accent='bronze'] {
+  --c-accent: 203 143 99;            /* #CB8F63 */
+  --c-accent-soft: 107 74 48;        /* #6B4A30 */
+  --c-on-accent: 20 20 19;
+  --c-accent-ink: 203 143 99;
+}
+
+/* Everything derived from the accent, declared once for every variant. */
+:root {
+  --c-accent-wash: rgb(var(--c-accent) / 0.10);
+  --c-grid: rgb(var(--c-accent) / 0.16);
+  --c-edge: rgb(var(--c-accent) / 0.42);
+  --c-sheen: rgb(var(--c-accent) / 0.055);
+  --c-thread: rgb(var(--c-accent) / 0.55);
+}
+:root[data-theme='dark'] {
+  --c-accent-wash: rgb(var(--c-accent) / 0.12);
+  --c-grid: rgb(var(--c-accent) / 0.13);
+  --c-edge: rgb(var(--c-accent) / 0.5);
+  --c-sheen: rgb(var(--c-accent) / 0.07);
+  --c-thread: rgb(var(--c-accent) / 0.62);
+}
+
+/* ============================================================================
+   RHYTHM — a 4px baseline grid, and one density dial.
+   Every structural vertical measure is a multiple of 4px and is expressed
+   through one of these tokens, so "comfortable" and "compact" cannot drift
+   apart: compact is the same composition at 0.78 of the air.
+   ========================================================================= */
+
+:root {
+  --density: 1;
+  /* 72 / 48 / 24 / 36 / 20 px at comfortable — all multiples of 4. */
+  --gap-section: calc(var(--density) * 4.5rem);
+  --gap-block: calc(var(--density) * 3rem);
+  --gap-group: calc(var(--density) * 1.5rem);
+  --pad-card: calc(var(--density) * 2.25rem);
+  --pad-card-tight: calc(var(--density) * 1.25rem);
+  /* The two corner radii. There are only two. */
+  --r-sm: 3px;
+  --r-lg: 10px;
+  /* One motion language: one easing, four durations. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-hover: 240ms;
+  --t-micro: 300ms;
+  --t-reveal: 450ms;
+  --t-draw: 600ms;
+}
+
+:root[data-density='compact'] {
+  --density: 0.78;
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans text-body antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+    min-height: 100vh;
+    /* The caret is part of the palette too. */
+    caret-color: rgb(var(--c-accent));
+  }
+
+  /* Data is lining and tabular: columns must align, digits must be one width. */
+  .tnum,
+  th,
+  td,
+  input,
+  code,
+  pre {
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: 'tnum' 1, 'lnum' 1;
+  }
+
+  /* Narrative is old-style: figures that sit in the line of serif prose
+     instead of standing above it like a column of data. Fraunces ships them. */
+  .onum {
+    font-variant-numeric: oldstyle-nums proportional-nums;
+    font-feature-settings: 'onum' 1, 'pnum' 1;
+  }
+
+  /* Fraunces carries an optical-size axis. Large display wants the lighter,
+     tighter cut; body copy wants the sturdier one. This is the single biggest
+     lever in the whole design, so it is wired to real axis values. */
+  /* Only `opsz` is named, so `wght` keeps coming from `font-weight` and a
+     `font-light` display heading stays light. Naming an axis here overrides
+     the property that maps to it, and nothing else. */
+  .opsz-display {
+    font-variation-settings: 'opsz' 120;
+  }
+  .opsz-title {
+    font-variation-settings: 'opsz' 48;
+  }
+  .opsz-text {
+    font-variation-settings: 'opsz' 14;
+  }
+
+  ::selection {
+    background: var(--c-accent-wash);
+    color: rgb(var(--c-ink));
+  }
+
+  /* The focus ring: the accent, 2px, offset 2px, on the small radius. Never a
+     coloured glow, and never removed without an equally visible replacement. */
+  :focus-visible {
+    outline: 2px solid rgb(var(--c-accent));
+    outline-offset: 2px;
+    border-radius: var(--r-sm);
+  }
+
+  h1, h2, h3 {
+    @apply font-serif;
+    font-weight: 400;
+  }
+
+  /* Warm, restrained scrollbars — in the palette, like everything else. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--c-hairline-strong)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--c-hairline-strong));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--c-ink-faint) / 0.6);
+  }
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* ============================================================================
+   PAPER GRAIN — a fixed, non-interactive tint over the whole page.
+   ========================================================================= */
+
+.paper-grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+/* ============================================================================
+   CRAFT UTILITIES
+   The small deliberate details: light along a surface's top edge, a sheen that
+   follows the cursor, and the lineage thread tying a claim to its evidence and
+   its SQL.
+   ========================================================================= */
+
+/* The default top edge: a NEUTRAL highlight, the light the room gives every
+   surface. It is almost invisible, and that is the point — it is what stops a
+   card from reading as a flat rectangle of fill. */
+.edge-light {
+  position: relative;
+}
+.edge-light::after {
+  content: '';
+  position: absolute;
+  inset-inline: 1px;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--c-lift) 18%,
+    var(--c-lift) 82%,
+    transparent 100%
+  );
+}
+
+/* The accent top edge is jewellery: it belongs to the ONE element that matters
+   on a screen, never to every card at once. Brightest at the centre, lifting
+   to full on hover. */
+.edge-accent {
+  position: relative;
+}
+.edge-accent::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--c-edge) 28%,
+    var(--c-edge) 72%,
+    transparent 100%
+  );
+  opacity: 0.55;
+  transition: opacity var(--t-micro) var(--ease);
+}
+.edge-accent:hover::after {
+  opacity: 1;
+}
+
+/* A sheen that tracks the pointer. `--mx`/`--my` are written by useSheen; with
+   no pointer they stay unset and the gradient sits harmlessly off-surface. */
+.sheen {
+  position: relative;
+  isolation: isolate;
+}
+.sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--t-reveal) var(--ease);
+  background: radial-gradient(
+    22rem circle at var(--mx, -50%) var(--my, -50%),
+    var(--c-sheen),
+    transparent 62%
+  );
+}
+.sheen:hover::before {
+  opacity: 1;
+}
+
+/* Lineage: a claim, its evidence card and its query light up together. */
+[data-lineage-active='true'] {
+  --lineage-ring: var(--c-thread);
+}
+.lineage-thread {
+  position: absolute;
+  background: var(--c-thread);
+  pointer-events: none;
+}
+
+/* An empty state's figure: drawn in hairlines, in the palette, nothing more. */
+.hairline-art {
+  stroke: rgb(var(--c-hairline-strong));
+  stroke-width: 1;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.hairline-art-accent {
+  stroke: rgb(var(--c-accent));
+  stroke-width: 1;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ============================================================================
+   PRINT — the briefing as a luxury report. Chrome drops away, ink goes black,
+   and the serif narrative carries the page.
+   ========================================================================= */
+
+@media print {
+  @page {
+    margin: 18mm 16mm 20mm;
+  }
+
+  :root,
+  :root[data-theme='dark'] {
+    --c-bg: 255 255 255;
+    --c-bg-sunken: 255 255 255;
+    --c-surface: 255 255 255;
+    --c-surface-raised: 255 255 255;
+    --c-surface-high: 255 255 255;
+    --c-ink: 17 17 16;
+    --c-ink-muted: 70 68 64;
+    --c-ink-faint: 120 116 109;
+    --c-hairline: 208 202 191;
+    --c-hairline-strong: 170 163 150;
+    --c-accent: 140 112 58;
+    --grain-opacity: 0;
+    --c-edge: transparent;
+    --c-sheen: transparent;
+    --c-lift: transparent;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .paper-grain::before,
+  [data-print='hide'] {
+    display: none !important;
+  }
+
+  [data-print='show'] {
+    display: block !important;
+  }
+
+  /* Everything expands to the page; nothing scrolls or clips. */
+  [data-print='flow'] {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .shadow-soft,
+  .shadow-lifted,
+  .shadow-overlay {
+    box-shadow: none !important;
+  }
+
+  section,
+  article,
+  figure,
+  table,
+  pre {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  a[href]::after {
+    content: '';
+  }
+}
+
+/* ============================================================================
+   MOTION — one language: the same easing everywhere, 240–600ms, never bouncy.
+   Fully removable, by the OS preference or by the Atelier's motion dial.
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
