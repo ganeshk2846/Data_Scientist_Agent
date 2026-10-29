@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from collections.abc import Iterable
 
 from contracts.models import (
     MetricAllowedDimension,
@@ -31,10 +31,16 @@ _ITEM_PRODUCTS = MetricJoinPath(
     edge_id="order_items.product_id=products.product_id",
     cardinality="N:1",
 )
-
-_COMPLETED_ORDER_FILTER = (
-    "{{ orders }}.order_status NOT IN ('canceled', 'unavailable')"
+_REVIEW_ORDERS = MetricJoinPath(
+    edge_id="order_reviews.order_id=orders.order_id",
+    cardinality="N:1",
 )
+_SELLER_ITEMS = MetricJoinPath(
+    edge_id="order_items.seller_id=sellers.seller_id",
+    cardinality="N:1",
+)
+
+_COMPLETED_ORDER_FILTER = "{{ orders }}.order_status NOT IN ('canceled', 'unavailable')"
 
 
 def _state_dimension(*edges: str) -> MetricAllowedDimension:
@@ -44,6 +50,26 @@ def _state_dimension(*edges: str) -> MetricAllowedDimension:
         table="customers",
         join_edges=tuple(edges),
         synonyms=("state", "customer state", "customer states", "region"),
+    )
+
+
+def _city_dimension(*edges: str) -> MetricAllowedDimension:
+    return MetricAllowedDimension(
+        name="customer_city",
+        column="customer_city",
+        table="customers",
+        join_edges=tuple(edges),
+        synonyms=("city", "customer city", "town"),
+    )
+
+
+def _seller_state_dimension(*edges: str) -> MetricAllowedDimension:
+    return MetricAllowedDimension(
+        name="seller_state",
+        column="seller_state",
+        table="sellers",
+        join_edges=tuple(edges),
+        synonyms=("seller state", "seller region", "origin state"),
     )
 
 
@@ -90,14 +116,16 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                 "gross merchandise volume",
                 "merchandise value",
             ),
-            formula=(
-                "SUM({{ order_items }}.price + {{ order_items }}.freight_value)"
-            ),
+            formula=("SUM({{ order_items }}.price + {{ order_items }}.freight_value)"),
             required_filters=(_COMPLETED_ORDER_FILTER,),
             grain=("order_item",),
             date_column="orders.order_purchase_timestamp",
             allowed_dimensions=(
                 _state_dimension(
+                    _ITEM_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _city_dimension(
                     _ITEM_ORDERS.edge_id,
                     _CUSTOMER_ORDERS.edge_id,
                 ),
@@ -109,11 +137,12 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                     join_edges=(_ITEM_PRODUCTS.edge_id,),
                     synonyms=("category", "product category", "product categories"),
                 ),
+                _seller_state_dimension(_SELLER_ITEMS.edge_id),
                 _month_dimension(_ITEM_ORDERS.edge_id),
                 _year_dimension(_ITEM_ORDERS.edge_id),
             ),
             base_table="order_items",
-            join_path=(_ITEM_ORDERS, _CUSTOMER_ORDERS, _ITEM_PRODUCTS),
+            join_path=(_ITEM_ORDERS, _CUSTOMER_ORDERS, _ITEM_PRODUCTS, _SELLER_ITEMS),
             reconciliation=MetricReconciliation(
                 sql=(
                     "SELECT SUM(oi.price + oi.freight_value) "
@@ -124,8 +153,10 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                 tolerance=0.01,
             ),
             caveats=(
-                "GMV includes item price and freight for non-canceled, "
-                "non-unavailable orders.",
+                (
+                    "GMV includes item price and freight for non-canceled, "
+                    "non-unavailable orders."
+                ),
             ),
             approved_by=_APPROVED_BY,
             approved_at=_APPROVED_AT,
@@ -152,6 +183,10 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                     _PAYMENT_ORDERS.edge_id,
                     _CUSTOMER_ORDERS.edge_id,
                 ),
+                _city_dimension(
+                    _PAYMENT_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
                 _status_dimension(_PAYMENT_ORDERS.edge_id),
                 MetricAllowedDimension(
                     name="payment_type",
@@ -173,9 +208,7 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                 ),
                 tolerance=0.01,
             ),
-            caveats=(
-                "Revenue uses recorded payment value, not item list price.",
-            ),
+            caveats=("Revenue uses recorded payment value, not item list price.",),
             approved_by=_APPROVED_BY,
             approved_at=_APPROVED_AT,
         ),
@@ -194,6 +227,7 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
             date_column="orders.order_purchase_timestamp",
             allowed_dimensions=(
                 _state_dimension(_CUSTOMER_ORDERS.edge_id),
+                _city_dimension(_CUSTOMER_ORDERS.edge_id),
                 _status_dimension(),
                 _month_dimension(),
                 _year_dimension(),
@@ -230,6 +264,10 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                     _PAYMENT_ORDERS.edge_id,
                     _CUSTOMER_ORDERS.edge_id,
                 ),
+                _city_dimension(
+                    _PAYMENT_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
                 _status_dimension(_PAYMENT_ORDERS.edge_id),
                 MetricAllowedDimension(
                     name="payment_type",
@@ -252,8 +290,225 @@ def _default_metrics() -> tuple[MetricDefinition, ...]:
                 ),
                 tolerance=0.01,
             ),
+            caveats=("AOV divides recorded payment value by distinct paid orders.",),
+            approved_by=_APPROVED_BY,
+            approved_at=_APPROVED_AT,
+        ),
+        MetricDefinition(
+            metric_id="review_score",
+            name="Customer Satisfaction Score",
+            synonyms=(
+                "csat",
+                "customer satisfaction",
+                "customer rating",
+                "customer ratings",
+                "satisfaction score",
+                "satisfaction rating",
+            ),
+            formula="AVG({{ order_reviews }}.review_score)",
+            required_filters=(),
+            grain=("review",),
+            date_column="orders.order_purchase_timestamp",
+            allowed_dimensions=(
+                _state_dimension(
+                    _REVIEW_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _city_dimension(
+                    _REVIEW_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _status_dimension(_REVIEW_ORDERS.edge_id),
+                _month_dimension(_REVIEW_ORDERS.edge_id),
+                _year_dimension(_REVIEW_ORDERS.edge_id),
+            ),
+            base_table="order_reviews",
+            join_path=(_REVIEW_ORDERS, _CUSTOMER_ORDERS),
+            reconciliation=MetricReconciliation(
+                sql="SELECT AVG(review_score) FROM order_reviews",
+                tolerance=0.01,
+            ),
+            caveats=("Average review score across rated orders (1 to 5 scale).",),
+            approved_by=_APPROVED_BY,
+            approved_at=_APPROVED_AT,
+        ),
+        MetricDefinition(
+            metric_id="freight_value",
+            name="Freight Value",
+            synonyms=(
+                "freight",
+                "freight value",
+                "freight cost",
+                "shipping cost",
+                "delivery fee",
+                "shipping fee",
+                "total freight",
+            ),
+            formula="SUM({{ order_items }}.freight_value)",
+            required_filters=(_COMPLETED_ORDER_FILTER,),
+            grain=("order_item",),
+            date_column="orders.order_purchase_timestamp",
+            allowed_dimensions=(
+                _state_dimension(
+                    _ITEM_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _city_dimension(
+                    _ITEM_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _status_dimension(_ITEM_ORDERS.edge_id),
+                MetricAllowedDimension(
+                    name="product_category",
+                    column="product_category_name",
+                    table="products",
+                    join_edges=(_ITEM_PRODUCTS.edge_id,),
+                    synonyms=("category", "product category", "product categories"),
+                ),
+                _seller_state_dimension(_SELLER_ITEMS.edge_id),
+                _month_dimension(_ITEM_ORDERS.edge_id),
+                _year_dimension(_ITEM_ORDERS.edge_id),
+            ),
+            base_table="order_items",
+            join_path=(_ITEM_ORDERS, _CUSTOMER_ORDERS, _ITEM_PRODUCTS, _SELLER_ITEMS),
+            reconciliation=MetricReconciliation(
+                sql=(
+                    "SELECT SUM(oi.freight_value) "
+                    "FROM order_items oi "
+                    "JOIN orders o ON oi.order_id = o.order_id "
+                    "WHERE o.order_status NOT IN ('canceled', 'unavailable')"
+                ),
+                tolerance=0.01,
+            ),
             caveats=(
-                "AOV divides recorded payment value by distinct paid orders.",
+                "Freight value represents total shipping charge for completed orders.",
+            ),
+            approved_by=_APPROVED_BY,
+            approved_at=_APPROVED_AT,
+        ),
+        MetricDefinition(
+            metric_id="item_count",
+            name="Item Count",
+            synonyms=(
+                "item count",
+                "units sold",
+                "units were sold",
+                "units",
+                "quantity sold",
+                "number of items",
+                "total items",
+                "volume of items",
+                "items sold",
+                "how many units",
+            ),
+            formula="COUNT({{ order_items }}.order_item_id)",
+            required_filters=(_COMPLETED_ORDER_FILTER,),
+            grain=("order_item",),
+            date_column="orders.order_purchase_timestamp",
+            allowed_dimensions=(
+                _state_dimension(
+                    _ITEM_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _city_dimension(
+                    _ITEM_ORDERS.edge_id,
+                    _CUSTOMER_ORDERS.edge_id,
+                ),
+                _status_dimension(_ITEM_ORDERS.edge_id),
+                MetricAllowedDimension(
+                    name="product_category",
+                    column="product_category_name",
+                    table="products",
+                    join_edges=(_ITEM_PRODUCTS.edge_id,),
+                    synonyms=("category", "product category", "product categories"),
+                ),
+                _seller_state_dimension(_SELLER_ITEMS.edge_id),
+                _month_dimension(_ITEM_ORDERS.edge_id),
+                _year_dimension(_ITEM_ORDERS.edge_id),
+            ),
+            base_table="order_items",
+            join_path=(_ITEM_ORDERS, _CUSTOMER_ORDERS, _ITEM_PRODUCTS, _SELLER_ITEMS),
+            reconciliation=MetricReconciliation(
+                sql=(
+                    "SELECT COUNT(oi.order_item_id) "
+                    "FROM order_items oi "
+                    "JOIN orders o ON oi.order_id = o.order_id "
+                    "WHERE o.order_status NOT IN ('canceled', 'unavailable')"
+                ),
+                tolerance=0.0,
+            ),
+            caveats=(
+                "Item count measures individual purchased units in non-canceled orders.",
+            ),
+            approved_by=_APPROVED_BY,
+            approved_at=_APPROVED_AT,
+        ),
+        MetricDefinition(
+            metric_id="customer_count",
+            name="Unique Customers",
+            synonyms=(
+                "unique customers",
+                "customer count",
+                "active customers",
+                "buyer count",
+                "number of customers",
+                "customer volume",
+                "distinct buyers",
+            ),
+            formula="COUNT(DISTINCT {{ customers }}.customer_unique_id)",
+            required_filters=(),
+            grain=("customer",),
+            date_column="orders.order_purchase_timestamp",
+            allowed_dimensions=(
+                _state_dimension(),
+                _city_dimension(),
+                _month_dimension(_CUSTOMER_ORDERS.edge_id),
+                _year_dimension(_CUSTOMER_ORDERS.edge_id),
+            ),
+            base_table="customers",
+            join_path=(_CUSTOMER_ORDERS,),
+            reconciliation=MetricReconciliation(
+                sql="SELECT COUNT(DISTINCT customer_unique_id) FROM customers",
+                tolerance=0.0,
+            ),
+            caveats=("Counts distinct customer_unique_id entities.",),
+            approved_by=_APPROVED_BY,
+            approved_at=_APPROVED_AT,
+        ),
+        MetricDefinition(
+            metric_id="cancellation_rate",
+            name="Cancellation Rate",
+            synonyms=(
+                "cancellation rate",
+                "canceled rate",
+                "order cancellation rate",
+                "cancelled rate",
+                "churn rate",
+            ),
+            formula=(
+                "SUM(CASE WHEN {{ orders }}.order_status = 'canceled' THEN 1.0 ELSE 0.0 END) "
+                "/ NULLIF(COUNT({{ orders }}.order_id), 0)"
+            ),
+            required_filters=(),
+            grain=("order",),
+            date_column="orders.order_purchase_timestamp",
+            allowed_dimensions=(
+                _state_dimension(_CUSTOMER_ORDERS.edge_id),
+                _city_dimension(_CUSTOMER_ORDERS.edge_id),
+                _month_dimension(),
+                _year_dimension(),
+            ),
+            base_table="orders",
+            join_path=(_CUSTOMER_ORDERS,),
+            reconciliation=MetricReconciliation(
+                sql=(
+                    "SELECT SUM(CASE WHEN order_status = 'canceled' THEN 1.0 ELSE 0.0 END) "
+                    "/ COUNT(order_id) FROM orders"
+                ),
+                tolerance=0.001,
+            ),
+            caveats=(
+                "Cancellation rate calculates canceled orders divided by total orders placed.",
             ),
             approved_by=_APPROVED_BY,
             approved_at=_APPROVED_AT,
@@ -326,9 +581,7 @@ class MetricRegistry:
                 return metric
         return None
 
-    def match_question(
-        self, question: str
-    ) -> tuple[MetricDefinition, str] | None:
+    def match_question(self, question: str) -> tuple[MetricDefinition, str] | None:
         normalized = _normalize(question)
         best: tuple[int, MetricDefinition, str] | None = None
         for metric in self._metrics:

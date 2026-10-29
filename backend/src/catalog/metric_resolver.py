@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from datetime import date
-from typing import Any, Iterable
+from typing import Any
 
 from contracts.models import (
     LinkedValue,
@@ -78,21 +79,160 @@ _STATUS_WORDS = {
     "unavailable": "unavailable",
 }
 _STOPWORDS = frozenset(
-    """
-    a an and any are as at be been being by can could did do does each for from
-    get give go had has have how i if in into is it its many me most much my
-    number of on or our per please record records row rows show sum table tables
-    tell that the their them then there these they this those to top total up us
-    was we were what when where which who why will with would you your
-    """.split()
+    [
+        "a",
+        "an",
+        "and",
+        "any",
+        "are",
+        "as",
+        "at",
+        "be",
+        "been",
+        "being",
+        "by",
+        "can",
+        "could",
+        "did",
+        "do",
+        "does",
+        "each",
+        "for",
+        "from",
+        "get",
+        "give",
+        "go",
+        "had",
+        "has",
+        "have",
+        "how",
+        "i",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "many",
+        "me",
+        "most",
+        "much",
+        "my",
+        "number",
+        "of",
+        "on",
+        "or",
+        "our",
+        "per",
+        "please",
+        "record",
+        "records",
+        "row",
+        "rows",
+        "show",
+        "sum",
+        "table",
+        "tables",
+        "tell",
+        "that",
+        "the",
+        "their",
+        "them",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "those",
+        "to",
+        "top",
+        "total",
+        "up",
+        "us",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "would",
+        "you",
+        "your",
+        "placed",
+        "purchased",
+        "bought",
+        "sold",
+        "made",
+        "generated",
+        "received",
+        "recorded",
+    ]
+)
+_BRAZIL_STATES = frozenset(
+    [
+        "ac",
+        "al",
+        "am",
+        "ap",
+        "ba",
+        "ce",
+        "df",
+        "es",
+        "go",
+        "ma",
+        "mg",
+        "ms",
+        "mt",
+        "pa",
+        "pb",
+        "pe",
+        "pi",
+        "pr",
+        "rj",
+        "rn",
+        "ro",
+        "rr",
+        "rs",
+        "sc",
+        "se",
+        "sp",
+        "to",
+    ]
+)
+_STATE_FILTER_PATTERN = re.compile(
+    r"\b(?:in|state(?:\s+of)?|from|for|region)\s+([a-z]{2})\b",
+    re.IGNORECASE,
 )
 _COMPARATIVE_WORDS = frozenset(
-    """
-    difference differences different differ
-    compare compared comparing comparison
-    versus vs growth change changed changing
-    net delta increase decrease decline drop fell rose
-    """.split()
+    [
+        "difference",
+        "differences",
+        "different",
+        "differ",
+        "compare",
+        "compared",
+        "comparing",
+        "comparison",
+        "versus",
+        "vs",
+        "growth",
+        "change",
+        "changed",
+        "changing",
+        "net",
+        "delta",
+        "increase",
+        "decrease",
+        "decline",
+        "drop",
+        "fell",
+        "rose",
+    ]
 )
 
 
@@ -155,11 +295,7 @@ def _detect_period(question: str) -> Period | None:
 
     quarter = _QUARTER_PATTERN.search(question)
     if quarter is not None:
-        year = (
-            int(quarter.group(2))
-            if quarter.group(2)
-            else date.today().year
-        )
+        year = int(quarter.group(2)) if quarter.group(2) else date.today().year
         start = date(year, (int(quarter.group(1)) - 1) * 3 + 1, 1)
         return Period(start=start, end=_add_months(start, 3))
 
@@ -169,9 +305,7 @@ def _detect_period(question: str) -> Period | None:
             quarter_word.group(1).lower()
         ) + 1
         year = (
-            int(quarter_word.group(2))
-            if quarter_word.group(2)
-            else date.today().year
+            int(quarter_word.group(2)) if quarter_word.group(2) else date.today().year
         )
         start = date(year, (number - 1) * 3 + 1, 1)
         return Period(start=start, end=_add_months(start, 3))
@@ -189,9 +323,7 @@ def _has_orders(metric: MetricDefinition) -> bool:
     )
 
 
-def _filter_allowed(
-    metric: MetricDefinition, table: str, column: str
-) -> bool:
+def _filter_allowed(metric: MetricDefinition, table: str, column: str) -> bool:
     pair = (table.lower(), column.lower())
     allowed = {
         (dimension.table.lower(), dimension.column.lower())
@@ -295,8 +427,10 @@ class MetricResolver:
                 ()
                 if not leftovers
                 else (
-                    "Some parts of the question were not mapped to governed "
-                    f"slots: {', '.join(leftovers)}.",
+                    (
+                        "Some parts of the question were not mapped to governed "
+                        f"slots: {', '.join(leftovers)}."
+                    ),
                 )
             ),
         )
@@ -308,19 +442,36 @@ class MetricResolver:
     def _deterministic_filters(
         self, question: str, metric: MetricDefinition
     ) -> tuple[MetricFilter, ...]:
-        if not _has_orders(metric):
-            return ()
-        for word, status in _STATUS_WORDS.items():
-            if _contains(question, word):
-                return (
-                    MetricFilter(
-                        table="orders",
-                        column="order_status",
-                        operator="=",
-                        value=status,
-                    ),
-                )
-        return ()
+        filters: list[MetricFilter] = []
+        if _has_orders(metric):
+            for word, status in _STATUS_WORDS.items():
+                if _contains(question, word):
+                    filters.append(
+                        MetricFilter(
+                            table="orders",
+                            column="order_status",
+                            operator="=",
+                            value=status,
+                        ),
+                    )
+                    break
+        has_state_dim = any(
+            d.column == "customer_state" for d in metric.allowed_dimensions
+        )
+        if has_state_dim:
+            for match in _STATE_FILTER_PATTERN.finditer(question):
+                candidate = match.group(1).lower()
+                if candidate in _BRAZIL_STATES:
+                    filters.append(
+                        MetricFilter(
+                            table="customers",
+                            column="customer_state",
+                            operator="=",
+                            value=candidate.upper(),
+                        )
+                    )
+                    break
+        return tuple(filters)
 
     def _leftovers(
         self,
@@ -352,8 +503,9 @@ class MetricResolver:
         for word in _STATUS_WORDS:
             remaining = _remove_phrase(remaining, word)
         for item in filters:
-            remaining = _remove_phrase(remaining, item.value if isinstance(item.value, str) else "")
-            remaining = _remove_phrase(remaining, item.column)
+            val_str = str(item.value).lower() if item.value is not None else ""
+            remaining = _remove_phrase(remaining, val_str)
+            remaining = _remove_phrase(remaining, item.column.lower())
         return tuple(
             token
             for token in remaining.split()

@@ -13,7 +13,17 @@
  */
 
 /** The metrics the governed registry covers. Anything else is not answerable. */
-export const GOVERNED_METRICS = ['gmv', 'revenue', 'order_count', 'aov'] as const;
+export const GOVERNED_METRICS = [
+  'gmv',
+  'revenue',
+  'order_count',
+  'aov',
+  'review_score',
+  'freight_value',
+  'item_count',
+  'customer_count',
+  'cancellation_rate',
+] as const;
 
 export type GovernedMetric = (typeof GOVERNED_METRICS)[number];
 
@@ -25,6 +35,11 @@ export const METRIC_PHRASE: Record<GovernedMetric, string> = {
   revenue: 'revenue',
   order_count: 'order count',
   aov: 'average order value',
+  review_score: 'customer satisfaction',
+  freight_value: 'freight value',
+  item_count: 'units sold',
+  customer_count: 'unique customers',
+  cancellation_rate: 'cancellation rate',
 };
 
 /** How each metric is labelled in the interface. */
@@ -33,6 +48,11 @@ export const METRIC_LABEL: Record<GovernedMetric, string> = {
   revenue: 'Revenue',
   order_count: 'Order count',
   aov: 'Average order value',
+  review_score: 'CSAT (Rating)',
+  freight_value: 'Freight value',
+  item_count: 'Units sold',
+  customer_count: 'Unique buyers',
+  cancellation_rate: 'Cancellation rate',
 };
 
 export const MONTHS = [
