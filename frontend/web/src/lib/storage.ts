@@ -23,6 +23,7 @@ export const KEYS = {
   history: `${PREFIX}-history`,
   pins: `${PREFIX}-pins`,
   tour: `${PREFIX}-tour-seen`,
+  token: `${PREFIX}-token`,
 } as const;
 
 export function readRaw(key: string): string | null {
@@ -75,4 +76,8 @@ export function writeJson(key: string, value: unknown): void {
 /** True when `value` is a plain object — the guard every validator starts with. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function getApiToken(): string | null {
+  return readRaw(KEYS.token) || (typeof window !== 'undefined' ? ((window as unknown as { __DS_AGENT_TOKEN__?: string }).__DS_AGENT_TOKEN__ ?? null) : null);
 }

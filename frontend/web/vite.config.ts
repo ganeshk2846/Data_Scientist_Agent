@@ -31,6 +31,14 @@ export default defineConfig({
         changeOrigin: true,
         // SSE has to stream through unbuffered.
         ws: false,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            const token = process.env.DS_AGENT_TOKEN || process.env.VITE_API_TOKEN;
+            if (token && !proxyReq.getHeader('authorization')) {
+              proxyReq.setHeader('authorization', `Bearer ${token}`);
+            }
+          });
+        },
       },
     },
   },

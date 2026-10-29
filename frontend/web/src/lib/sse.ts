@@ -15,6 +15,7 @@
  * `seq` we have already delivered are dropped, so a replay from zero is safe.
  */
 
+import { authHeaders } from './api';
 import { RUN_EVENT_TYPES, type RunEvent } from '@/types/events';
 
 export interface StreamHandlers {
@@ -122,6 +123,7 @@ export function openRunStream(runId: string, handlers: StreamHandlers): StreamHa
         headers: {
           Accept: 'text/event-stream',
           ...(lastSeq > 0 ? { 'Last-Event-ID': String(lastSeq) } : {}),
+          ...authHeaders(),
         },
         signal: abort.signal,
       });
@@ -158,7 +160,11 @@ export function openRunStream(runId: string, handlers: StreamHandlers): StreamHa
     }
   }
 
-  connectEventSource();
+  if (authHeaders().Authorization) {
+    resumeWithFetch();
+  } else {
+    connectEventSource();
+  }
 
   return {
     close: () => {

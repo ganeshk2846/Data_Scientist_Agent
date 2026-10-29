@@ -3,6 +3,7 @@
  * server at `/api`, so the backend needs no CORS change.
  */
 
+import { getApiToken } from './storage';
 import type { AnswerEnvelope, AskResponse, RunPending } from '@/types/envelope';
 
 export class ApiError extends Error {
@@ -22,6 +23,11 @@ export class OfflineError extends Error {
     super(message);
     this.name = 'OfflineError';
   }
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = getApiToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function readDetail(response: Response): Promise<string | undefined> {
@@ -50,7 +56,10 @@ export async function ask(params: {
   try {
     response = await fetch('/api/ask', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(),
+      },
       body: JSON.stringify({
         question: params.question,
         session_id: params.sessionId,
@@ -108,6 +117,7 @@ export async function getRun(
 
     try {
       const response = await fetch(`/api/runs/${encodeURIComponent(runId)}`, {
+        headers: authHeaders(),
         signal: attempt.signal,
       });
       lastStatus = response.status;
@@ -154,7 +164,7 @@ export async function getRun(
  */
 export async function probeBackend(): Promise<boolean> {
   try {
-    await fetch('/api/runs/__probe__', { method: 'GET' });
+    await fetch('/api/runs/__probe__', { method: 'GET', headers: authHeaders() });
     return true;
   } catch {
     return false;
