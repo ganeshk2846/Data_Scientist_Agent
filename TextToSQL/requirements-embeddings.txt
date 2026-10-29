@@ -1,0 +1,2 @@
+# Optional open-source local inference extra; not required for the core pipeline.
+sentence-transformers==6.2.0

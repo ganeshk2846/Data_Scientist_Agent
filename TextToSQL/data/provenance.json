@@ -1,0 +1,27 @@
+[
+  {
+    "name": "UCI Online Retail II",
+    "url": "https://archive.ics.uci.edu/dataset/502/online+retail+ii",
+    "version": "UCI dataset 502 (donated 2019-09-20; citation year 2012)",
+    "licence": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+    "permitted_use": "Sharing and adaptation with appropriate attribution; project evaluation use is planned, subject to privacy review before intake",
+    "split": "development",
+    "layer": "public_transactional",
+    "citation": "Chen, D. (2012). Online Retail II [Dataset]. UCI Machine Learning Repository.",
+    "doi": "10.24432/C5CG6D",
+    "intake_status": "candidate_not_ingested"
+  },
+  {
+    "name": "Spider 1.0 development snapshot",
+    "url": "https://yale-lily.github.io/spider/",
+    "version": "Spider 1.0 (EMNLP 2018; local development snapshot; upstream package revision/date unknown)",
+    "licence": "Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+    "permitted_use": "Development and evaluation with attribution; adaptations and redistribution must comply with CC BY-SA 4.0; cite Yu et al. (2018)",
+    "split": "development",
+    "layer": "benchmark",
+    "citation": "Yu et al. (2018), Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task, EMNLP 2018",
+    "doi": "10.18653/v1/D18-1425",
+    "intake_status": "ingested",
+    "source_sha256": "808f8d66cb8ab5d066af3934047cc02bde555db28d4149310984f805af90a844"
+  }
+]

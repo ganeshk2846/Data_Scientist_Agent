@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator, Iterator
@@ -18,9 +19,10 @@ from service import (
 )
 from trace_logger import TraceLogger
 
-_DATABASE_PATH = (
-    Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
-).resolve()
+_DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
+_DATABASE_PATH = Path(
+    os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
+).expanduser().resolve()
 _TRACE_DIR = Path(__file__).resolve().parents[1] / "traces"
 _FRONTEND_INDEX = (
     Path(__file__).resolve().parents[2] / "frontend" / "index.html"

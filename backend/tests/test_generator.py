@@ -5,6 +5,7 @@ import pytest
 from contracts.models import LinkedValue, SqlCandidate
 from schema_retriever.catalog import (
     CatalogColumn,
+    CatalogForeignKey,
     CatalogTable,
     JoinGraph,
     SchemaCatalog,
@@ -31,6 +32,13 @@ def sample_catalog() -> SchemaCatalog:
             ),
             CatalogTable(
                 name="orders",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("customer_id",),
+                        referred_table="customers",
+                        referred_columns=("customer_id",),
+                    ),
+                ),
                 columns=(
                     CatalogColumn(name="order_id", data_type="TEXT"),
                     CatalogColumn(name="customer_id", data_type="TEXT"),
@@ -45,6 +53,18 @@ def sample_catalog() -> SchemaCatalog:
             ),
             CatalogTable(
                 name="order_items",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("order_id",),
+                        referred_table="orders",
+                        referred_columns=("order_id",),
+                    ),
+                    CatalogForeignKey(
+                        columns=("product_id",),
+                        referred_table="products",
+                        referred_columns=("product_id",),
+                    ),
+                ),
                 columns=(
                     CatalogColumn(name="order_id", data_type="TEXT"),
                     CatalogColumn(name="product_id", data_type="TEXT"),
@@ -63,6 +83,13 @@ def sample_catalog() -> SchemaCatalog:
             ),
             CatalogTable(
                 name="order_payments",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("order_id",),
+                        referred_table="orders",
+                        referred_columns=("order_id",),
+                    ),
+                ),
                 columns=(
                     CatalogColumn(name="order_id", data_type="TEXT"),
                     CatalogColumn(name="payment_type", data_type="TEXT"),
@@ -96,6 +123,87 @@ def test_join_graph_infers_foreign_key_paths_from_the_catalog():
         "customers.customer_id=orders.customer_id",
     ]
     assert graph.find_path("customers", "customers") == ()
+
+
+def test_shared_id_inference_is_proposed_and_cannot_drive_generation():
+    catalog = SchemaCatalog(
+        version="unreviewed-join",
+        tables=(
+            CatalogTable(
+                name="left_table",
+                columns=(CatalogColumn(name="shared_id", data_type="TEXT"),),
+            ),
+            CatalogTable(
+                name="right_table",
+                columns=(CatalogColumn(name="shared_id", data_type="TEXT"),),
+            ),
+        ),
+    )
+    graph = JoinGraph.from_catalog(catalog)
+
+    assert len(graph.edges) == 1
+    assert graph.edges[0].status == "proposed"
+    assert graph.find_path("left_table", "right_table") is None
+
+
+def test_composite_foreign_key_generates_every_join_predicate():
+    catalog = SchemaCatalog(
+        version="composite-fk",
+        tables=(
+            CatalogTable(
+                name="parents",
+                unique_keys=(("tenant_id", "parent_id"),),
+                columns=(
+                    CatalogColumn(name="tenant_id", data_type="TEXT"),
+                    CatalogColumn(name="parent_id", data_type="TEXT"),
+                    CatalogColumn(name="parent_name", data_type="TEXT"),
+                ),
+            ),
+            CatalogTable(
+                name="children",
+                foreign_keys=(
+                    CatalogForeignKey(
+                        columns=("tenant_id", "parent_id"),
+                        referred_table="parents",
+                        referred_columns=("tenant_id", "parent_id"),
+                    ),
+                ),
+                columns=(
+                    CatalogColumn(name="tenant_id", data_type="TEXT"),
+                    CatalogColumn(name="parent_id", data_type="TEXT"),
+                    CatalogColumn(name="amount", data_type="REAL"),
+                ),
+            ),
+        ),
+    )
+    graph = JoinGraph.from_catalog(catalog)
+
+    edge = graph.find_path("children", "parents")[0]
+    assert edge.column_pairs == (
+        ("tenant_id", "tenant_id"),
+        ("parent_id", "parent_id"),
+    )
+
+    # Exercise the same edge rendering path used by the generator.
+    sql = SQLGenerator(catalog, join_graph=graph)._render(
+        base="children",
+        ordered_tables=["children", "parents"],
+        aliases={"children": "ch", "parents": "p"},
+        join_edges=(edge,),
+        selected=[
+            type("Selected", (), {"template": "SUM(ch.amount)", "output": "total"})()
+        ],
+        filters=(),
+        dimension=None,
+        measure=None,
+        needed={
+            "children": {"tenant_id", "parent_id", "amount"},
+            "parents": {"tenant_id", "parent_id"},
+        },
+        question="total",
+    )
+    assert "ch.tenant_id = p.tenant_id" in sql
+    assert "ch.parent_id = p.parent_id" in sql
 
 
 def test_generates_cte_skeleton_with_join_predicates_and_allowlist():

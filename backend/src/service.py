@@ -47,11 +47,12 @@ from router import Router
 from schema_retriever.catalog import SchemaCatalog
 from sql.compiler import SQLCompiler
 from sql.reconciler import Reconciler
-from trace_logger import TraceLogger
+from trace_logger import TraceLogger, mask_sensitive
 
-_DATABASE_PATH = (
-    Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
-).resolve()
+_DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
+_DATABASE_PATH = Path(
+    os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
+).expanduser().resolve()
 _TERMINAL_EVENTS = frozenset({"answer", "error"})
 _GOVERNED_ROUTES = frozenset({"lookup", "anomaly", "driver"})
 
@@ -541,7 +542,9 @@ class RunService:
                 )
             self._store.complete(run_id, envelope)
         except Exception as exc:  # pragma: no cover - defensive boundary
-            envelope = _error_envelope(run_id, f"Run failed: {exc}")
+            envelope = _error_envelope(
+                run_id, f"Run failed: {mask_sensitive(str(exc))}"
+            )
             self._emit(
                 run_id,
                 "error",

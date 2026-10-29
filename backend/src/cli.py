@@ -50,12 +50,13 @@ from sql.generator import SQLGenerationError, SQLGenerator
 from sql.reconciler import Reconciler
 from sql.repairer import SelfRepairer
 from sql.validator import SQLValidator
-from trace_logger import TraceLogger, TraceRecord
+from trace_logger import TraceLogger, TraceRecord, mask_sensitive
 
 _MODES = frozenset({"enterprise", "benchmark"})
 
 
 def _format_cell(value: object) -> str:
+    value = mask_sensitive(value)
     if value is None:
         return "[dim]NULL[/dim]"
     if isinstance(value, bool):
@@ -213,7 +214,7 @@ class CLI:
         except (OSError, ValueError, SQLAlchemyError) as exc:
             self._console.print(
                 f"[red]Could not build the schema catalog: "
-                f"{escape(str(exc))}[/red]"
+                f"{escape(str(mask_sensitive(str(exc))))}[/red]"
             )
             return
 
@@ -574,7 +575,8 @@ class CLI:
             )
         except (OSError, TypeError, ValueError) as exc:
             self._console.print(
-                f"[yellow]trace logging failed: {escape(str(exc))}[/yellow]"
+                f"[yellow]trace logging failed: "
+                f"{escape(str(mask_sensitive(str(exc))))}[/yellow]"
             )
             return None
 
@@ -929,7 +931,10 @@ class CLI:
         if result.error is not None:
             self._console.print(
                 Panel(
-                    Text(f"{result.error.kind}: {result.error.message}"),
+                    Text(
+                        f"{result.error.kind}: "
+                        f"{mask_sensitive(result.error.message)}"
+                    ),
                     title=f"{result.query_id} {result.status}",
                     border_style="red",
                 )
@@ -953,7 +958,13 @@ class CLI:
                 f"{escape(column.name)}\n[dim]{escape(column.type)}[/dim]",
                 overflow="fold",
             )
-        for row in result.rows or ():
+        safe_rows = mask_sensitive(
+            {
+                "columns": [column.model_dump(mode="json") for column in result.columns],
+                "rows": result.rows or (),
+            }
+        )["rows"]
+        for row in safe_rows:
             table.add_row(*(_format_cell(value) for value in row))
 
         self._console.print(table)

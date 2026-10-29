@@ -51,6 +51,17 @@ _SENSITIVE_KEY_PARTS = (
     "cvv",
     "email",
     "phone",
+    "full_name",
+    "first_name",
+    "last_name",
+    "customer_name",
+    "username",
+    "address",
+    "birth",
+    "passport",
+    "tax_id",
+    "bank_account",
+    "ip_address",
 )
 
 _EMAIL_PATTERN = re.compile(r"\b[\w.+-]+@[\w-]+(?:\.[\w-]+)+\b", re.IGNORECASE)
@@ -64,6 +75,19 @@ _BEARER_PATTERN = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE)
 _CONNECTION_PASSWORD_PATTERN = re.compile(
     r"(?P<prefix>[A-Za-z][A-Za-z0-9+.-]*://[^:/@\s]+:)"
     r"(?P<password>[^@\s]+)(?=@)"
+)
+_API_KEY_PATTERN = re.compile(
+    r"\b(?:sk-[A-Za-z0-9_-]{12,}|AIza[A-Za-z0-9_-]{20,}|"
+    r"AKIA[A-Z0-9]{16}|gh[pousr]_[A-Za-z0-9]{20,}|"
+    r"github_pat_[A-Za-z0-9_]{20,}|xox[baprs]-[A-Za-z0-9-]{10,})\b"
+)
+_JWT_PATTERN = re.compile(
+    r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\b"
+)
+_SECRET_ASSIGNMENT_PATTERN = re.compile(
+    r"(?i)(\b(?:password|passwd|pwd|secret|api[_-]?key|client[_-]?secret|"
+    r"access[_-]?token|auth[_-]?token|credential|token)\s*[:=]\s*)"
+    r"(['\"]?)([^\s,;\"']+)"
 )
 
 
@@ -88,7 +112,12 @@ def _is_sensitive_key(key: str) -> bool:
 
 
 def _mask_string(value: str) -> str:
-    masked = _EMAIL_PATTERN.sub(MASK, value)
+    masked = _SECRET_ASSIGNMENT_PATTERN.sub(
+        lambda match: f"{match.group(1)}{match.group(2)}{MASK}", value
+    )
+    masked = _API_KEY_PATTERN.sub(MASK, masked)
+    masked = _JWT_PATTERN.sub(MASK, masked)
+    masked = _EMAIL_PATTERN.sub(MASK, masked)
     masked = _SSN_PATTERN.sub(MASK, masked)
     masked = _CREDIT_CARD_PATTERN.sub(MASK, masked)
     masked = _PHONE_PATTERN.sub(MASK, masked)
@@ -103,10 +132,30 @@ def mask_sensitive(value: Any) -> Any:
     """Recursively mask sensitive keys and common sensitive string patterns."""
 
     if isinstance(value, dict):
+        sensitive_indexes: set[int] = set()
+        columns = value.get("columns")
+        if isinstance(columns, (list, tuple)):
+            sensitive_indexes = {
+                index
+                for index, column in enumerate(columns)
+                if isinstance(column, dict)
+                and isinstance(column.get("name"), str)
+                and _is_sensitive_key(column["name"])
+            }
         masked: dict[str, Any] = {}
         for key, item in value.items():
             if isinstance(key, str) and _is_sensitive_key(key):
                 masked[key] = MASK
+            elif key == "rows" and sensitive_indexes and isinstance(item, (list, tuple)):
+                masked[key] = [
+                    [
+                        MASK if index in sensitive_indexes else mask_sensitive(cell)
+                        for index, cell in enumerate(row)
+                    ]
+                    if isinstance(row, (list, tuple))
+                    else mask_sensitive(row)
+                    for row in item
+                ]
             else:
                 masked[key] = mask_sensitive(item)
         return masked
@@ -138,8 +187,10 @@ class TraceLogger:
         *,
         mask: bool = True,
     ) -> None:
+        if mask is not True:
+            raise ValueError("trace redaction cannot be disabled")
         self._trace_dir = Path(trace_dir).expanduser()
-        self._mask = mask
+        self._mask = True
 
     @property
     def trace_dir(self) -> Path:

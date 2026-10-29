@@ -518,12 +518,12 @@ class SQLValidator:
 
         if full in self._allowlist:
             return True
-        if not schema and any(
+        if not table.catalog and not schema and any(
             entry.endswith(f".{bare}") for entry in self._allowlist
         ):
             return True
         return bare in self._allowlist and (
-            not schema or schema in _COMMON_SCHEMAS
+            not table.catalog and (not schema or schema in _COMMON_SCHEMAS)
         )
 
     def _limits_check(

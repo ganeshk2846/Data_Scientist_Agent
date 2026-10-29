@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.cadra/
+spider_data/
+data/raw/
+*.sqlite*
+*.db*
+data/metric_registry.json
+data/*.lock

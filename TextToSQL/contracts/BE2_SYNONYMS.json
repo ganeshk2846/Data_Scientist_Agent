@@ -1,0 +1,9 @@
+[
+  {"name": "cstmr_dim", "synonyms": ["customers", "clients", "buyers", "accounts"]},
+  {"name": "ord_hdr", "synonyms": ["orders", "purchases", "sales orders"]},
+  {"name": "ord_line", "synonyms": ["order lines", "line items", "basket items"]},
+  {"name": "item_dim", "synonyms": ["products", "items", "catalog"]},
+  {"name": "monthly_kpi", "synonyms": ["monthly performance", "kpis", "revenue trend"]},
+  {"name": "customer_risk", "synonyms": ["churn", "attrition", "risk"]},
+  {"name": "region", "synonyms": ["territory", "area", "market"]}
+]

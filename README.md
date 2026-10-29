@@ -178,25 +178,27 @@ Data_Scientist_Agent/
    ```bash
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e backend/
+   pip install -e "backend[dev]"
+   pip install -r TextToSQL/requirements-dev.txt
    ```
 
+TextToSQL's CPU embeddings and spreadsheet intake dependencies are optional;
+install `TextToSQL/requirements-embeddings.txt` or
+`TextToSQL/requirements-uci-intake.txt` only when using those features.
+
+The Olist SQLite warehouse is not included in this repository. Obtain or build
+it through a source whose terms permit your intended use, then set
+`DS_AGENT_DATABASE` to its local path before running the database-backed API,
+CLI, or integration tests. See [deployment readiness](docs/DEPLOYMENT_READINESS.md)
+for the missing-fixture and authentication limitations.
+
 ### Running the Test Suite (TDD)
-Execute the comprehensive test suite verifying contracts, read-only gateway, Ingress Guard, and AST validation:
+Run backend tests from `backend/`. Tests that use Olist's fixed data and expected
+aggregates require the separately obtained database described above; unit tests
+using temporary SQLite databases do not.
 ```bash
 cd backend
 python -m pytest
-```
-
-```text
-platform win32 -- Python 3.14.7, pytest-9.1.1
-collected 229 items
-
-........................................................................ [ 33%]
-........................................................................ [ 67%]
-.....................................................................    [100%]
-
-229 passed in 9.95s
 ```
 
 ### Running the API

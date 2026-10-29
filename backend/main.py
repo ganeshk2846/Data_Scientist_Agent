@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -16,7 +17,9 @@ from gateway.connection import ConnectionManager
 from models.client import OllamaClient
 from trace_logger import TraceLogger
 
-DATABASE_PATH = (BACKEND_DIR / ".." / "brazil_ecommerce.sqlite").resolve()
+DATABASE_PATH = Path(
+    os.environ.get("DS_AGENT_DATABASE", BACKEND_DIR / ".." / "brazil_ecommerce.sqlite")
+).expanduser().resolve()
 TRACE_DIR = BACKEND_DIR / "traces"
 
 
