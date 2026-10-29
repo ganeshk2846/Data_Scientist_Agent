@@ -12,10 +12,20 @@ from service import RunService, build_runtime
 from trace_logger import TraceLogger
 from dataset_fixtures import requires_olist
 
+_API_TOKENS = {"test-user": "a" * 40}
+
+
+def _test_client(app):
+    client = TestClient(app)
+    client.headers.update({"Authorization": f"Bearer {_API_TOKENS['test-user']}"})
+    return client
+
 
 @pytest.fixture
 def client(tmp_path: Path) -> Iterator[TestClient]:
-    with TestClient(create_app(trace_dir=tmp_path / "traces")) as test_client:
+    with _test_client(
+        create_app(trace_dir=tmp_path / "traces", api_tokens=_API_TOKENS)
+    ) as test_client:
         yield test_client
 
 
@@ -163,7 +173,9 @@ def test_api_trace_uses_the_same_run_id(tmp_path: Path) -> None:
         lambda: build_runtime(),
         logger=TraceLogger(trace_dir),
     )
-    with TestClient(create_app(run_service=service)) as test_client:
+    with _test_client(
+        create_app(run_service=service, api_tokens=_API_TOKENS)
+    ) as test_client:
         run_id = _ask(test_client, "How many orders were there in August 2018?")
         test_client.get(f"/api/runs/{run_id}")
 
@@ -186,8 +198,12 @@ def test_fact_checker_removes_hallucinated_numbers_end_to_end(
         lambda: build_runtime(),
         narrator=hallucinating_narrator,
     )
-    with TestClient(
-        create_app(run_service=service, trace_dir=tmp_path / "traces")
+    with _test_client(
+        create_app(
+            run_service=service,
+            trace_dir=tmp_path / "traces",
+            api_tokens=_API_TOKENS,
+        )
     ) as test_client:
         run_id = _ask(
             test_client,
@@ -206,7 +222,9 @@ def test_fully_hallucinated_narrative_falls_back_to_ledger(tmp_path: Path) -> No
         lambda: build_runtime(),
         narrator=lambda outcome, ledger: "A hallucinated 999 appeared.",
     )
-    with TestClient(create_app(run_service=service)) as test_client:
+    with _test_client(
+        create_app(run_service=service, api_tokens=_API_TOKENS)
+    ) as test_client:
         run_id = _ask(
             test_client,
             "How many orders were there in August 2018?",

@@ -700,6 +700,9 @@
         <span style="font-size: 0.75rem; color: var(--text-dim);">Strict Invariant: Zero Hallucinated Numbers</span>
       </div>
 
+      <label for="apiTokenInput" style="display:block;font-size:0.78rem;color:var(--text-muted);margin:0.25rem 0 0.4rem;">API bearer token (kept in this page only)</label>
+      <input id="apiTokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your assigned API token" style="width:100%;margin-bottom:0.75rem;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius-md);padding:.7rem 1rem;color:var(--text-main);font-family:var(--font-mono);">
+
       <div class="input-wrapper">
         <textarea id="queryInput" placeholder="Enter your analytical query (e.g. 'What was total revenue in 2018?' or 'Why did orders drop in August 2017?')..."></textarea>
       </div>
@@ -865,7 +868,12 @@
 
   <script>
     const STAGES = ['guard', 'router', 'resolver', 'sql', 'validator', 'executor', 'reconciler', 'fact_checker'];
-    let currentEventSource = null;
+    let currentStreamController = null;
+
+    function apiHeaders(extra = {}) {
+      const token = document.getElementById('apiTokenInput').value.trim();
+      return { ...extra, Authorization: `Bearer ${token}` };
+    }
 
     function setQuery(text) {
       const input = document.getElementById('queryInput');
@@ -916,6 +924,10 @@
     async function submitQuery() {
       const query = document.getElementById('queryInput').value.trim();
       if (!query) return;
+      if (!document.getElementById('apiTokenInput').value.trim()) {
+        appendStreamLog('ERR', 'Enter your assigned API bearer token before submitting.');
+        return;
+      }
 
       const runBtn = document.getElementById('runBtn');
       runBtn.disabled = true;
@@ -927,7 +939,7 @@
       try {
         const res = await fetch('/api/ask', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: apiHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ question: query, session_id: sessionId })
         });
 
@@ -944,7 +956,7 @@
         appendStreamLog('1', 'Run registered: ' + runId + '. Opening SSE stream...');
 
         // Connect SSE with all named event listeners
-        listenToStream(runId);
+        await listenToStream(runId);
 
       } catch (err) {
         appendStreamLog('ERR', 'Network failure: ' + err.message);
@@ -952,33 +964,43 @@
       }
     }
 
-    function listenToStream(runId) {
-      if (currentEventSource) {
-        currentEventSource.close();
+    async function listenToStream(runId) {
+      if (currentStreamController) currentStreamController.abort();
+      const controller = new AbortController();
+      currentStreamController = controller;
+      try {
+        const response = await fetch('/api/runs/' + encodeURIComponent(runId) + '/events', {
+          headers: apiHeaders({ Accept: 'text/event-stream' }),
+          signal: controller.signal
+        });
+        if (!response.ok || !response.body) throw new Error(`Event stream failed with ${response.status}`);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let boundary = buffer.indexOf('\n\n');
+          while (boundary >= 0) {
+            const frame = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+            const data = frame.split('\n').filter(line => line.startsWith('data:'))
+              .map(line => line.slice(5).trim()).join('\n');
+            if (data) {
+              const event = JSON.parse(data);
+              handlePipelineEvent(event, runId);
+              if (event.type === 'answer' || event.type === 'error') return;
+            }
+            boundary = buffer.indexOf('\n\n');
+          }
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          appendStreamLog('ERR', 'Event stream interrupted; checking the run result.');
+          fetchEnvelope(runId);
+        }
       }
-
-      currentEventSource = new EventSource('/api/runs/' + runId + '/events');
-
-      const onEvent = (e) => {
-        try {
-          const event = JSON.parse(e.data);
-          handlePipelineEvent(event, runId);
-        } catch (err) {
-          console.error('SSE parse error:', err);
-        }
-      };
-
-      // Listen to all named SSE event types
-      const eventTypes = ['message', 'step_started', 'step_finished', 'answer', 'error', 'clarify'];
-      eventTypes.forEach(t => currentEventSource.addEventListener(t, onEvent));
-
-      currentEventSource.onerror = () => {
-        if (currentEventSource) {
-          currentEventSource.close();
-          currentEventSource = null;
-        }
-        fetchEnvelope(runId);
-      };
     }
 
     function handlePipelineEvent(event, runId) {
@@ -1007,10 +1029,10 @@
         }
       }
 
-      if (event.type === 'answer' || event.type === 'error' || event.type === 'clarify') {
-        if (currentEventSource) {
-          currentEventSource.close();
-          currentEventSource = null;
+      if (event.type === 'answer' || event.type === 'error') {
+        if (currentStreamController) {
+          currentStreamController.abort();
+          currentStreamController = null;
         }
         fetchEnvelope(runId);
       }
@@ -1019,7 +1041,9 @@
     async function fetchEnvelope(runId) {
       document.getElementById('runBtn').disabled = false;
       try {
-        const res = await fetch('/api/runs/' + runId);
+        const res = await fetch('/api/runs/' + encodeURIComponent(runId), {
+          headers: apiHeaders()
+        });
         if (!res.ok) {
           appendStreamLog('ERR', 'Failed to retrieve AnswerEnvelope');
           return;

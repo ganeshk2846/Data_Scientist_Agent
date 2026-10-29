@@ -137,6 +137,7 @@ def build_runtime(
 @dataclass(slots=True)
 class _RunRecord:
     run_id: str
+    owner_id: str
     question: str
     session_id: str
     clarification_of: str | None
@@ -161,6 +162,7 @@ class RunStore:
         self,
         run_id: str,
         *,
+        owner_id: str,
         question: str,
         session_id: str,
         clarification_of: str | None,
@@ -170,6 +172,7 @@ class RunStore:
                 raise ValueError(f"duplicate run id: {run_id}")
             self._runs[run_id] = _RunRecord(
                 run_id=run_id,
+                owner_id=owner_id,
                 question=question,
                 session_id=session_id,
                 clarification_of=clarification_of,
@@ -179,6 +182,10 @@ class RunStore:
     def exists(self, run_id: str) -> bool:
         with self._condition:
             return run_id in self._runs
+
+    def owner_id(self, run_id: str) -> str:
+        with self._condition:
+            return self._require(run_id).owner_id
 
     def append(
         self,
@@ -304,15 +311,26 @@ class RunService:
         self,
         question: str,
         *,
+        owner_id: str,
         session_id: str = "anonymous",
         clarification_of: str | None = None,
     ) -> str:
         cleaned = question.strip()
         if not cleaned:
             raise ValueError("question must not be empty")
+        if not owner_id.strip():
+            raise ValueError("owner_id must not be empty")
+        if clarification_of is not None:
+            try:
+                clarification_owner = self._store.owner_id(clarification_of)
+            except RunNotFoundError:
+                raise
+            if clarification_owner != owner_id:
+                raise RunNotFoundError(clarification_of)
         run_id = uuid.uuid4().hex
         self._store.create(
             run_id,
+            owner_id=owner_id,
             question=cleaned,
             session_id=session_id,
             clarification_of=clarification_of,

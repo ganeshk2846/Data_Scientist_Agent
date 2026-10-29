@@ -202,19 +202,32 @@ python -m pytest
 ```
 
 ### Running the API
+Configure a distinct random bearer token for each user through the deployment
+secret manager. `DS_AGENT_API_TOKENS` is a JSON object mapping stable user IDs to
+tokens of at least 32 characters. Do not commit token values or expose a shared
+server token in public client code. For local development, set the variable in
+the shell before starting the API; the example below is a shape only:
+
+```powershell
+$env:DS_AGENT_API_TOKENS = '{"alice":"replace-with-a-random-secret-of-at-least-32-characters"}'
+$env:DS_AGENT_TOKEN = 'the-same-token-configured-for-this-user'
+```
+
 Start the FastAPI server from `backend/` (no Ollama required for governed questions):
 ```bash
 uvicorn app:app --app-dir src --reload
 ```
 
-Start a run, stream its progress, then fetch the final envelope:
+Send the token in the `Authorization` header. The static workbench asks for a
+token at runtime and keeps it only in page memory:
 ```bash
-curl -X POST http://127.0.0.1:8000/api/ask \
-  -H "Content-Type: application/json" \
+curl.exe -X POST http://127.0.0.1:8000/api/ask `
+  -H "Authorization: Bearer $env:DS_AGENT_TOKEN" `
+  -H "Content-Type: application/json" `
   -d '{"question":"How many orders were there in August 2018?","session_id":"demo"}'
 
-curl -N http://127.0.0.1:8000/api/runs/<run_id>/events
-curl http://127.0.0.1:8000/api/runs/<run_id>
+curl.exe -N -H "Authorization: Bearer $env:DS_AGENT_TOKEN" http://127.0.0.1:8000/api/runs/<run_id>/events
+curl.exe -H "Authorization: Bearer $env:DS_AGENT_TOKEN" http://127.0.0.1:8000/api/runs/<run_id>
 ```
 
 SSE events use monotonically increasing `seq` values and support reconnect with
