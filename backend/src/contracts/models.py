@@ -9,6 +9,8 @@ fields match the interface contract.
 
 from __future__ import annotations
 
+import math
+import re
 from datetime import date
 from typing import Any, Literal
 
@@ -522,6 +524,12 @@ OrchestrationStatus = Literal[
     "error",
 ]
 PlanStepStatus = Literal["pending", "completed", "skipped", "failed"]
+GroundTruthSplit = Literal["build", "heldout"]
+PlantedAnomalyKind = Literal["level_shift", "spike", "dip", "gradual_decay"]
+PlantedDriverCauseKind = Literal["segment", "category", "carrier", "price_change"]
+NegativeControlKind = Literal[
+    "ordinary", "holiday_peak", "promotion_peak", "small_volume", "noise"
+]
 
 
 class TimeSlot(ContractModel):
@@ -680,6 +688,269 @@ class DriverResult(ContractModel):
     reconciliation_error: float
     candidates_examined: int = Field(ge=0)
     correction_used: str | None = None
+
+
+_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
+_UNSAFE_TEXT = ("/", "\\", "\x00", "\n", "\r")
+
+
+def _identifier(value: str, field: str) -> str:
+    text = value.strip()
+    if not _IDENTIFIER_PATTERN.fullmatch(text):
+        raise ValueError(
+            f"{field} must start with a letter and contain only letters, "
+            "digits, underscores or hyphens"
+        )
+    return text
+
+
+def _safe_text(value: str, field: str) -> str:
+    text = value.strip()
+    if not text:
+        raise ValueError(f"{field} must not be blank")
+    if any(character in text for character in _UNSAFE_TEXT):
+        raise ValueError(
+            f"{field} must not contain path separators, control characters "
+            "or line breaks"
+        )
+    return text
+
+
+def _finite(value: float, field: str) -> float:
+    if not math.isfinite(value):
+        raise ValueError(f"{field} must be finite")
+    return value
+
+
+class TruthUnit(ContractModel):
+    """The dimension and value a planted truth record applies to."""
+
+    dimension: str = Field(min_length=1)
+    value: str = Field(min_length=1)
+
+    @field_validator("dimension")
+    @classmethod
+    def _dimension_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "unit dimension")
+
+    @field_validator("value")
+    @classmethod
+    def _value_is_a_safe_label(cls, value: str) -> str:
+        return _safe_text(value, "unit value")
+
+
+class PlantedAnomaly(ContractModel):
+    """A generator-planted anomaly and the unit it affects (design C3)."""
+
+    anomaly_id: str = Field(min_length=1)
+    metric: str = Field(min_length=1)
+    unit: TruthUnit
+    kind: PlantedAnomalyKind
+    start: date
+    end: date | None = None
+    magnitude_pct: float
+
+    @field_validator("anomaly_id", "metric")
+    @classmethod
+    def _identifier_fields(cls, value: str) -> str:
+        return _identifier(value, "anomaly identifier")
+
+    @field_validator("magnitude_pct")
+    @classmethod
+    def _magnitude_is_finite(cls, value: float) -> float:
+        return _finite(value, "anomaly magnitude_pct")
+
+    @model_validator(mode="after")
+    def _end_is_not_before_start(self) -> PlantedAnomaly:
+        if self.end is not None and self.end < self.start:
+            raise ValueError("anomaly end must not be before its start")
+        return self
+
+
+class PlantedDriver(ContractModel):
+    """The true cause of a planted anomaly and its share of the change."""
+
+    anomaly_id: str = Field(min_length=1)
+    cause_kind: PlantedDriverCauseKind
+    cause: TruthUnit
+    true_share: float
+
+    @field_validator("anomaly_id")
+    @classmethod
+    def _anomaly_id_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "driver anomaly_id")
+
+    @field_validator("true_share")
+    @classmethod
+    def _true_share_is_finite(cls, value: float) -> float:
+        return _finite(value, "driver true_share")
+
+
+class Confounder(ContractModel):
+    """A factor that moves with a planted driver but is explicitly not causal."""
+
+    anomaly_id: str = Field(min_length=1)
+    moves_with: TruthUnit
+    is_cause: Literal[False] = False
+
+    @field_validator("anomaly_id")
+    @classmethod
+    def _anomaly_id_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "confounder anomaly_id")
+
+
+class NegativeControl(ContractModel):
+    """A period that should not be flagged as an anomaly (design C3)."""
+
+    control_id: str = Field(min_length=1)
+    metric: str = Field(min_length=1)
+    unit: TruthUnit
+    period: Period
+    kind: NegativeControlKind
+
+    @field_validator("control_id", "metric")
+    @classmethod
+    def _identifier_fields(cls, value: str) -> str:
+        return _identifier(value, "negative-control identifier")
+
+
+class TrueRiskSegment(ContractModel):
+    """A planted relative-risk segment for the future churn process."""
+
+    segment: str = Field(min_length=1)
+    relative_risk: float
+
+    @field_validator("segment")
+    @classmethod
+    def _segment_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "risk segment")
+
+    @field_validator("relative_risk")
+    @classmethod
+    def _relative_risk_is_finite(cls, value: float) -> float:
+        return _finite(value, "relative_risk")
+
+
+class ChurnProcessMetadata(ContractModel):
+    """Documented stochastic churn process metadata for future risk work."""
+
+    process_id: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+    params: dict[str, float] = Field(default_factory=dict)
+    true_risk_segments: tuple[TrueRiskSegment, ...] = ()
+    label_table: str = Field(min_length=1)
+
+    @field_validator("process_id")
+    @classmethod
+    def _process_id_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "churn process_id")
+
+    @field_validator("description")
+    @classmethod
+    def _description_is_safe_text(cls, value: str) -> str:
+        return _safe_text(value, "churn description")
+
+    @field_validator("label_table")
+    @classmethod
+    def _label_table_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "churn label_table")
+
+    @field_validator("params")
+    @classmethod
+    def _params_are_named_finite_numbers(
+        cls,
+        value: dict[str, float],
+    ) -> dict[str, float]:
+        cleaned: dict[str, float] = {}
+        for key, item in value.items():
+            name = _identifier(key, "churn parameter name")
+            cleaned[name] = _finite(float(item), f"churn parameter {name!r}")
+        return dict(sorted(cleaned.items()))
+
+
+class InsufficientEvidenceCase(ContractModel):
+    """An evaluation case whose expected outcome is insufficient evidence.
+
+    This record is a Phase 3 proposal. ``reason`` is the documented reason the
+    generator considers the case unevaluable; it is not a runtime instruction.
+    """
+
+    case_id: str = Field(min_length=1)
+    metric: str = Field(min_length=1)
+    unit: TruthUnit | None = None
+    period: Period | None = None
+    reason: str = Field(min_length=1)
+
+    @field_validator("case_id", "metric")
+    @classmethod
+    def _identifier_fields(cls, value: str) -> str:
+        return _identifier(value, "insufficient-evidence identifier")
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_is_safe_text(cls, value: str) -> str:
+        return _safe_text(value, "insufficient-evidence reason")
+
+
+class GroundTruthManifest(ContractModel):
+    """Generator-written planted truth, readable only by scoring code (DATA-4/9).
+
+    The manifest carries no SQL, code, path, import or runtime instruction.
+    ``split`` distinguishes the development/build snapshot from the locked
+    held-out snapshot; scoring code receives records, never the held-out file.
+    """
+
+    snapshot_id: str = Field(min_length=1)
+    seed: int = Field(ge=0)
+    generator_version: str = Field(min_length=1)
+    split: GroundTruthSplit
+    anomalies: tuple[PlantedAnomaly, ...] = ()
+    drivers: tuple[PlantedDriver, ...] = ()
+    confounders: tuple[Confounder, ...] = ()
+    negative_controls: tuple[NegativeControl, ...] = ()
+    churn_process: ChurnProcessMetadata | None = None
+    insufficient_evidence_cases: tuple[InsufficientEvidenceCase, ...] = ()
+
+    @field_validator("snapshot_id")
+    @classmethod
+    def _snapshot_id_is_an_identifier(cls, value: str) -> str:
+        return _identifier(value, "snapshot_id")
+
+    @field_validator("generator_version")
+    @classmethod
+    def _generator_version_is_safe_text(cls, value: str) -> str:
+        return _safe_text(value, "generator_version")
+
+    @model_validator(mode="after")
+    def _ids_are_unique_and_references_resolve(self) -> GroundTruthManifest:
+        anomaly_ids = [item.anomaly_id for item in self.anomalies]
+        if len(anomaly_ids) != len(set(anomaly_ids)):
+            raise ValueError("anomaly_id values must be unique")
+        control_ids = [item.control_id for item in self.negative_controls]
+        if len(control_ids) != len(set(control_ids)):
+            raise ValueError("negative control_id values must be unique")
+        case_ids = [item.case_id for item in self.insufficient_evidence_cases]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("insufficient-evidence case_id values must be unique")
+        known = set(anomaly_ids)
+        for driver in self.drivers:
+            if driver.anomaly_id not in known:
+                raise ValueError(
+                    f"driver references unknown anomaly_id {driver.anomaly_id!r}"
+                )
+        for confounder in self.confounders:
+            if confounder.anomaly_id not in known:
+                raise ValueError(
+                    "confounder references unknown anomaly_id "
+                    f"{confounder.anomaly_id!r}"
+                )
+        return self
+
+    @property
+    def is_heldout(self) -> bool:
+        """Whether this manifest belongs to the locked held-out split."""
+
+        return self.split == "heldout"
 
 
 class AnalystArtifact(ContractModel):
@@ -1022,13 +1293,24 @@ __all__ = [
     "AnomalyVerdict",
     "BudgetUsage",
     "ClassifierSignal",
+    "ChurnProcessMetadata",
+    "Confounder",
     "DriverContribution",
     "DriverResult",
     "ExecutionBudget",
+    "GroundTruthManifest",
+    "GroundTruthSplit",
+    "InsufficientEvidenceCase",
     "IntentLabel",
     "ModelRouteSignal",
+    "NegativeControl",
+    "NegativeControlKind",
     "OrchestrationResult",
     "OrchestrationStatus",
+    "PlantedAnomaly",
+    "PlantedAnomalyKind",
+    "PlantedDriver",
+    "PlantedDriverCauseKind",
     "PlanStep",
     "PlanStepStatus",
     "QueryRecord",
@@ -1040,6 +1322,8 @@ __all__ = [
     "SlotFilter",
     "TableRef",
     "TimeSlot",
+    "TrueRiskSegment",
+    "TruthUnit",
     "ActionOption",
     "AnswerEnvelope",
     "AskRequest",
