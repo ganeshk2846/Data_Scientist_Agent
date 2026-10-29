@@ -2,9 +2,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight,
   Clock,
+  Columns2,
   Command,
+  Compass,
   CornerDownLeft,
   FlaskConical,
+  Keyboard,
+  LayoutGrid,
   MonitorPlay,
   Moon,
   Plus,
@@ -20,6 +24,7 @@ import { useEscape } from '@/hooks/useHotkeys';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cx } from '@/lib/cx';
 import { formatRelativeTime } from '@/lib/format';
+import type { View } from '@/components/shell/LeftRail';
 import type { HistoryEntry } from '@/hooks/useSession';
 
 export interface PaletteActions {
@@ -29,6 +34,9 @@ export interface PaletteActions {
   onToggleTheme: () => void;
   onToggleMock: () => void;
   onPresentationMode: () => void;
+  onSetView: (view: View) => void;
+  onOpenShortcuts: () => void;
+  onReplayTour: () => void;
 }
 
 interface CommandPaletteProps extends PaletteActions {
@@ -38,11 +46,12 @@ interface CommandPaletteProps extends PaletteActions {
   mock: boolean;
   themeLabel: string;
   canPresent: boolean;
+  pinCount: number;
 }
 
 interface Row {
   id: string;
-  group: 'Ask' | 'Session' | 'Actions';
+  group: 'Ask' | 'Go to' | 'Session' | 'Actions';
   label: string;
   hint?: string;
   Icon: typeof Search;
@@ -65,12 +74,16 @@ export function CommandPalette({
   mock,
   themeLabel,
   canPresent,
+  pinCount,
   onAsk,
   onOpenHistory,
   onNewQuestion,
   onToggleTheme,
   onToggleMock,
   onPresentationMode,
+  onSetView,
+  onOpenShortcuts,
+  onReplayTour,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
@@ -105,6 +118,34 @@ export function CommandPalette({
       search: question,
       run: act(() => onAsk(question)),
     }));
+
+    const places: Row[] = [
+      {
+        id: 'go-ask',
+        group: 'Go to',
+        label: 'Ask',
+        Icon: Sparkles,
+        search: 'ask question hero home',
+        run: act(() => onSetView('ask')),
+      },
+      {
+        id: 'go-pinboard',
+        group: 'Go to',
+        label: 'Pinboard',
+        ...(pinCount > 0 ? { hint: `${pinCount} pinned` } : {}),
+        Icon: LayoutGrid,
+        search: 'pinboard pins kpi tiles figures watch',
+        run: act(() => onSetView('pinboard')),
+      },
+      {
+        id: 'go-compare',
+        group: 'Go to',
+        label: 'Compare two answers',
+        Icon: Columns2,
+        search: 'compare side by side diff two answers',
+        run: act(() => onSetView('compare')),
+      },
+    ];
 
     const past: Row[] = history
       .filter((entry) => entry.envelope)
@@ -146,6 +187,23 @@ export function CommandPalette({
         search: 'mock sample demo preview offline',
         run: act(onToggleMock),
       },
+      {
+        id: 'shortcuts',
+        group: 'Actions',
+        label: 'Keyboard shortcuts',
+        hint: '?',
+        Icon: Keyboard,
+        search: 'keyboard shortcuts keys help bindings',
+        run: act(onOpenShortcuts),
+      },
+      {
+        id: 'tour',
+        group: 'Actions',
+        label: 'Replay the tour',
+        Icon: Compass,
+        search: 'tour tutorial walkthrough intro onboarding replay',
+        run: act(onReplayTour),
+      },
       ...(canPresent
         ? [
             {
@@ -161,7 +219,7 @@ export function CommandPalette({
         : []),
     ];
 
-    const all = [...asks, ...past, ...actions];
+    const all = [...asks, ...places, ...past, ...actions];
     const needle = query.trim().toLowerCase();
     if (!needle) return all;
     return all.filter((row) => row.search.toLowerCase().includes(needle));
@@ -173,9 +231,13 @@ export function CommandPalette({
     onClose,
     onNewQuestion,
     onOpenHistory,
+    onOpenShortcuts,
     onPresentationMode,
+    onReplayTour,
+    onSetView,
     onToggleMock,
     onToggleTheme,
+    pinCount,
     query,
     themeLabel,
   ]);
@@ -231,7 +293,7 @@ export function CommandPalette({
             exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.99 }}
             transition={{ duration: 0.32, ease: [0.22, 0.61, 0.36, 1] }}
             className={cx(
-              'edge-gold relative w-full max-w-xl overflow-hidden rounded-[4px]',
+              'edge-accent relative w-full max-w-xl overflow-hidden rounded-lg',
               'border border-hairline-strong bg-[rgb(var(--c-surface-raised)/0.94)]',
               'shadow-overlay backdrop-blur-2xl',
             )}
@@ -250,7 +312,7 @@ export function CommandPalette({
           >
             {/* Query */}
             <div className="flex items-center gap-3 border-b border-hairline px-4">
-              <Search size={15} strokeWidth={1.75} aria-hidden className="text-ink-faint" />
+              <Search size={15} strokeWidth={1.5} aria-hidden className="text-ink-faint" />
               <input
                 ref={inputRef}
                 value={query}
@@ -312,12 +374,12 @@ export function CommandPalette({
               </span>
               <span className="flex items-center gap-1.5">
                 <Kbd>
-                  <CornerDownLeft size={10} strokeWidth={2} aria-hidden />
+                  <CornerDownLeft size={10} strokeWidth={1.5} aria-hidden />
                 </Kbd>
                 <span className="ml-0.5">select</span>
               </span>
               <span className="ml-auto flex items-center gap-2 text-ink-faint">
-                <Command size={10} strokeWidth={2} aria-hidden />
+                <Command size={10} strokeWidth={1.5} aria-hidden />
                 <span className="uppercase tracking-label">Command</span>
               </span>
             </div>
@@ -350,23 +412,23 @@ function PaletteRow({
       className={cx(
         'relative flex w-full items-center gap-3 px-4 py-2.5 text-left',
         'transition-colors duration-150 ease-editorial',
-        // A full gold wash reads muddy over the raised surface; the selection
-        // is carried by the gold rule and the brighter text instead.
-        active ? 'bg-[rgb(var(--c-gold)/0.055)]' : 'hover:bg-[rgb(var(--c-hairline)/0.4)]',
+        // A full accent wash reads muddy over the raised surface; the selection
+        // is carried by the accent rule and the brighter text instead.
+        active ? 'bg-[rgb(var(--c-accent)/0.055)]' : 'hover:bg-[rgb(var(--c-hairline)/0.4)]',
       )}
     >
       <span
         aria-hidden
         className={cx(
           'absolute inset-y-0 left-0 w-[2px] transition-colors duration-150',
-          active ? 'bg-gold' : 'bg-transparent',
+          active ? 'bg-accent' : 'bg-transparent',
         )}
       />
       <Icon
         size={14}
-        strokeWidth={1.75}
+        strokeWidth={1.5}
         aria-hidden
-        className={cx('shrink-0', active ? 'text-gold-ink' : 'text-ink-muted')}
+        className={cx('shrink-0', active ? 'text-accent-ink' : 'text-ink-muted')}
       />
       <span
         className={cx(

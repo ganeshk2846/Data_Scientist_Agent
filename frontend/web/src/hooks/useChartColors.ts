@@ -9,8 +9,8 @@ import type { ResolvedTheme } from '@/lib/theme';
  * of truth and nothing is hard-coded here.
  */
 export interface ChartColors {
-  gold: string;
-  goldSoft: string;
+  accent: string;
+  accentSoft: string;
   sage: string;
   terracotta: string;
   ink: string;
@@ -23,8 +23,8 @@ export interface ChartColors {
 }
 
 const VARS = {
-  gold: '--c-gold',
-  goldSoft: '--c-gold-soft',
+  accent: '--c-accent',
+  accentSoft: '--c-accent-soft',
   sage: '--c-sage',
   terracotta: '--c-terracotta',
   ink: '--c-ink',
@@ -48,8 +48,8 @@ function read(): ChartColors {
     channelsToRgb(style.getPropertyValue(name), fallback);
 
   return {
-    gold: value(VARS.gold, 'rgb(184 151 90)'),
-    goldSoft: value(VARS.goldSoft, 'rgb(223 207 168)'),
+    accent: value(VARS.accent, 'rgb(184 151 90)'),
+    accentSoft: value(VARS.accentSoft, 'rgb(223 207 168)'),
     sage: value(VARS.sage, 'rgb(107 127 98)'),
     terracotta: value(VARS.terracotta, 'rgb(168 92 69)'),
     ink: value(VARS.ink, 'rgb(28 27 25)'),

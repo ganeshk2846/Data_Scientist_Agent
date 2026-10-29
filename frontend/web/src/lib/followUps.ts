@@ -15,22 +15,8 @@
  * we return nothing rather than offer a question that will not answer.
  */
 
+import { METRIC_PHRASE, MONTHS, isGovernedMetric } from './metrics';
 import type { AnswerEnvelope } from './../types/envelope';
-
-/** The metrics the governed registry covers. Anything else is not answerable. */
-const GOVERNED = new Set(['gmv', 'revenue', 'order_count', 'aov']);
-
-const METRIC_PHRASE: Record<string, string> = {
-  gmv: 'GMV',
-  revenue: 'revenue',
-  order_count: 'order count',
-  aov: 'average order value',
-};
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
 
 interface Period {
   /** "August 2018" or "2018" — a phrase the router's extractor accepts. */
@@ -87,9 +73,8 @@ export function buildFollowUps(envelope: AnswerEnvelope): readonly FollowUp[] {
   if (envelope.status !== 'answered') return [];
 
   const metricId = envelope.scope.metric?.toLowerCase() ?? null;
-  if (!metricId || !GOVERNED.has(metricId)) return [];
+  if (!metricId || !isGovernedMetric(metricId)) return [];
   const metric = METRIC_PHRASE[metricId];
-  if (!metric) return [];
 
   const period = readPeriod(envelope.scope.window);
   if (!period) return [];

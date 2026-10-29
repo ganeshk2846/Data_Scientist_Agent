@@ -1,6 +1,8 @@
 import { Suspense, lazy, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
+import { ChartFrame } from './ChartFrame';
+import { DriverTable, SeriesTable } from './EvidenceTables';
 import { LookupTable } from './LookupTable';
 import { Tag } from '@/components/briefing/StatusBadge';
 import { useLineage, useLineageHandlers } from '@/components/briefing/LineageContext';
@@ -18,6 +20,7 @@ import {
 } from '@/lib/evidence';
 import { asHeroFigure, disambiguateTitles, evidenceTitle } from '@/lib/evidenceTitle';
 import { cx } from '@/lib/cx';
+import { safeFilename } from '@/lib/download';
 import { formatDuration, humanise } from '@/lib/format';
 import type { ResolvedTheme } from '@/lib/theme';
 import type { AnswerEnvelope, EvidenceBlock } from '@/types/envelope';
@@ -48,9 +51,9 @@ export function EvidenceSection({ envelope, theme }: EvidenceSectionProps) {
   );
 
   return (
-    <section data-print="flow">
+    <section data-print="flow" data-tour="lineage">
       <SectionLabel>Evidence</SectionLabel>
-      <div className="mt-4 space-y-5">
+      <div className="mt-group space-y-5">
         {evidence.map((block, index) => (
           <EvidenceCard
             key={`${block.module}-${index}`}
@@ -100,13 +103,16 @@ function EvidenceCard({
   });
 
   const [sqlOpen, setSqlOpen] = useState(false);
+  const subject = `${title.title}${title.period ? ` · ${title.period}` : ''}`;
 
   return (
     <Card
       tone="flat"
       className={cx(
-        'edge-gold sheen overflow-hidden transition-[border-color,box-shadow] duration-micro ease-editorial',
-        lit && 'border-gold shadow-lifted',
+        'sheen overflow-hidden transition-[border-color,box-shadow] duration-micro ease-editorial',
+        // The accent appears here only while this card is the lit one in the
+        // lineage thread. Idle, the card is pure tone and space.
+        lit ? 'border-accent shadow-lifted' : 'edge-light',
       )}
       {...handlers}
     >
@@ -117,7 +123,7 @@ function EvidenceCard({
               {title.period}
             </div>
           ) : null}
-          <h3 className="mt-1.5 font-serif text-[1.25rem] leading-snug text-ink">
+          <h3 className="opsz-title mt-2 font-serif text-[1.25rem] leading-7 tracking-[-0.008em] text-ink">
             {title.title}
           </h3>
         </div>
@@ -133,7 +139,7 @@ function EvidenceCard({
               key={claimId}
               className={cx(
                 'font-mono text-[0.6875rem] transition-colors duration-micro',
-                lineage.isClaimLit(claimId) ? 'text-gold-ink' : 'text-ink-faint',
+                lineage.isClaimLit(claimId) ? 'text-accent-ink' : 'text-ink-faint',
               )}
             >
               {claimId}
@@ -148,16 +154,16 @@ function EvidenceCard({
               aria-expanded={sqlOpen}
               data-print="hide"
               className={cx(
-                'inline-flex items-center gap-1 rounded-[3px] border px-2 py-0.5',
-                'font-mono text-[0.6875rem] transition-colors duration-micro ease-editorial',
+                'inline-flex items-center gap-1 rounded-sm border px-2 py-0.5',
+                'font-mono text-[0.6875rem] transition-colors duration-hover ease-editorial',
                 sqlOpen || lineage.isSourceLit(query.query_id)
-                  ? 'border-gold text-gold-ink'
-                  : 'border-hairline text-ink-faint hover:border-gold hover:text-gold-ink',
+                  ? 'border-accent text-accent-ink'
+                  : 'border-hairline text-ink-faint hover:border-hairline-strong hover:text-ink',
               )}
             >
               <ChevronRight
                 size={10}
-                strokeWidth={2}
+                strokeWidth={1.5}
                 aria-hidden
                 className={cx(
                   'transition-transform duration-micro ease-editorial',
@@ -184,14 +190,15 @@ function EvidenceCard({
       ) : null}
 
       <div className="px-5 pb-6 pt-5 sm:px-7 sm:pb-7">
-        {/* A single-cell result is a headline number, not a table. */}
+        {/* A single-cell result is a headline number, not a table. This is the
+            one figure on the card, so it is the one thing set large. */}
         {hero ? (
           <div>
             <CountUp
               value={hero.value}
-              className="block font-serif text-[2.75rem] leading-[1.05] tracking-[-0.015em] text-ink sm:text-[3.75rem]"
+              className="opsz-display block font-serif text-[2.75rem] leading-none tracking-[-0.018em] text-ink sm:text-[3.5rem]"
             />
-            <div className="mt-3 flex items-center gap-2.5">
+            <div className="mt-4 flex items-center gap-2.5">
               <span className="font-mono text-[0.6875rem] uppercase tracking-label text-ink-faint">
                 {hero.unit}
               </span>
@@ -203,17 +210,33 @@ function EvidenceCard({
 
         {anomaly ? (
           <Suspense fallback={<SkeletonBlock className="h-56 w-full" />}>
-            <AnomalyChart result={anomaly} series={series} theme={theme} />
+            <ChartFrame
+              subject={subject}
+              filename={safeFilename([title.title, title.period, 'anomaly'], 'png')}
+              table={
+                <SeriesTable series={series} anomaly={anomaly} subject={subject} />
+              }
+            >
+              <AnomalyChart result={anomaly} series={series} theme={theme} />
+            </ChartFrame>
           </Suspense>
         ) : null}
 
         {driver ? (
           <Suspense fallback={<SkeletonBlock className="h-56 w-full" />}>
-            <DriverBars result={driver} />
+            <ChartFrame
+              subject={subject}
+              filename={safeFilename([title.title, title.period, 'drivers'], 'png')}
+              table={<DriverTable result={driver} subject={subject} />}
+            >
+              <DriverBars result={driver} />
+            </ChartFrame>
           </Suspense>
         ) : null}
 
-        {lookup && !hero ? <LookupTable output={lookup} /> : null}
+        {lookup && !hero ? (
+          <LookupTable output={lookup} subject={title.title} />
+        ) : null}
 
         {/* An analyst that produced no result still explains itself. */}
         {analyst && !anomaly && !driver ? (

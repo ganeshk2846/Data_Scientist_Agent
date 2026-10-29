@@ -32,10 +32,10 @@ export function FollowUps({
               type="button"
               onClick={() => onAsk(followUp.question)}
               className={cx(
-                'edge-gold group flex h-full w-full flex-col items-start gap-3 rounded-[3px]',
+                'edge-light group flex h-full w-full flex-col items-start gap-3 rounded-sm',
                 'border border-hairline bg-surface px-4 py-3.5 text-left',
                 'transition-[border-color,box-shadow,background-color] duration-micro ease-editorial',
-                'hover:border-gold hover:shadow-soft',
+                'hover:border-hairline-strong hover:shadow-soft',
               )}
             >
               <span className="text-micro uppercase tracking-label text-ink-faint">
@@ -47,9 +47,9 @@ export function FollowUps({
                 </span>
                 <ArrowUpRight
                   size={13}
-                  strokeWidth={1.75}
+                  strokeWidth={1.5}
                   aria-hidden
-                  className="mt-0.5 shrink-0 text-ink-faint transition-colors duration-micro group-hover:text-gold"
+                  className="mt-0.5 shrink-0 text-ink-faint transition-colors duration-micro group-hover:text-ink-muted"
                 />
               </span>
             </button>

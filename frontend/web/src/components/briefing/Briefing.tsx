@@ -27,24 +27,41 @@ import type { AnswerEnvelope } from '@/types/envelope';
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
 
-/** Sections unfold one after another — slow, staggered, never bouncing. */
-function Section({
+/**
+ * The reveal.
+ *
+ * One cue per element, 95ms apart, in reading order — the status and period
+ * first, then the conclusion, then the figure, then everything that supports
+ * it. It is choreographed like a title sequence rather than fired all at once,
+ * because that is the difference between a page appearing and a page being
+ * *presented*: the eye is given the one sentence that matters before anything
+ * else arrives to compete with it.
+ *
+ * 95ms is the midpoint of the 80–120ms band — fast enough that the whole
+ * briefing is settled inside a second, slow enough to read as deliberate.
+ */
+const STEP = 0.095;
+
+function Reveal({
   children,
-  index,
+  step,
   reduced,
+  className,
 }: {
   children: ReactNode;
-  index: number;
+  step: number;
   reduced: boolean;
+  className?: string;
 }) {
   return (
     <motion.div
       data-print="flow"
-      initial={reduced ? false : { opacity: 0, y: 16 }}
+      className={className}
+      initial={reduced ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: reduced ? 0 : 0.55,
-        delay: reduced ? 0 : index * 0.085,
+        duration: reduced ? 0 : 0.5,
+        delay: reduced ? 0 : step * STEP,
         ease: EASE,
       }}
     >
@@ -59,6 +76,12 @@ interface BriefingProps {
   question: string | null;
   onAsk: (question: string) => void;
   onPresent: () => void;
+  starred?: boolean;
+  pinned?: boolean;
+  canPin?: boolean;
+  onToggleStar?: () => void;
+  onPin?: () => void;
+  onInspect?: () => void;
   /** Presentation mode drops the chrome and shows only the briefing itself. */
   presenting?: boolean;
 }
@@ -69,6 +92,12 @@ export function Briefing({
   question,
   onAsk,
   onPresent,
+  starred = false,
+  pinned = false,
+  canPin = false,
+  onToggleStar,
+  onPin,
+  onInspect,
   presenting = false,
 }: BriefingProps) {
   const reduced = useReducedMotion();
@@ -90,8 +119,10 @@ export function Briefing({
     ? `${humanise(envelope.scope.metric)}${period ? ` · ${period}` : ''}`
     : null;
 
-  let step = 0;
-  const next = () => step++;
+  // One running cue number, so a section that is not rendered does not leave a
+  // gap in the choreography.
+  let cue = 0;
+  const next = () => cue++;
 
   const hasScope =
     !!envelope.scope.metric ||
@@ -102,15 +133,16 @@ export function Briefing({
 
   return (
     <LineageProvider>
-      <div className={presenting ? 'space-y-14' : 'space-y-12'}>
-        {/* ── The conclusion. Everything else supports this. ───────────── */}
-        <Section index={next()} reduced={reduced}>
-          <Card
-            tone="flat"
-            className="edge-gold sheen px-6 py-7 sm:px-10 sm:py-9"
-            as="article"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+      <div className="space-y-block">
+        {/* ── The conclusion. Everything else supports this, and it is the one
+              element on the screen allowed to wear the accent edge. ──────── */}
+        <Card
+          tone="flat"
+          className="edge-accent sheen px-6 py-7 sm:px-card sm:py-card"
+          as="article"
+        >
+          <Reveal step={next()} reduced={reduced}>
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge status={envelope.status} />
                 {period ? (
@@ -123,23 +155,33 @@ export function Briefing({
                 <BriefingToolbar
                   envelope={envelope}
                   question={question}
+                  starred={starred}
+                  pinned={pinned}
+                  canPin={canPin}
+                  onToggleStar={onToggleStar ?? (() => {})}
+                  onPin={onPin ?? (() => {})}
+                  onInspect={onInspect ?? (() => {})}
                   onPresent={onPresent}
                 />
               ) : null}
             </div>
+          </Reveal>
 
+          <Reveal step={next()} reduced={reduced}>
             {envelope.conclusion ? (
               <Conclusion
                 conclusion={envelope.conclusion}
                 claims={envelope.claims}
-                className="mt-7"
+                className="mt-8"
               />
             ) : (
-              <p className="mt-7 max-w-prose font-serif text-body-serif font-light text-ink-muted">
+              <p className="mt-8 max-w-prose font-serif text-body-serif font-light text-ink-muted">
                 This run produced no narrative conclusion.
               </p>
             )}
+          </Reveal>
 
+          <Reveal step={next()} reduced={reduced}>
             <Hairline className="my-8" />
             <RouteStrip route={envelope.route} status={envelope.status} />
 
@@ -150,12 +192,12 @@ export function Briefing({
                 <ScopeLine scope={envelope.scope} />
               </>
             ) : null}
-          </Card>
-        </Section>
+          </Reveal>
+        </Card>
 
         {/* ── How this was computed. A first-class section, expanded. ───── */}
         {envelope.queries.length > 0 ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <QueryList
               queries={envelope.queries}
               claims={envelope.claims}
@@ -165,56 +207,56 @@ export function Briefing({
             <div className="mt-4">
               <ReadOnlyNote />
             </div>
-          </Section>
+          </Reveal>
         ) : null}
 
         {/* ── Evidence. ─────────────────────────────────────────────────── */}
         {envelope.evidence.length > 0 ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <EvidenceSection envelope={envelope} theme={theme} />
-          </Section>
+          </Reveal>
         ) : null}
 
         {leftover.length > 0 ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <UnplacedClaims claims={leftover} />
-          </Section>
+          </Reveal>
         ) : null}
 
         {envelope.caveats.length > 0 || envelope.causal_boundary_note ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <CaveatCallout
               caveats={envelope.caveats}
               causalBoundaryNote={envelope.causal_boundary_note}
             />
-          </Section>
+          </Reveal>
         ) : null}
 
         {envelope.next_actions.length > 0 ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <NextActions actions={envelope.next_actions} />
-          </Section>
+          </Reveal>
         ) : null}
 
         {/* ── Trust, then what to ask next. ─────────────────────────────── */}
-        <Section index={next()} reduced={reduced}>
+        <Reveal step={next()} reduced={reduced}>
           <TrustPanel envelope={envelope} />
-        </Section>
+        </Reveal>
 
         {!presenting && followUps.length > 0 ? (
-          <Section index={next()} reduced={reduced}>
+          <Reveal step={next()} reduced={reduced}>
             <FollowUps followUps={followUps} onAsk={onAsk} />
-          </Section>
+          </Reveal>
         ) : null}
 
-        <Section index={next()} reduced={reduced}>
+        <Reveal step={next()} reduced={reduced}>
           <RunMetricsFooter
             metrics={envelope.run_metrics}
             method={envelope.method}
             provenance={envelope.provenance}
             contractVersion={envelope.contract_version}
           />
-        </Section>
+        </Reveal>
       </div>
     </LineageProvider>
   );

@@ -42,7 +42,7 @@ export function ConfidenceGauge({ confidence }: { confidence: number }) {
           <motion.path
             d={ARC}
             fill="none"
-            stroke="rgb(var(--c-gold))"
+            stroke="rgb(var(--c-ink))"
             strokeWidth={STROKE}
             strokeLinecap="round"
             strokeDasharray={LENGTH}

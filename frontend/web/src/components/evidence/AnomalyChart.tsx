@@ -36,7 +36,7 @@ const VERDICT_TONE = {
  * The expected band plus the actual value.
  *
  * With a sibling series we draw a line chart, the `expected_range` as a shaded
- * band and the actual marked with a gold ring. Without one we fall back to a
+ * band and the actual marked with an accent ring. Without one we fall back to a
  * horizontal range bar — never a one-point line chart, which would imply a
  * trend the contract cannot support.
  */
@@ -153,7 +153,7 @@ function ChartTooltip({
 
   return (
     <div
-      className="rounded-[3px] border border-hairline bg-raised px-3 py-2 shadow-overlay"
+      className="rounded-sm border border-hairline bg-raised px-3 py-2 shadow-overlay"
       style={{ borderColor: colors.hairlineStrong }}
     >
       <div className="text-micro uppercase tracking-label text-ink-faint">{label}</div>
@@ -234,7 +234,7 @@ function SeriesChart({
             dataKey="bandHeight"
             stackId="band"
             stroke="none"
-            fill={colors.gold}
+            fill={colors.accent}
             fillOpacity={0.09}
             isAnimationActive={false}
             activeDot={false}
@@ -243,7 +243,7 @@ function SeriesChart({
           {/* The expected value. */}
           <ReferenceLine
             y={result.expected}
-            stroke={colors.gold}
+            stroke={colors.accent}
             strokeDasharray="3 5"
             strokeWidth={1}
             strokeOpacity={0.75}
@@ -257,7 +257,7 @@ function SeriesChart({
             dot={false}
             activeDot={{
               r: 3.5,
-              fill: colors.gold,
+              fill: colors.accent,
               stroke: colors.surface,
               strokeWidth: 2,
             }}
@@ -265,13 +265,13 @@ function SeriesChart({
             animationEasing="ease-out"
           />
 
-          {/* The period under test: a filled core inside a gold ring. */}
+          {/* The period under test: a filled core inside an accent ring. */}
           <ReferenceDot
             x={actualLabel}
             y={result.actual}
             r={6}
             fill="none"
-            stroke={colors.gold}
+            stroke={colors.accent}
             strokeWidth={1.5}
             isFront
           />
@@ -310,26 +310,26 @@ function RangeBar({ result, outside }: { result: AnomalyResult; outside: boolean
 
         <div
           aria-hidden
-          className="absolute top-[1.625rem] h-7 rounded-[2px] bg-[var(--c-gold-wash)] ring-1 ring-inset ring-[rgb(var(--c-gold)/0.3)]"
+          className="absolute top-[1.625rem] h-7 rounded-sm bg-[var(--c-accent-wash)] ring-1 ring-inset ring-[rgb(var(--c-accent)/0.3)]"
           style={{ left: `${at(low)}%`, width: `${at(high) - at(low)}%` }}
         />
 
         <div
           aria-hidden
-          className="absolute top-[1.25rem] h-10 w-px bg-gold"
+          className="absolute top-[1.25rem] h-10 w-px bg-accent"
           style={{ left: `${at(result.expected)}%` }}
         />
         <div
-          className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[0.6875rem] text-gold-ink"
+          className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[0.6875rem] text-accent-ink"
           style={{ left: `${at(result.expected)}%` }}
         >
           expected
         </div>
 
-        {/* The actual: a gold ring around a verdict-coloured core. */}
+        {/* The actual: an accent ring around a verdict-coloured core. */}
         <div
           aria-hidden
-          className="absolute top-[2rem] h-4 w-4 -translate-x-1/2 rounded-full border border-gold"
+          className="absolute top-[2rem] h-4 w-4 -translate-x-1/2 rounded-full border border-accent"
           style={{ left: `${at(result.actual)}%` }}
         />
         <div

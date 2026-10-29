@@ -1,9 +1,11 @@
-import { PanelLeft } from 'lucide-react';
+import { Keyboard, PanelLeft } from 'lucide-react';
 
 import { ThemeToggle } from './ThemeToggle';
+import { SettingsPopover } from '@/components/settings/SettingsPopover';
 import { Kbd } from '@/components/ui/Button';
 import { cx } from '@/lib/cx';
 import { shortRunId } from '@/lib/format';
+import type { SettingsController } from '@/hooks/useSettings';
 import type { ThemeController } from '@/hooks/useTheme';
 
 /** Whether the backend answered our probe. */
@@ -11,11 +13,16 @@ export type BackendState = 'unknown' | 'online' | 'offline';
 
 interface TopBarProps {
   theme: ThemeController;
+  settings: SettingsController;
   backend: BackendState;
   runId: string | null;
   mock: boolean;
+  historyCount: number;
   onToggleRail: () => void;
   onOpenPalette: () => void;
+  onOpenShortcuts: () => void;
+  onReplayTour: () => void;
+  onClearHistory: () => void;
 }
 
 const DOT: Record<BackendState, string> = {
@@ -32,11 +39,16 @@ const DOT_LABEL: Record<BackendState, string> = {
 
 export function TopBar({
   theme,
+  settings,
   backend,
   runId,
   mock,
+  historyCount,
   onToggleRail,
   onOpenPalette,
+  onOpenShortcuts,
+  onReplayTour,
+  onClearHistory,
 }: TopBarProps) {
   return (
     <header
@@ -50,23 +62,24 @@ export function TopBar({
       <button
         type="button"
         onClick={onToggleRail}
-        aria-label="Toggle question history"
-        className="-ml-1.5 rounded-[3px] p-1.5 text-ink-faint transition-colors duration-micro hover:text-ink lg:hidden"
+        title="Navigation and stored questions"
+        className="-ml-1.5 rounded-sm p-1.5 text-ink-faint transition-colors duration-hover hover:text-ink lg:hidden"
       >
-        <PanelLeft size={16} strokeWidth={1.75} aria-hidden />
+        <PanelLeft size={16} strokeWidth={1.5} aria-hidden />
+        <span className="sr-only">Toggle the rail</span>
       </button>
 
-      {/* Wordmark: a gold index mark, then the name. */}
+      {/* Wordmark: an accent index mark, then the name. */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <span aria-hidden className="h-3 w-px bg-gold" />
-        <span className="font-serif text-[0.9375rem] tracking-[-0.01em] text-ink">
+        <span aria-hidden className="h-3 w-px bg-accent" />
+        <span className="opsz-text font-serif text-[0.9375rem] tracking-[-0.01em] text-ink">
           Data Scientist
         </span>
       </div>
 
-      <div className="ml-auto flex items-center gap-2 sm:gap-4">
+      <div className="ml-auto flex items-center gap-2 sm:gap-3">
         {mock ? (
-          <span className="rounded-[3px] border border-gold bg-[var(--c-gold-wash)] px-2 py-0.5 text-micro uppercase tracking-label text-gold-ink">
+          <span className="rounded-sm border border-hairline-strong px-2 py-0.5 text-micro uppercase tracking-label text-ink-muted">
             Mock
           </span>
         ) : null}
@@ -86,9 +99,9 @@ export function TopBar({
           // only ever disagree with what the button actually says.
           title="Search questions, history and actions"
           className={cx(
-            'hidden items-center gap-2 rounded-[3px] border border-hairline bg-surface/60 py-1 pl-2.5 pr-1.5 sm:flex',
-            'text-[0.6875rem] text-ink-faint transition-colors duration-micro ease-editorial',
-            'hover:border-gold hover:text-ink',
+            'hidden items-center gap-2 rounded-sm border border-hairline bg-surface/60 py-1 pl-2.5 pr-1.5 sm:flex',
+            'text-[0.6875rem] text-ink-faint transition-colors duration-hover ease-editorial',
+            'hover:border-hairline-strong hover:text-ink',
           )}
         >
           <span>Search</span>
@@ -124,7 +137,26 @@ export function TopBar({
           </span>
         </span>
 
+        <span aria-hidden className="hidden h-4 w-px bg-hairline sm:block" />
+
+        <button
+          type="button"
+          onClick={onOpenShortcuts}
+          title="Keyboard shortcuts (?)"
+          className="hidden rounded-sm p-1.5 text-ink-faint transition-colors duration-hover hover:text-ink sm:block"
+        >
+          <Keyboard size={16} strokeWidth={1.5} aria-hidden />
+          <span className="sr-only">Keyboard shortcuts</span>
+        </button>
+
         <ThemeToggle theme={theme} />
+
+        <SettingsPopover
+          settings={settings}
+          historyCount={historyCount}
+          onReplayTour={onReplayTour}
+          onClearHistory={onClearHistory}
+        />
       </div>
     </header>
   );

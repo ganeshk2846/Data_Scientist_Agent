@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { ArrowUp } from 'lucide-react';
 
+import { VoiceButton } from './VoiceButton';
 import { Kbd } from '@/components/ui/Button';
 import { cx } from '@/lib/cx';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -23,6 +24,8 @@ interface AskBoxProps {
   examples?: readonly string[];
   /** The hero field sits on a plinth; the docked one is compact. */
   size?: 'hero' | 'docked';
+  /** Offers dictation, where the browser has an engine for it. */
+  voice?: boolean;
 }
 
 /**
@@ -31,7 +34,7 @@ interface AskBoxProps {
  * Enter submits; Shift+Enter inserts a newline, because a diagnostic question
  * can run long and losing it to a stray Return is cruel.
  *
- * The hero variant sits on a glass plinth whose thin gold border *traces
+ * The hero variant sits on a glass plinth whose thin accent border *traces
  * itself* on focus: two SVG rects share one path length, and the top one's
  * dash offset animates from full to zero, so the light appears to run around
  * the edge. It is a 600ms detail nobody will name but everybody will feel.
@@ -45,6 +48,7 @@ export const AskBox = forwardRef<HTMLTextAreaElement, AskBoxProps>(function AskB
     placeholder,
     examples,
     size = 'hero',
+    voice = false,
   },
   ref,
 ) {
@@ -89,17 +93,17 @@ export const AskBox = forwardRef<HTMLTextAreaElement, AskBoxProps>(function AskB
     <div
       ref={sheenRef}
       className={cx(
-        'group relative rounded-[3px]',
+        'group relative rounded-sm',
         hero
           ? // The plinth: a glass slab the field rests on.
-            'edge-gold sheen border border-hairline-strong bg-[rgb(var(--c-surface)/0.82)] shadow-lifted backdrop-blur-xl'
+            'edge-accent sheen border border-hairline-strong bg-[rgb(var(--c-surface)/0.82)] shadow-lifted backdrop-blur-xl'
           : 'border border-hairline-strong bg-surface shadow-soft',
         'transition-[border-color,box-shadow] duration-micro ease-editorial',
-        focused && 'border-gold',
-        disabled && 'opacity-60',
+        focused && 'border-accent',
+        disabled && 'bg-sunken',
       )}
     >
-      {/* The tracing gold border. Decorative, so it never reaches the a11y tree. */}
+      {/* The tracing accent border. Decorative, so it never reaches the a11y tree. */}
       {hero ? (
         <svg
           aria-hidden
@@ -113,7 +117,7 @@ export const AskBox = forwardRef<HTMLTextAreaElement, AskBoxProps>(function AskB
             height="calc(100% - 1px)"
             rx="2.5"
             fill="none"
-            stroke="rgb(var(--c-gold))"
+            stroke="rgb(var(--c-accent))"
             strokeWidth="1"
             pathLength={1}
             strokeDasharray={1}
@@ -164,7 +168,12 @@ export const AskBox = forwardRef<HTMLTextAreaElement, AskBoxProps>(function AskB
           hero ? 'px-6 pb-4' : 'px-5 pb-3.5',
         )}
       >
-        <span className="hidden items-center gap-1.5 text-[0.625rem] text-ink-faint sm:flex">
+        <span
+          className={cx(
+            'items-center gap-1.5 text-[0.625rem] text-ink-faint',
+            disabled ? 'hidden' : 'hidden sm:flex',
+          )}
+        >
           <Kbd>Enter</Kbd>
           <span>to ask</span>
           <span aria-hidden className="mx-1 h-2.5 w-px bg-hairline-strong" />
@@ -173,21 +182,32 @@ export const AskBox = forwardRef<HTMLTextAreaElement, AskBoxProps>(function AskB
           <span>new line</span>
         </span>
 
+        {voice ? (
+          <span className="ml-auto mr-1">
+            <VoiceButton
+              onTranscript={onChange}
+              onSubmit={() => onSubmit()}
+              disabled={disabled}
+            />
+          </span>
+        ) : null}
+
         <button
           type="button"
           onClick={onSubmit}
           disabled={!ready}
           aria-label="Ask"
           className={cx(
-            'pointer-events-auto ml-auto grid place-items-center rounded-[3px]',
+            'pointer-events-auto grid place-items-center rounded-sm',
+            voice ? '' : 'ml-auto',
             'transition-all duration-micro ease-editorial',
             hero ? 'h-10 w-10' : 'h-8 w-8',
             ready
-              ? 'bg-gold text-on-gold shadow-soft hover:brightness-[1.06]'
+              ? 'bg-accent text-on-accent shadow-soft hover:brightness-[1.06]'
               : 'border border-hairline bg-transparent text-ink-faint',
           )}
         >
-          <ArrowUp size={hero ? 17 : 15} strokeWidth={2} aria-hidden />
+          <ArrowUp size={hero ? 17 : 15} strokeWidth={1.5} aria-hidden />
         </button>
       </div>
     </div>

@@ -6,9 +6,12 @@ import { cx } from '@/lib/cx';
  * A hand-rolled SQL highlighter with a line-number gutter.
  *
  * No library: every popular one ships a theme built on purples and pinks, and
- * overriding them is more work than tokenising SQL. Five token classes, all in
- * palette — gold for keywords, muted sage for strings, warm grey for
- * identifiers, ink for numerals, faint italic for comments.
+ * overriding them is more work than tokenising SQL. Six token classes, all in
+ * palette, and NONE of them the accent: a query is a field of a hundred
+ * keywords, and an accent spread over a hundred things is not an accent. The
+ * separation is carried by weight and tone — keywords in full ink at medium,
+ * functions and identifiers in muted grey, strings in sage, comments faint and
+ * italic.
  */
 
 const KEYWORDS = new Set([
@@ -33,9 +36,9 @@ interface Token {
 }
 
 const CLASS: Record<TokenKind, string> = {
-  keyword: 'text-gold',
-  function: 'text-ink',
-  string: 'text-sage',
+  keyword: 'font-medium text-ink',
+  function: 'text-ink-muted',
+  string: 'text-sage-ink',
   number: 'text-ink',
   comment: 'italic text-ink-faint',
   plain: 'text-ink-muted',
@@ -82,14 +85,28 @@ function tokeniseLines(sql: string): readonly (readonly Token[])[] {
   return lines;
 }
 
-export function SqlBlock({ sql, className }: { sql: string; className?: string }) {
+export function SqlBlock({
+  sql,
+  className,
+  /** Names the scroll region. A long query scrolls sideways on a narrow
+      screen, and a region with its own scrollbar must be focusable or a
+      keyboard user cannot reach the rest of the line. */
+  label = 'SQL',
+}: {
+  sql: string;
+  className?: string;
+  label?: string;
+}) {
   const lines = useMemo(() => tokeniseLines(sql), [sql]);
 
   return (
     <div
       data-print="flow"
+      tabIndex={0}
+      role="region"
+      aria-label={label}
       className={cx(
-        'overflow-x-auto rounded-[3px] border border-hairline bg-sunken',
+        'overflow-x-auto rounded-sm border border-hairline bg-sunken',
         className,
       )}
     >
@@ -100,7 +117,7 @@ export function SqlBlock({ sql, className }: { sql: string; className?: string }
               {/* Gutter: select-none so copying the block never drags numbers in. */}
               <span
                 aria-hidden
-                className="select-none border-r border-hairline/70 px-3 text-right text-[0.6875rem] tabular-nums text-ink-faint/70"
+                className="select-none border-r border-hairline px-3 text-right text-[0.6875rem] tabular-nums text-ink-faint"
               >
                 {index + 1}
               </span>

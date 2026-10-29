@@ -1,7 +1,7 @@
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 /**
- * A faint gold technical grid behind the hero — the drafting paper a precision
+ * A faint accent technical grid behind the hero — the drafting paper a precision
  * instrument is designed on.
  *
  * Two superimposed grids (a fine 24px rule and a heavier 120px rule) drift

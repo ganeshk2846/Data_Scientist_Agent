@@ -6,37 +6,42 @@ import { formatDuration } from '@/lib/format';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { StageProgress } from '@/lib/stages';
 
-/** The marker is small: a hairline ring, filling gold only once it is done. */
+/**
+ * The marker is small, and deliberately quiet once it has done its job: a
+ * finished stage is struck in ink, and only the stage that is *running* wears
+ * the accent. On a live track that leaves exactly one accented element moving
+ * down the instrument, which is the whole point of the device.
+ */
 function Marker({ state }: { state: StageProgress['state'] }) {
   const reduced = useReducedMotion();
 
   if (state === 'ok') {
     return (
-      <span className="grid h-6 w-6 place-items-center rounded-full bg-gold text-on-gold">
-        <Check size={12} strokeWidth={2.5} aria-hidden />
+      <span className="grid h-6 w-6 place-items-center rounded-full border border-hairline-strong bg-surface text-ink-muted">
+        <Check size={11} strokeWidth={1.5} aria-hidden />
       </span>
     );
   }
   if (state === 'failed') {
     return (
       <span className="grid h-6 w-6 place-items-center rounded-full border border-terracotta bg-terracotta-wash text-terracotta">
-        <X size={12} strokeWidth={2.5} aria-hidden />
+        <X size={12} strokeWidth={1.5} aria-hidden />
       </span>
     );
   }
   if (state === 'skipped') {
     return (
       <span className="grid h-6 w-6 place-items-center rounded-full border border-dashed border-hairline-strong text-ink-faint">
-        <Minus size={11} strokeWidth={2} aria-hidden />
+        <Minus size={11} strokeWidth={1.5} aria-hidden />
       </span>
     );
   }
   if (state === 'running') {
     return (
-      <span className="relative grid h-6 w-6 place-items-center rounded-full border border-gold bg-[var(--c-gold-wash)]">
+      <span className="relative grid h-6 w-6 place-items-center rounded-full border border-accent bg-[var(--c-accent-wash)]">
         {/* A slow breathing dot, not a spinner — calm, not busy. */}
         <motion.span
-          className="h-2 w-2 rounded-full bg-gold"
+          className="h-2 w-2 rounded-full bg-accent"
           animate={reduced ? {} : { opacity: [1, 0.35, 1], scale: [1, 0.82, 1] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
         />

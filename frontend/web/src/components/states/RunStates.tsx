@@ -37,7 +37,7 @@ export function ClarifyState({ clarification, runId, onClarify }: ClarifyStatePr
   return (
     <StateShell
       Icon={HelpCircle}
-      tone="gold"
+      tone="accent"
       eyebrow="Needs clarifying"
       title="One detail short of an answer"
       lede={clarification.what_needs_clarification}
@@ -104,7 +104,7 @@ export function RefusedState({ refusal, onAsk }: RefusedStateProps) {
             <button
               type="button"
               onClick={() => onAsk(refusal.closest_answerable ?? '')}
-              className="mt-2.5 block w-full rounded-sm border border-hairline-strong bg-surface px-5 py-4 text-left transition-colors duration-micro ease-editorial hover:border-gold hover:bg-[var(--c-gold-wash)]"
+              className="mt-2.5 block w-full rounded-sm border border-hairline-strong bg-surface px-5 py-4 text-left transition-colors duration-micro ease-editorial hover:border-accent hover:bg-[var(--c-accent-wash)]"
             >
               <span className="font-serif text-[1.0625rem] text-ink">
                 {refusal.closest_answerable}
@@ -246,7 +246,7 @@ export function OfflineState({
         <div className="flex flex-wrap items-center gap-4">
           <a
             href="?mock=1"
-            className="inline-flex items-center rounded-sm border border-gold bg-[var(--c-gold-wash)] px-4 py-2 text-small font-medium text-gold-ink transition-colors duration-micro hover:brightness-105"
+            className="inline-flex items-center rounded-sm border border-accent bg-[var(--c-accent-wash)] px-4 py-2 text-small font-medium text-accent-ink transition-colors duration-micro hover:brightness-105"
           >
             Preview with sample answers
           </a>

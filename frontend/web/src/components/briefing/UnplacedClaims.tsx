@@ -31,7 +31,7 @@ export function UnplacedClaims({ claims }: { claims: readonly LedgerClaim[] }) {
           {claims.map((claim) => (
             <li key={claim.claim_id}>
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
-                <span className="font-mono text-[0.6875rem] text-gold-ink">
+                <span className="font-mono text-[0.6875rem] text-accent-ink">
                   {claim.claim_id}
                 </span>
                 <Tag>{CLAIM_KIND_LABEL[claim.kind]}</Tag>

@@ -1,24 +1,19 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { loadHistory, saveHistory, type StoredEntry } from '@/lib/historyStore';
+import { KEYS, removeRaw } from '@/lib/storage';
 import type { AnswerEnvelope, RunStatus } from '@/types/envelope';
 
 /**
- * This session's question history. Deliberately in-memory: the backend keeps
- * runs in a process-local store, so a reload cannot reopen them anyway.
+ * This browser's question history.
+ *
+ * It persists to localStorage: the envelope is a complete, self-contained
+ * document, so a briefing can be reopened from our own copy long after the
+ * backend's process-local run store has forgotten the run. Every surface that
+ * reads it labels it as stored locally — see `lib/historyStore.ts`.
  */
 
-export interface HistoryEntry {
-  /** Stable key, assigned before the run id exists. */
-  localId: string;
-  runId: string | null;
-  question: string;
-  askedAt: number;
-  /** Null while the run is still in flight. */
-  status: RunStatus | null;
-  envelope: AnswerEnvelope | null;
-  /** Set when this question was a clarification of an earlier run. */
-  clarificationOf: string | null;
-}
+export type HistoryEntry = StoredEntry;
 
 export interface SessionController {
   sessionId: string;
@@ -28,6 +23,9 @@ export interface SessionController {
   attachRunId: (localId: string, runId: string) => void;
   settle: (localId: string, envelope: AnswerEnvelope) => void;
   fail: (localId: string, status: RunStatus) => void;
+  toggleStar: (localId: string) => void;
+  /** Forgets everything stored in this browser. */
+  clear: () => void;
   find: (localId: string) => HistoryEntry | undefined;
 }
 
@@ -39,7 +37,11 @@ export function useSession(): SessionController {
     () => `web-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     [],
   );
-  const [history, setHistory] = useState<readonly HistoryEntry[]>([]);
+  const [history, setHistory] = useState<readonly HistoryEntry[]>(loadHistory);
+
+  // One write per change, not one per keystroke: history only changes on a
+  // submit, a settle or a star, all of which are rare.
+  useEffect(() => saveHistory(history), [history]);
 
   const open = useCallback((question: string, clarificationOf: string | null = null) => {
     const localId = nextLocalId();
@@ -52,6 +54,7 @@ export function useSession(): SessionController {
         status: null,
         envelope: null,
         clarificationOf,
+        starred: false,
       },
       ...current,
     ]);
@@ -80,10 +83,33 @@ export function useSession(): SessionController {
     [patch],
   );
 
+  const toggleStar = useCallback((localId: string) => {
+    setHistory((current) =>
+      current.map((entry) =>
+        entry.localId === localId ? { ...entry, starred: !entry.starred } : entry,
+      ),
+    );
+  }, []);
+
+  const clear = useCallback(() => {
+    setHistory([]);
+    removeRaw(KEYS.history);
+  }, []);
+
   const find = useCallback(
     (localId: string) => history.find((entry) => entry.localId === localId),
     [history],
   );
 
-  return { sessionId, history, open, attachRunId, settle, fail, find };
+  return {
+    sessionId,
+    history,
+    open,
+    attachRunId,
+    settle,
+    fail,
+    toggleStar,
+    clear,
+    find,
+  };
 }

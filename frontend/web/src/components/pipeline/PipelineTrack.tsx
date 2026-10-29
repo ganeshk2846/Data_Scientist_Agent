@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Check, Loader2, Minus, X } from 'lucide-react';
+import { Check, ListTree, Loader2, Minus, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { StageNode } from './StageNode';
@@ -24,7 +24,7 @@ const settled = (stage?: StageProgress) =>
 /**
  * The connector between two stages.
  *
- * When the left stage has finished and the right one has not, a point of gold
+ * When the left stage has finished and the right one has not, a point of accent
  * light travels the hairline — the signal visibly moving down the instrument.
  * Once both have finished the hairline is simply lit.
  */
@@ -40,7 +40,7 @@ function Connector({
   return (
     <div aria-hidden className="relative mt-[0.59375rem] h-px flex-1 overflow-hidden bg-hairline">
       <motion.div
-        className="absolute inset-y-0 left-0 bg-gold"
+        className="absolute inset-y-0 left-0 bg-hairline-strong"
         initial={reduced ? { width: lit ? '100%' : 0 } : { width: 0 }}
         animate={{ width: lit ? '100%' : 0 }}
         transition={{ duration: reduced ? 0 : 0.6, ease: [0.22, 0.61, 0.36, 1] }}
@@ -50,7 +50,7 @@ function Connector({
           className="absolute inset-y-0 w-10"
           style={{
             background:
-              'linear-gradient(90deg, transparent, rgb(var(--c-gold)) 55%, transparent)',
+              'linear-gradient(90deg, transparent, rgb(var(--c-accent)) 55%, transparent)',
           }}
           initial={{ left: '-2.5rem' }}
           animate={{ left: '100%' }}
@@ -96,7 +96,7 @@ export function PipelineTrack({
   const active = phase === 'submitting' || phase === 'streaming' || phase === 'fetching';
 
   return (
-    <Card tone="flat" className="edge-gold px-5 py-4 sm:px-6 sm:py-5" data-print="hide">
+    <Card tone="flat" className="edge-light px-5 py-4 sm:px-6 sm:py-5" data-print="hide">
       <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-2">
         <div className="flex items-baseline gap-3">
           <SectionLabel>{active ? 'Running' : 'Pipeline'}</SectionLabel>
@@ -107,7 +107,7 @@ export function PipelineTrack({
 
         <div className="flex items-center gap-3">
           {reconnecting ? (
-            <span className="flex items-center gap-1.5 text-[0.6875rem] text-gold-ink">
+            <span className="flex items-center gap-1.5 text-[0.6875rem] text-accent-ink">
               <Loader2 size={11} className="animate-spin" aria-hidden />
               reconnecting
             </span>
@@ -157,10 +157,13 @@ export function PipelineSummaryBar({
   stages,
   onExpand,
   expanded,
+  onInspect,
 }: {
   stages: readonly StageProgress[];
   onExpand: () => void;
   expanded: boolean;
+  /** Opens the run inspector — the full waterfall and the raw envelope. */
+  onInspect: () => void;
 }) {
   if (stages.length === 0) return null;
 
@@ -170,15 +173,12 @@ export function PipelineSummaryBar({
   const total = done.reduce((sum, stage) => sum + (stage.durationMs ?? 0), 0);
 
   return (
-    <button
-      type="button"
-      onClick={onExpand}
-      aria-expanded={expanded}
+    <div
       data-print="hide"
       className={cx(
-        'group flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-[3px] border px-4 py-2.5',
+        'group flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-sm border px-4 py-2.5',
         'border-hairline bg-[rgb(var(--c-surface)/0.6)] text-left',
-        'transition-colors duration-micro ease-editorial hover:border-gold',
+        'transition-colors duration-hover ease-editorial hover:border-hairline-strong',
       )}
     >
       <span
@@ -187,13 +187,13 @@ export function PipelineSummaryBar({
           'grid h-4 w-4 place-items-center rounded-full',
           failed.length > 0
             ? 'border border-terracotta text-terracotta'
-            : 'bg-gold text-on-gold',
+            : 'border border-hairline-strong bg-surface text-ink-muted',
         )}
       >
         {failed.length > 0 ? (
-          <X size={9} strokeWidth={3} aria-hidden />
+          <X size={10} strokeWidth={1.5} aria-hidden />
         ) : (
-          <Check size={9} strokeWidth={3} aria-hidden />
+          <Check size={10} strokeWidth={1.5} aria-hidden />
         )}
       </span>
 
@@ -209,7 +209,7 @@ export function PipelineSummaryBar({
             className={cx(
               'h-2.5 w-px',
               stage.state === 'ok'
-                ? 'bg-gold'
+                ? 'bg-ink-faint'
                 : stage.state === 'failed'
                   ? 'bg-terracotta'
                   : 'bg-hairline-strong',
@@ -220,23 +220,40 @@ export function PipelineSummaryBar({
 
       {skipped.length > 0 ? (
         <span className="flex items-center gap-1 text-[0.6875rem] text-ink-faint">
-          <Minus size={9} strokeWidth={2.5} aria-hidden />
+          <Minus size={10} strokeWidth={1.5} aria-hidden />
           {skipped.length} not used
         </span>
       ) : null}
 
       {/* One time, labelled. Two bare durations side by side read as a bug. */}
-      <span className="ml-auto flex items-baseline gap-3">
+      <span className="ml-auto flex items-center gap-3">
         <span className="text-micro uppercase tracking-label text-ink-faint">
           stage time
         </span>
         <span className="font-mono text-[0.75rem] tabular-nums text-ink-muted">
           {formatDuration(total)}
         </span>
-        <span className="text-[0.6875rem] text-ink-faint group-hover:text-gold">
-          {expanded ? 'hide' : 'detail'}
-        </span>
+
+        {/* Two destinations, so each is its own control: the track expands in
+            place, the inspector opens the waterfall and the raw envelope. */}
+        <button
+          type="button"
+          onClick={onExpand}
+          aria-expanded={expanded}
+          className="rounded-sm px-1.5 py-0.5 text-[0.6875rem] text-ink-faint transition-colors duration-hover ease-editorial hover:text-ink"
+        >
+          {expanded ? 'Hide track' : 'Show track'}
+        </button>
+        <button
+          type="button"
+          onClick={onInspect}
+          title="Run inspector (I)"
+          className="inline-flex items-center gap-1.5 rounded-sm border border-hairline px-2 py-0.5 text-[0.6875rem] text-ink-muted transition-colors duration-hover ease-editorial hover:border-hairline-strong hover:text-ink"
+        >
+          <ListTree size={11} strokeWidth={1.5} aria-hidden />
+          Inspect
+        </button>
       </span>
-    </button>
+    </div>
   );
 }

@@ -4,10 +4,10 @@ import type { ReactNode } from 'react';
 import { Card, Hairline, SectionLabel } from '@/components/ui/Card';
 import { cx } from '@/lib/cx';
 
-type Tone = 'gold' | 'terracotta' | 'neutral';
+type Tone = 'accent' | 'terracotta' | 'neutral';
 
 const ICON_TONE: Record<Tone, string> = {
-  gold: 'border-gold bg-[var(--c-gold-wash)] text-gold',
+  accent: 'border-accent bg-[var(--c-accent-wash)] text-accent',
   terracotta: 'border-terracotta bg-terracotta-wash text-terracotta',
   neutral: 'border-hairline-strong bg-sunken text-ink-muted',
 };
@@ -43,7 +43,7 @@ export function StateShell({
             ICON_TONE[tone],
           )}
         >
-          <Icon size={17} strokeWidth={1.75} aria-hidden />
+          <Icon size={17} strokeWidth={1.5} aria-hidden />
         </span>
 
         <div className="min-w-0 flex-1">

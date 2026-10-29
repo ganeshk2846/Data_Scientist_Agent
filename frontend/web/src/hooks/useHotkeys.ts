@@ -12,36 +12,62 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
+/** A letter is a letter; `?` and `,` are produced differently per layout. */
+function isLetter(key: string): boolean {
+  return key.length === 1 && /[a-z]/.test(key);
+}
+
+interface HotkeyOptions {
+  /** Require Shift. Only meaningful for letters. */
+  shift?: boolean;
+  /** Set false to suspend the binding without unmounting the component. */
+  enabled?: boolean;
+}
+
 /**
- * A bare single-letter shortcut. Ignored while typing, and ignored with any
- * modifier held, so it never fights the browser's own shortcuts.
+ * A bare single-key shortcut.
+ *
+ * Ignored while typing, and ignored with Meta/Ctrl/Alt held, so it never
+ * fights the browser's own shortcuts. Shift is matched exactly for letters —
+ * `S` stars and `⇧P` pins, and neither fires for the other — but is left
+ * unchecked for symbol keys, where the layout decides whether Shift is
+ * involved in producing `?` at all.
  */
-export function useHotkey(key: string, onFire: () => void): void {
+export function useHotkey(
+  key: string,
+  onFire: () => void,
+  options: HotkeyOptions = {},
+): void {
+  const { shift = false, enabled = true } = options;
+
   useEffect(() => {
+    if (!enabled) return;
     const handler = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key.toLowerCase() !== key) return;
+      const pressed = event.key.toLowerCase();
+      if (pressed !== key) return;
+      if (isLetter(key) && event.shiftKey !== shift) return;
       if (isTyping(event.target)) return;
       event.preventDefault();
       onFire();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [key, onFire]);
+  }, [enabled, key, onFire, shift]);
 }
 
 /** Ctrl/Cmd+K opens the command palette. */
-export function useAskHotkey(onFocusAsk: () => void): void {
+export function useAskHotkey(onOpenPalette: () => void): void {
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() !== 'k') return;
       if (!event.metaKey && !event.ctrlKey) return;
       event.preventDefault();
-      onFocusAsk();
+      onOpenPalette();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onFocusAsk]);
+  }, [onOpenPalette]);
 }
 
 /** Calls back on Escape, while `active`. */

@@ -21,6 +21,13 @@ interface AnswerCanvasProps {
   onClarify: (answer: string, clarificationOf: string) => void;
   onRetry: () => void;
   onPresent: () => void;
+  /** The briefing's own actions, threaded through from App. */
+  starred: boolean;
+  pinned: boolean;
+  canPin: boolean;
+  onToggleStar: () => void;
+  onPin: () => void;
+  onInspect: () => void;
 }
 
 /**
@@ -35,6 +42,12 @@ export function AnswerCanvas({
   onClarify,
   onRetry,
   onPresent,
+  starred,
+  pinned,
+  canPin,
+  onToggleStar,
+  onPin,
+  onInspect,
 }: AnswerCanvasProps) {
   // A client-side failure never reached a status, so it is handled first.
   if (state.failure) {
@@ -79,12 +92,18 @@ export function AnswerCanvas({
           question={state.question}
           onAsk={onAsk}
           onPresent={onPresent}
+          starred={starred}
+          pinned={pinned}
+          canPin={canPin}
+          onToggleStar={onToggleStar}
+          onPin={onPin}
+          onInspect={onInspect}
         />
       );
 
     case 'clarify':
       return (
-        <div className="space-y-10">
+        <div className="space-y-block">
           {envelope.clarification ? (
             <ClarifyState
               clarification={envelope.clarification}
@@ -98,7 +117,7 @@ export function AnswerCanvas({
 
     case 'refused':
       return (
-        <div className="space-y-10">
+        <div className="space-y-block">
           {envelope.refusal ? (
             <RefusedState refusal={envelope.refusal} onAsk={onAsk} />
           ) : null}
@@ -108,7 +127,7 @@ export function AnswerCanvas({
 
     case 'blocked':
       return (
-        <div className="space-y-10">
+        <div className="space-y-block">
           {envelope.block ? <BlockedState block={envelope.block} /> : null}
           <Tail envelope={envelope} />
         </div>
@@ -116,7 +135,7 @@ export function AnswerCanvas({
 
     case 'insufficient_evidence':
       return (
-        <div className="space-y-10">
+        <div className="space-y-block">
           <InsufficientEvidenceState envelope={envelope} />
           {envelope.queries.length > 0 ? (
             <QueryList
@@ -131,7 +150,7 @@ export function AnswerCanvas({
 
     case 'error':
       return (
-        <div className="space-y-10">
+        <div className="space-y-block">
           <ErrorState
             detail={envelope.caveats[0] ?? envelope.route.reason}
             streamError={state.streamError}

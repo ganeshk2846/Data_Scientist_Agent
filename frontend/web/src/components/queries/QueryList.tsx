@@ -42,11 +42,11 @@ export function CopyButton({
       onClick={copy}
       aria-label={copied ? `${label} copied` : `Copy ${label}`}
       className={cx(
-        'inline-flex items-center gap-1.5 rounded-[3px] border px-2.5 py-1',
+        'inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1',
         'text-[0.6875rem] transition-colors duration-micro ease-editorial',
         copied
-          ? 'border-gold text-gold-ink'
-          : 'border-hairline text-ink-faint hover:border-gold hover:text-gold-ink',
+          ? 'border-accent text-accent-ink'
+          : 'border-hairline text-ink-faint hover:border-hairline-strong hover:text-ink',
         className,
       )}
     >
@@ -54,7 +54,7 @@ export function CopyButton({
       <span className="relative grid h-3 w-3 place-items-center">
         <Copy
           size={11}
-          strokeWidth={2}
+          strokeWidth={1.5}
           aria-hidden
           className={cx(
             'absolute transition-all duration-200 ease-editorial',
@@ -63,7 +63,7 @@ export function CopyButton({
         />
         <Check
           size={11}
-          strokeWidth={2.5}
+          strokeWidth={1.5}
           aria-hidden
           className={cx(
             'absolute transition-all duration-300 ease-editorial',
@@ -111,7 +111,7 @@ export function QueryList({ queries, claims, origin, heading }: QueryListProps) 
 
         <div className="flex flex-wrap items-center gap-2">
           {origin ? (
-            <Tag tone="gold" title={ORIGIN_NOTE[origin]}>
+            <Tag title={ORIGIN_NOTE[origin]}>
               {origin}
             </Tag>
           ) : null}
@@ -170,8 +170,8 @@ function QueryCard({
     <Card
       tone="flat"
       className={cx(
-        'edge-gold scroll-mt-20 overflow-hidden transition-[border-color,box-shadow] duration-micro ease-editorial',
-        lit && 'border-gold shadow-lifted',
+        'edge-light scroll-mt-20 overflow-hidden transition-[border-color,box-shadow] duration-micro ease-editorial',
+        lit && 'border-accent shadow-lifted',
       )}
       {...handlers}
     >
@@ -182,14 +182,14 @@ function QueryCard({
         <span className="flex items-center gap-2">
           <Database
             size={12}
-            strokeWidth={1.75}
+            strokeWidth={1.5}
             aria-hidden
-            className={lit ? 'text-gold-ink' : 'text-ink-faint'}
+            className={lit ? 'text-accent-ink' : 'text-ink-faint'}
           />
           <span
             className={cx(
               'font-mono text-[0.8125rem] transition-colors duration-micro',
-              lit ? 'text-gold-ink' : 'text-ink',
+              lit ? 'text-accent-ink' : 'text-ink',
             )}
           >
             {query.query_id}
@@ -221,7 +221,7 @@ function QueryCard({
                 key={claim.claim_id}
                 className={cx(
                   'font-mono text-[0.75rem] transition-colors duration-micro',
-                  lineage.isClaimLit(claim.claim_id) ? 'text-gold-ink' : 'text-ink-muted',
+                  lineage.isClaimLit(claim.claim_id) ? 'text-accent-ink' : 'text-ink-muted',
                 )}
               >
                 {claim.claim_id}
@@ -246,7 +246,7 @@ function QueryCard({
 export function ReadOnlyNote() {
   return (
     <p className="flex items-center gap-2 text-[0.6875rem] text-ink-faint">
-      <ShieldCheck size={12} strokeWidth={1.75} aria-hidden className="text-sage" />
+      <ShieldCheck size={12} strokeWidth={1.5} aria-hidden className="text-sage" />
       Executed through a read-only gateway. Writes are rejected at the driver.
     </p>
   );

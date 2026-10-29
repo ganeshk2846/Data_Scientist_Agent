@@ -12,9 +12,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const VARIANTS: Record<Variant, string> = {
   // Gold is the single accent; on it, ink text keeps AA contrast.
   primary:
-    'bg-gold text-on-gold border border-gold hover:brightness-[1.06] active:brightness-[0.96]',
+    'bg-accent text-on-accent border border-accent hover:brightness-[1.06] active:brightness-[0.96]',
   quiet:
-    'bg-surface text-ink border border-hairline-strong hover:bg-[var(--c-gold-wash)] hover:border-gold',
+    'bg-surface text-ink border border-hairline-strong hover:bg-[var(--c-accent-wash)] hover:border-accent',
   ghost: 'bg-transparent text-ink-muted border border-transparent hover:text-ink',
 };
 
@@ -41,7 +41,7 @@ export function Kbd({ children }: { children: ReactNode }) {
   return (
     <kbd
       className={cx(
-        'inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-[3px] px-1.5',
+        'inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-sm px-1.5',
         'border border-hairline-strong bg-surface',
         'font-sans text-[0.6875rem] font-medium text-ink-muted',
       )}

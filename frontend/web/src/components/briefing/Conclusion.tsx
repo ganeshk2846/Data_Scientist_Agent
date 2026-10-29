@@ -13,7 +13,7 @@ interface ClaimMarkProps {
 }
 
 /**
- * A number in the narrative, with its claim ids as gold superscripts.
+ * A number in the narrative, with its claim ids as accent superscripts.
  *
  * Hovering or focusing it lights the whole lineage — this number, its evidence
  * card and the query behind it — and opens the source popover. It is a real
@@ -52,17 +52,17 @@ function ClaimMark({ claims, text }: ClaimMarkProps) {
           setOpen(false);
         }}
         className={cx(
-          'relative rounded-[2px] px-0.5 transition-[background-color,box-shadow] duration-micro ease-editorial',
+          'relative rounded-sm px-0.5 transition-[background-color,box-shadow] duration-micro ease-editorial',
           // The faint glow is the "this is live" tell; it never shifts layout.
           lit
-            ? 'bg-[var(--c-gold-wash)] text-ink shadow-[0_0_0_1px_rgb(var(--c-gold)/0.35)]'
+            ? 'bg-[var(--c-accent-wash)] text-ink shadow-[0_0_0_1px_rgb(var(--c-accent)/0.35)]'
             : 'text-ink',
         )}
       >
         <span
           className={cx(
             'tabular-nums decoration-1 underline-offset-[5px]',
-            lit ? 'no-underline' : 'underline decoration-[rgb(var(--c-gold)/0.35)]',
+            lit ? 'no-underline' : 'underline decoration-[rgb(var(--c-accent)/0.35)]',
           )}
         >
           {text}
@@ -74,7 +74,7 @@ function ClaimMark({ claims, text }: ClaimMarkProps) {
           aria-hidden
           className={cx(
             'ml-0.5 font-sans text-[0.5625rem] font-medium tracking-wide transition-colors duration-micro',
-            lit ? 'text-gold-ink' : 'text-gold-ink/90',
+            lit ? 'text-accent-ink' : 'text-accent-ink/90',
           )}
         >
           {ids.join(',')}
@@ -87,7 +87,7 @@ function ClaimMark({ claims, text }: ClaimMarkProps) {
           {claims.map((claim) => (
             <li key={claim.claim_id}>
               <div className="flex items-baseline justify-between gap-3">
-                <span className="font-mono text-[0.6875rem] text-gold-ink">
+                <span className="font-mono text-[0.6875rem] text-accent-ink">
                   {claim.claim_id}
                 </span>
                 <Tag>{CLAIM_KIND_LABEL[claim.kind]}</Tag>

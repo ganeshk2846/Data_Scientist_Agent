@@ -39,7 +39,7 @@ export function RouteStrip({
         <SectionLabel>Route</SectionLabel>
         <div className="mt-2.5 flex flex-wrap gap-2">
           {route.labels.map((label) => (
-            <Tag key={label} tone="gold">
+            <Tag key={label}>
               {label}
             </Tag>
           ))}
@@ -108,7 +108,7 @@ export function CaveatCallout({
       {caveats.length > 0 ? (
         <div>
           <div className="flex items-center gap-2">
-            <Info size={13} strokeWidth={1.75} aria-hidden className="text-ink-faint" />
+            <Info size={13} strokeWidth={1.5} aria-hidden className="text-ink-faint" />
             <SectionLabel>Caveats</SectionLabel>
           </div>
           <ul className="mt-3 space-y-2">
@@ -131,7 +131,7 @@ export function CaveatCallout({
           <div className="flex items-center gap-2">
             <ShieldAlert
               size={13}
-              strokeWidth={1.75}
+              strokeWidth={1.5}
               aria-hidden
               className="text-ink-faint"
             />
@@ -167,7 +167,7 @@ export function NextActions({ actions }: { actions: readonly ActionOption[] }) {
             <Collapsible
               summary={
                 <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
-                  <span className="font-mono text-[0.6875rem] tabular-nums text-gold-ink">
+                  <span className="font-mono text-[0.6875rem] tabular-nums text-accent-ink">
                     {String(action.rank).padStart(2, '0')}
                   </span>
                   <span className="min-w-0 flex-1 font-serif text-[1.0625rem] text-ink">

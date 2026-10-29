@@ -20,7 +20,7 @@ export function MockBar({
   return (
     <Card tone="sunken" className="p-5">
       <div className="flex items-center gap-2">
-        <FlaskConical size={13} strokeWidth={1.75} aria-hidden className="text-gold" />
+        <FlaskConical size={13} strokeWidth={1.5} aria-hidden className="text-accent" />
         <SectionLabel>Mock mode · every status</SectionLabel>
       </div>
 
@@ -34,11 +34,11 @@ export function MockBar({
                 onClick={() => onPick(scenario.question)}
                 title={scenario.question}
                 className={cx(
-                  'rounded-full border px-3.5 py-1.5 text-[0.6875rem]',
+                  'rounded-sm border px-3.5 py-1.5 text-[0.6875rem]',
                   'transition-colors duration-micro ease-editorial',
                   active
-                    ? 'border-gold bg-[var(--c-gold-wash)] text-gold-ink'
-                    : 'border-hairline-strong text-ink-muted hover:border-gold hover:text-ink',
+                    ? 'border-accent bg-[var(--c-accent-wash)] text-accent-ink'
+                    : 'border-hairline-strong text-ink-muted hover:border-hairline-strong hover:text-ink',
                 )}
               >
                 <span className="uppercase tracking-wide">

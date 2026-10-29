@@ -6,8 +6,8 @@ import type { RunStatus } from '@/types/envelope';
  * and a wash, never a filled block of colour.
  */
 const TONE: Record<RunStatus, string> = {
-  answered: 'border-sage text-sage bg-sage-wash',
-  clarify: 'border-gold text-gold-ink bg-[var(--c-gold-wash)]',
+  answered: 'border-sage text-sage-ink bg-sage-wash',
+  clarify: 'border-accent text-accent-ink bg-[var(--c-accent-wash)]',
   refused: 'border-hairline-strong text-ink-muted bg-sunken',
   blocked: 'border-terracotta text-terracotta bg-terracotta-wash',
   insufficient_evidence: 'border-hairline-strong text-ink-muted bg-sunken',
@@ -51,14 +51,14 @@ export function Tag({
   title,
 }: {
   children: React.ReactNode;
-  tone?: 'neutral' | 'gold' | 'sage' | 'terracotta';
+  tone?: 'neutral' | 'accent' | 'sage' | 'terracotta';
   className?: string;
   title?: string;
 }) {
   const tones = {
     neutral: 'border-hairline-strong text-ink-muted',
-    gold: 'border-gold text-gold-ink bg-[var(--c-gold-wash)]',
-    sage: 'border-sage text-sage bg-sage-wash',
+    accent: 'border-accent text-accent-ink bg-[var(--c-accent-wash)]',
+    sage: 'border-sage text-sage-ink bg-sage-wash',
     terracotta: 'border-terracotta text-terracotta bg-terracotta-wash',
   } as const;
   return (

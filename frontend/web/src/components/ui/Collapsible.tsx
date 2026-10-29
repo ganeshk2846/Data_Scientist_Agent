@@ -40,7 +40,7 @@ export function Collapsible({
       >
         <ChevronRight
           size={14}
-          strokeWidth={2}
+          strokeWidth={1.5}
           aria-hidden
           className={cx(
             'shrink-0 text-ink-faint transition-transform duration-micro ease-editorial',

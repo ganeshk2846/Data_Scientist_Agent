@@ -2,8 +2,9 @@ import type { Config } from 'tailwindcss';
 
 /**
  * Colours are declared once, in `src/index.css`, as space-separated RGB
- * channels on `:root` and `[data-theme='dark']`. Tailwind only names them, so
- * a theme swap is a single class change with no duplicated palette.
+ * channels on `:root`, `[data-theme='dark']` and `[data-accent='…']`. Tailwind
+ * only names them, so a theme or accent swap is a single attribute change with
+ * no duplicated palette.
  *
  * STRICT RULE: no purple, violet, lavender, indigo, magenta or pink may ever
  * enter this file. See CLAUDE.md.
@@ -20,16 +21,18 @@ export default {
         sunken: channel('--c-bg-sunken'),
         surface: channel('--c-surface'),
         raised: channel('--c-surface-raised'),
+        high: channel('--c-surface-high'),
         ink: channel('--c-ink'),
         'ink-muted': channel('--c-ink-muted'),
         'ink-faint': channel('--c-ink-faint'),
         hairline: channel('--c-hairline'),
         'hairline-strong': channel('--c-hairline-strong'),
-        gold: channel('--c-gold'),
-        'gold-soft': channel('--c-gold-soft'),
-        'on-gold': channel('--c-on-gold'),
-        'gold-ink': channel('--c-gold-ink'),
+        accent: channel('--c-accent'),
+        'accent-soft': channel('--c-accent-soft'),
+        'on-accent': channel('--c-on-accent'),
+        'accent-ink': channel('--c-accent-ink'),
         sage: channel('--c-sage'),
+        'sage-ink': channel('--c-sage-ink'),
         terracotta: channel('--c-terracotta'),
         series: {
           1: channel('--c-series-1'),
@@ -39,40 +42,71 @@ export default {
         },
       },
       backgroundColor: {
-        'gold-wash': 'var(--c-gold-wash)',
+        'accent-wash': 'var(--c-accent-wash)',
         'sage-wash': 'var(--c-sage-wash)',
         'terracotta-wash': 'var(--c-terracotta-wash)',
+      },
+      /**
+       * TWO corner radii, and only two: 3px for everything structural, 10px
+       * for the few large overlays that need to read as a slab. The aliases
+       * all collapse onto one of the pair, so a stray `rounded-xl` cannot
+       * introduce a third.
+       */
+      borderRadius: {
+        none: '0px',
+        DEFAULT: 'var(--r-sm)',
+        sm: 'var(--r-sm)',
+        md: 'var(--r-sm)',
+        lg: 'var(--r-lg)',
+        xl: 'var(--r-lg)',
+        '2xl': 'var(--r-lg)',
+        '3xl': 'var(--r-lg)',
+        full: '9999px',
       },
       fontFamily: {
         serif: ['Fraunces', 'Cormorant Garamond', 'Iowan Old Style', 'Georgia', 'serif'],
         sans: ['"Inter Tight"', 'Manrope', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
+      /**
+       * Every line-height is a multiple of 4px, so stacked type lands on the
+       * baseline grid without correction.
+       */
       fontSize: {
         micro: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '500' }],
         small: ['0.8125rem', { lineHeight: '1.25rem' }],
         body: ['0.9375rem', { lineHeight: '1.5rem' }],
         'body-serif': ['1.0625rem', { lineHeight: '1.875rem' }],
-        h3: ['1.125rem', { lineHeight: '1.625rem', fontWeight: '500' }],
-        h2: ['1.625rem', { lineHeight: '2.125rem' }],
+        h3: ['1.125rem', { lineHeight: '1.5rem', fontWeight: '500' }],
+        h2: ['1.625rem', { lineHeight: '2rem' }],
         h1: ['2.375rem', { lineHeight: '2.75rem', letterSpacing: '-0.015em' }],
-        display: ['3.5rem', { lineHeight: '3.75rem', letterSpacing: '-0.02em' }],
-        figure: ['2.75rem', { lineHeight: '3rem', letterSpacing: '-0.01em' }],
+        display: ['3.5rem', { lineHeight: '3.75rem', letterSpacing: '-0.024em' }],
+        figure: ['2.75rem', { lineHeight: '3rem', letterSpacing: '-0.014em' }],
       },
       borderColor: {
         DEFAULT: channel('--c-hairline'),
       },
       boxShadow: {
-        // Layered and warm-tinted; never coloured glows.
+        /**
+         * Ambient fill + key light, both warm-tinted, never coloured. Three
+         * stops: contact, key, and the long ambient throw. The `-lift` pair
+         * add the top-edge highlight as an inset, so a raised surface catches
+         * light on its own edge instead of only casting below.
+         */
         hairline: '0 0 0 1px var(--c-shadow-hairline)',
         soft: '0 1px 2px var(--c-shadow-a), 0 4px 12px -2px var(--c-shadow-b)',
-        lifted: '0 1px 2px var(--c-shadow-a), 0 8px 24px -6px var(--c-shadow-b), 0 24px 56px -24px var(--c-shadow-c)',
-        overlay: '0 2px 4px var(--c-shadow-a), 0 16px 40px -8px var(--c-shadow-b), 0 40px 80px -32px var(--c-shadow-c)',
+        lifted:
+          '0 1px 2px var(--c-shadow-a), 0 8px 24px -6px var(--c-shadow-b), 0 24px 56px -24px var(--c-shadow-c)',
+        overlay:
+          '0 2px 4px var(--c-shadow-a), 0 16px 40px -8px var(--c-shadow-b), 0 40px 80px -32px var(--c-shadow-c)',
+        'soft-lift':
+          'inset 0 1px 0 var(--c-lift), 0 1px 2px var(--c-shadow-a), 0 4px 12px -2px var(--c-shadow-b)',
       },
       transitionTimingFunction: {
         editorial: 'cubic-bezier(0.22, 0.61, 0.36, 1)',
       },
       transitionDuration: {
+        hover: '240ms',
         micro: '300ms',
         reveal: '450ms',
         draw: '600ms',
@@ -104,6 +138,12 @@ export default {
       spacing: {
         rail: '17rem',
         'rail-collapsed': '4rem',
+        // The density-aware rhythm. See the RHYTHM block in index.css.
+        section: 'var(--gap-section)',
+        block: 'var(--gap-block)',
+        group: 'var(--gap-group)',
+        card: 'var(--pad-card)',
+        'card-tight': 'var(--pad-card-tight)',
       },
       letterSpacing: {
         label: '0.14em',

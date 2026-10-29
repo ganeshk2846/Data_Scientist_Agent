@@ -16,7 +16,7 @@ export function ThemeToggle({ theme }: { theme: ThemeController }) {
     <div
       role="radiogroup"
       aria-label="Colour theme"
-      className="inline-flex items-center gap-0.5 rounded-sm border border-hairline bg-surface p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-sm border border-hairline bg-sunken p-0.5"
     >
       {OPTIONS.map(({ value, label, Icon }) => {
         const active = theme.setting === value;
@@ -30,13 +30,13 @@ export function ThemeToggle({ theme }: { theme: ThemeController }) {
             title={label}
             onClick={() => theme.set(value)}
             className={cx(
-              'rounded-[3px] p-1.5 transition-colors duration-micro ease-editorial',
+              'rounded-sm p-1.5 transition-colors duration-micro ease-editorial',
               active
-                ? 'bg-[var(--c-gold-wash)] text-gold'
+                ? 'bg-surface text-ink shadow-soft'
                 : 'text-ink-faint hover:text-ink-muted',
             )}
           >
-            <Icon size={14} strokeWidth={1.75} aria-hidden />
+            <Icon size={14} strokeWidth={1.5} aria-hidden />
           </button>
         );
       })}

@@ -48,9 +48,9 @@ export function PresentationMode({
           <button
             type="button"
             onClick={onClose}
-            className="pointer-events-auto flex items-center gap-2.5 rounded-[3px] border border-hairline bg-[rgb(var(--c-surface)/0.8)] px-3 py-1.5 text-[0.75rem] text-ink-muted backdrop-blur-md transition-colors duration-micro hover:border-gold hover:text-ink"
+            className="pointer-events-auto flex items-center gap-2.5 rounded-sm border border-hairline bg-[rgb(var(--c-surface)/0.8)] px-3 py-1.5 text-[0.75rem] text-ink-muted backdrop-blur-md transition-colors duration-micro hover:border-accent hover:text-ink"
           >
-            <X size={12} strokeWidth={1.75} aria-hidden />
+            <X size={12} strokeWidth={1.5} aria-hidden />
             Exit
             <Kbd>Esc</Kbd>
           </button>
