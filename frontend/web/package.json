@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "audit": "node scripts/audit.mjs"
+    "audit": "node scripts/audit.mjs",
+    "verify:live": "node scripts/verify-live.mjs",
+    "verify:features": "node scripts/verify-features.mjs"
   },
   "dependencies": {
     "framer-motion": "^11.15.0",
