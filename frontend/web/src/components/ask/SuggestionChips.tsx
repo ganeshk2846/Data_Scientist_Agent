@@ -14,7 +14,7 @@ import { cx } from '@/lib/cx';
  */
 export const SUGGESTIONS: readonly string[] = [
   'How many orders were there in August 2018?',
-  'Why did revenue spike in November 2017?',
+  'Why did revenue spike in May 2018?',
   'How did revenue in 2018 compare to 2017?',
   'Was order count unusual in August 2018?',
 ];

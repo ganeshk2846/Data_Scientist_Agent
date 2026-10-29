@@ -23,11 +23,12 @@
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:5173';
+const TOKEN = process.env.DS_AGENT_TOKEN || '12345678901234567890123456789012';
 
 /** The four chips, verified in CLAUDE.md to return a full answered briefing. */
 const CHIPS = [
   'How many orders were there in August 2018?',
-  'Why did revenue spike in November 2017?',
+  'Why did revenue spike in May 2018?',
   'How did revenue in 2018 compare to 2017?',
   'Was order count unusual in August 2018?',
 ];
@@ -109,15 +110,16 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
     });
-    await context.addInitScript(() => {
+    await context.addInitScript((tok) => {
       try {
         window.localStorage.clear();
         window.sessionStorage.clear();
         window.localStorage.setItem('ds-agent-tour-seen', 'seen');
+        if (tok) window.localStorage.setItem('ds-agent-token', tok);
       } catch {
         /* private mode */
       }
-    });
+    }, TOKEN);
     const page = await context.newPage();
     // Every /api/runs/__probe__ request is the backend-liveness probe, and its
     // 404 is the success case. Chromium logs it as a console error regardless,
