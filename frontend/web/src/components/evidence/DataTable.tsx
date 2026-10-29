@@ -41,6 +41,13 @@ interface DataTableProps {
   /** Below this many rows, the toolbar is noise and is not drawn. */
   toolbarFrom?: number;
   maxRows?: number;
+  /**
+   * Stamped on the wrapper as `data-testid`, so a harness can name *which*
+   * table it means. A page often shows several — a lookup's rows and a chart's
+   * "view as table" are both this component — and an unscoped `tbody tr`
+   * sweeps up all of them.
+   */
+  testId?: string;
 }
 
 type Direction = 'asc' | 'desc';
@@ -89,6 +96,7 @@ export function DataTable({
   footnote,
   toolbarFrom = 6,
   maxRows = 50,
+  testId,
 }: DataTableProps) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<{ index: number; direction: Direction } | null>(null);
@@ -135,7 +143,7 @@ export function DataTable({
   };
 
   return (
-    <div>
+    <div data-testid={testId}>
       {showToolbar || csvFilename ? (
         <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2" data-print="hide">
           {showToolbar ? (

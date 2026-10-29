@@ -9,6 +9,11 @@ import type { LookupOutput } from '@/types/envelope';
  * chart cards' "view as table" also uses, so a table is a table wherever it
  * appears. This file's job is only to map the lookup contract onto it and to
  * name the export file after the query it came from.
+ *
+ * It carries `data-testid="lookup-table"`, so a harness can address the main
+ * result table on its own. An answered run often renders a chart whose "view
+ * as table" is this same component, and an unscoped `tbody tr` reads both at
+ * once.
  */
 export function LookupTable({
   output,
@@ -30,6 +35,7 @@ export function LookupTable({
       truncated={output.truncated}
       csvFilename={safeFilename([subject ?? null, output.query_id], 'csv')}
       footnote={output.query_id}
+      testId="lookup-table"
     />
   );
 }

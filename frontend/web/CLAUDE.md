@@ -616,7 +616,7 @@ npm run build            # must stay clean, no warnings
 grep -rniE "purple|violet|lavender|indigo|magenta|pink|fuchsia" src/
 
 # the browser gates, with the dev server running
-npm run verify:features  # 9 mock states + ~29 feature assertions + axe
+npm run verify:features  # 9 mock states + ~34 feature assertions + axe
 npm run verify:live      # the 4 verified chips against the REAL backend
 npm run audit            # screenshots + axe across 17 scenes x 2 themes x 2 widths
 ```
@@ -635,14 +635,14 @@ Backend, from the repo root: `python -m pytest backend/tests -q`.
 | `npm run build` | clean, no warnings. `index` 359 kB / 105 kB gzip; `AnomalyChart` lazy 425/115; `motion` 122/41; `DriverBars` lazy 4/1.5; CSS 55/10.5. Recharts stays out of the initial load |
 | colour names | only the three comment lines that state the rule |
 | colour values | 48 tokens x 3 accents x 2 themes, **0** in the forbidden hue band |
-| live, 4 chips | **10/10** — each reaches `answered` with conclusion, evidence, SQL, claims, Verified 4 of 4 |
+| live, 4 chips | **10/10** — each reaches `answered` with conclusion, evidence, SQL, claims, Verified 4 of 4, on four distinct run ids |
 | mock, 9 states | **10/10**, 0 console errors |
-| feature smoke | **28/29** — the one failure is a weak assertion in the harness (it required the first row to *change* on sort; `aria-sort` flips correctly but this series' smallest measure is legitimately already first). Sorting works |
+| feature smoke | **44/44** |
 | axe, hero + answer, both themes | **0 violations**, including `minor` and `best-practice` |
 
 ### Writing a browser gate
 
-Three things the harnesses learned the hard way, all commented in the scripts:
+Five things the harnesses learned the hard way, all commented in the scripts:
 
 - Under `?mock=1` the MockBar puts **every status word on screen** before a
   question is asked, so waiting for "BLOCKED" or "REFUSED" to detect a settled
@@ -654,6 +654,16 @@ Three things the harnesses learned the hard way, all commented in the scripts:
 - Submitting from the composer leaves focus in the textarea, where
   single-letter shortcuts are correctly inert, so a keyboard assertion must
   blur first.
+- A page carries **several `DataTable`s** — a lookup's result rows and every
+  chart's "view as table", which `ChartFrame` keeps mounted so toggling never
+  re-animates the chart. An unscoped `tbody tr` therefore reads two row sets
+  concatenated, and no column is monotonic across the join. `LookupTable`
+  stamps `data-testid="lookup-table"` so a harness can name the one it means.
+- The app **restores the last briefing from `localStorage`** on load, seal and
+  all, so reusing one browser context across checks means a wait for "the seal
+  is present" returns against the *previous* run. `verify-live` takes a fresh
+  context per chip and additionally requires the run id in the top bar to be
+  one it has not already asserted.
 
 And one that is not a bug: `GET /api/runs/__probe__` returns **404 by design**
 — there is no `/api/health`, so a 404 *is* the liveness signal (gap 12).

@@ -443,30 +443,38 @@ async function features() {
     await page.getByRole('radio', { name: 'Table' }).first().click();
     await page.waitForTimeout(400);
 
+    // Scope every selector to the main lookup table. This page carries two
+    // `DataTable`s — the lookup's result rows and the anomaly chart's "view as
+    // table" — and ChartFrame keeps both views mounted, so an unscoped
+    // `tbody tr` reads the two row sets concatenated and no single column is
+    // ever monotonic across the join. `data-testid` names the one we mean.
+    const TABLE = '[data-testid="lookup-table"]';
+    const table = page.locator(TABLE);
+
     // "Sorted" means the clicked column is monotonic afterwards. Asserting
     // that the first row *changed* is wrong: this series is already ascending
     // by period, and its smallest measure legitimately sits in the first row.
     const column = 1;
     const readColumn = () =>
       page.evaluate(
-        (index) =>
-          [...document.querySelectorAll('tbody tr')].map((row) =>
+        ([selector, index]) =>
+          [...document.querySelectorAll(`${selector} tbody tr`)].map((row) =>
             Number(
               (row.children[index]?.textContent ?? '').replace(/[^0-9.-]/g, ''),
             ),
           ),
-        column,
+        [TABLE, column],
       );
 
-    await page.locator('thead th button').nth(column).click();
+    await table.locator('thead th button').nth(column).click();
     await page.waitForTimeout(300);
-    const ascAttr = await page.locator('thead th').nth(column).getAttribute('aria-sort');
+    const ascAttr = await table.locator('thead th').nth(column).getAttribute('aria-sort');
     const asc = await readColumn();
     const isAsc = asc.every((v, i) => i === 0 || asc[i - 1] <= v);
 
-    await page.locator('thead th button').nth(column).click();
+    await table.locator('thead th button').nth(column).click();
     await page.waitForTimeout(300);
-    const descAttr = await page.locator('thead th').nth(column).getAttribute('aria-sort');
+    const descAttr = await table.locator('thead th').nth(column).getAttribute('aria-sort');
     const desc = await readColumn();
     const isDesc = desc.every((v, i) => i === 0 || desc[i - 1] >= v);
 
@@ -479,25 +487,29 @@ async function features() {
     );
 
     // A third click clears the sort and restores the backend's own row order.
-    await page.locator('thead th button').nth(column).click();
+    await table.locator('thead th button').nth(column).click();
     await page.waitForTimeout(300);
-    const clearedAttr = await page.locator('thead th').nth(column).getAttribute('aria-sort');
+    const clearedAttr = await table
+      .locator('thead th')
+      .nth(column)
+      .getAttribute('aria-sort');
     record('a third click returns to the backend row order', clearedAttr === 'none');
 
-    const rowsBefore = await page.locator('tbody tr').count();
-    await page.getByRole('searchbox', { name: /Search/ }).first().fill('2018-01');
+    const search = table.getByRole('searchbox', { name: /Search/ });
+    const rowsBefore = await table.locator('tbody tr').count();
+    await search.fill('2018-01');
     await page.waitForTimeout(400);
-    const rowsAfter = await page.locator('tbody tr').count();
+    const rowsAfter = await table.locator('tbody tr').count();
     record(
       'result table searches rows',
       rowsAfter < rowsBefore && rowsAfter > 0,
       `${rowsBefore} → ${rowsAfter} rows`,
     );
-    await page.getByRole('searchbox', { name: /Search/ }).first().fill('');
+    await search.fill('');
     await page.waitForTimeout(300);
 
     const download = page.waitForEvent('download', { timeout: 10_000 });
-    await page.getByRole('button', { name: /Export CSV/ }).first().click();
+    await table.getByRole('button', { name: /Export CSV/ }).click();
     let csvName = '';
     let csvBody = '';
     try {
