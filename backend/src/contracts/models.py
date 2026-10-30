@@ -515,6 +515,20 @@ AnomalyVerdict = Literal[
 ]
 AnomalyPersistence = Literal["one_off", "sustained", "drift", "unknown"]
 AnalystStatus = Literal["ok", "insufficient_evidence"]
+# The registered analyst engines. V1 shipped the first three; the V2 engines
+# (spec/v2/build-plan-v2.md, track 2) are added here because AnalystOutput is
+# the type every engine returns, and a literal that cannot name an engine
+# cannot carry its result. Widening a Literal is additive: every existing
+# value stays valid.
+AnalystModuleName = Literal[
+    "anomaly",
+    "driver",
+    "risk",
+    "forecast",
+    "impact",
+    "scenario",
+    "segment",
+]
 OrchestrationStatus = Literal[
     "ok",
     "clarification",
@@ -627,7 +641,7 @@ class TableRef(ContractModel):
 
 
 class AnalystInput(ContractModel):
-    module: Literal["anomaly", "driver", "risk"]
+    module: AnalystModuleName
     params: dict[str, Any] = Field(default_factory=dict)
     tables: dict[str, TableRef] = Field(default_factory=dict)
     metric: MetricDefinition | None = None
@@ -960,7 +974,7 @@ class AnalystArtifact(ContractModel):
 
 
 class AnalystOutput(ContractModel):
-    module: Literal["anomaly", "driver", "risk"]
+    module: AnalystModuleName
     status: AnalystStatus
     reason: str | None = None
     result: AnomalyResult | DriverResult | None = None
@@ -984,6 +998,61 @@ class ExecutionBudget(ContractModel):
     max_queries: int = Field(default=3, ge=0)
     max_tokens: int = Field(default=4096, ge=0)
     max_wall_ms: int = Field(default=10_000, ge=1)
+
+
+class BudgetPolicy(ContractModel):
+    """Per-route execution budgets (OPS-2, OPS-6, V2-PRE-2).
+
+    One flat budget cannot serve every route: a governed lookup runs one or
+    two queries and should stay inside the fast-path SLA, while a driver run
+    needs a query per window, and the V2 diagnostic chain needs more again.
+    Before this existed, a route that legitimately needed a fourth query hit
+    ``BudgetExceeded`` and reported an error instead of an answer.
+
+    ``default`` keeps V1's values, so a policy with no overrides behaves
+    exactly as the single ``ExecutionBudget`` did.
+    """
+
+    default: ExecutionBudget = Field(default_factory=ExecutionBudget)
+    per_route: dict[RouteLabel, ExecutionBudget] = Field(default_factory=dict)
+
+    def for_route(self, route: RouteLabel) -> ExecutionBudget:
+        """Return the budget for ``route``, falling back to ``default``."""
+
+        return self.per_route.get(route, self.default)
+
+    @classmethod
+    def defaults(cls) -> BudgetPolicy:
+        """The calibrated starting policy.
+
+        Query counts come from what each route actually executes; wall-clock
+        and token values follow the tiers in ``DESIGN_DETAIL.md`` B14. These
+        are starting values to be calibrated on the development set and frozen
+        in ``spec/thresholds.md`` before any held-out run (EVAL-7, OPS-6).
+        """
+
+        return cls(
+            default=ExecutionBudget(),
+            per_route={
+                # One compiled query, or two when the question is comparative.
+                "lookup": ExecutionBudget(
+                    max_queries=2, max_tokens=4096, max_wall_ms=10_000
+                ),
+                # One series query, plus headroom for a repair.
+                "anomaly": ExecutionBudget(
+                    max_queries=2, max_tokens=8192, max_wall_ms=15_000
+                ),
+                # One query per window, plus headroom for an indicator query.
+                "driver": ExecutionBudget(
+                    max_queries=3, max_tokens=8192, max_wall_ms=20_000
+                ),
+                # Routes that must never reach the warehouse.
+                "risk": ExecutionBudget(max_queries=0),
+                "clarify": ExecutionBudget(max_queries=0),
+                "refused": ExecutionBudget(max_queries=0),
+                "blocked": ExecutionBudget(max_queries=0),
+            },
+        )
 
 
 class BudgetUsage(ContractModel):
@@ -1154,7 +1223,7 @@ class EnvelopeQueryRecord(ContractModel):
 
 
 class EvidenceBlock(ContractModel):
-    module: Literal["lookup", "anomaly", "driver", "risk"]
+    module: Literal["lookup"] | AnalystModuleName
     output: Any
     source_claims: tuple[str, ...] = ()
 
@@ -1285,12 +1354,14 @@ __all__ = [
     "AnalystColumn",
     "AnalystColumnRole",
     "AnalystInput",
+    "AnalystModuleName",
     "AnalystOutput",
     "AnalystStatus",
     "AnomalyParams",
     "AnomalyPersistence",
     "AnomalyResult",
     "AnomalyVerdict",
+    "BudgetPolicy",
     "BudgetUsage",
     "ClassifierSignal",
     "ChurnProcessMetadata",
