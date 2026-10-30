@@ -8,12 +8,11 @@ rather than around it.
 
 from __future__ import annotations
 
+import engines
 import pandas as pd
 from analysts import registry
 from contracts.v2 import PlanStep
 from engine_helpers import data, table, trending_series
-
-import engines
 from engines import report_of
 from engines.base import table_from_frame
 

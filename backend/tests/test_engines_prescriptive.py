@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 from contracts.v2 import SegmentResult
 from engine_helpers import assert_complete_report, data, stable, table
-
 from engines import prescriptive
 from engines.prescriptive import optimize_reorder
 

@@ -27,14 +27,13 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from analysts import registry
+from contracts.models import ContractModel, TableRef
+from contracts.v2 import SegmentResult
 from pydantic import Field
 from scipy.optimize import linprog
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.preprocessing import StandardScaler
-
-from analysts import registry
-from contracts.models import ContractModel, TableRef
-from contracts.v2 import SegmentResult
 
 from .base import (
     EngineData,
@@ -47,7 +46,14 @@ from .base import (
     insufficient,
     table_from_frame,
 )
-from .report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from .report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 
 ENGINE_VERSION = "prescriptive-2.0.0"
 
@@ -283,8 +289,8 @@ def _reorder(params: PrescriptiveParams, data: EngineData, timer: Timer) -> Engi
             KeyNumber(name="fill_rate", value=optimized["fill"], label="demand fill rate"),
         ),
         assumptions=(
-            "The allocation is a linear program solved with HiGHS (scipy.optimize.linprog): maximise margin on covered "
-            "forecast demand subject to the budget, with covered units <= stock + order and <= demand.",
+            ("The allocation is a linear program solved with HiGHS (scipy.optimize.linprog): maximise margin on covered "
+             "forecast demand subject to the budget, with covered units <= stock + order and <= demand."),
             "Forecast demand, unit cost and unit margin are taken from the supplied rows; lead times and holding cost are not modelled.",
             *output.assumptions,
         ),

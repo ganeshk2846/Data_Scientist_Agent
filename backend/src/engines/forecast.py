@@ -19,17 +19,31 @@ from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
+from analysts import registry
+from contracts.models import ContractModel
+from contracts.v2 import FitQuality, ForecastResult
 from pydantic import Field
 from statsmodels.tools.sm_exceptions import ConvergenceWarning
 from statsmodels.tsa.arima.model import ARIMA
 
-from analysts import registry
-from contracts.models import ContractModel
-from contracts.v2 import FitQuality, ForecastResult
-
-from .base import EngineData, Timer, analyst_input, engine_result, frame_from_table, guarded, insufficient
+from .base import (
+    EngineData,
+    Timer,
+    analyst_input,
+    engine_result,
+    frame_from_table,
+    guarded,
+    insufficient,
+)
 from .horizon import extract_horizon
-from .report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from .report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 
 ENGINE_VERSION = "forecast-2.0.0"
 DEFAULT_HORIZON = 3

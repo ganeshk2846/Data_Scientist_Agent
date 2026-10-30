@@ -19,10 +19,9 @@ import math
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
-
 from contracts.models import ContractModel
 from contracts.v2 import AnalystOutput, ToolResult, VizKind
+from pydantic import Field, field_validator
 
 ConfidenceLevel = Literal["high", "medium", "low", "insufficient"]
 
@@ -160,12 +159,12 @@ def report_of(result: ToolResult) -> EngineReport | None:
 
 
 __all__ = [
+    "REPORT_KEY",
     "ChartHint",
     "Confidence",
     "EngineReport",
     "EngineRun",
     "KeyNumber",
-    "REPORT_KEY",
     "ReportTable",
     "attach_report",
     "confidence_from",

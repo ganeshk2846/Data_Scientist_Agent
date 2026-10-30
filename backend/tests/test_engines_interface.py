@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import engines
 import pandas as pd
 import pytest
 from contracts.v2 import PlanStep, ToolResult
 from engine_helpers import REPORT_PARTS, data, stable, table, trending_series
-
-import engines
 from engines import ENGINES, INTENT_ENGINES, TOOL_ENGINES, UnknownEngineError, report_of
 from engines.report import EngineReport, EngineRun
 

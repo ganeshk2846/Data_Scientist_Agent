@@ -7,7 +7,6 @@ import pandas as pd
 import pytest
 from contracts.v2 import ScenarioResult
 from engine_helpers import assert_complete_report, data, stable, table
-
 from engines import scenario
 from engines.scenario import price_change_from_question
 
@@ -101,7 +100,7 @@ def test_scenario_is_deterministic():
 
 
 def test_flat_prices_cannot_be_fit():
-    sales, competitor = _sales()
+    sales, _competitor = _sales()
     sales["list_price"] = 50.0
     sales["price"] = 50.0
     run = scenario.execute({"price_change_pct": 5.0}, data({"sales": table(sales, "Q-SALES", date="time")}))

@@ -16,11 +16,10 @@ from collections.abc import Mapping
 from typing import Any, Literal
 
 import pandas as pd
-from pydantic import Field
-
 from analysts import registry
 from contracts.models import AnomalyParams, ContractModel, Period, TableRef
 from contracts.v2 import AnalystOutput, ImpactResult
+from pydantic import Field
 
 from .base import (
     EngineData,
@@ -33,7 +32,14 @@ from .base import (
     insufficient,
     table_from_frame,
 )
-from .report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from .report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 
 ENGINE_VERSION = "impact-2.0.0"
 ANOMALY_VERSION = "anomaly-scan-2.0.0"

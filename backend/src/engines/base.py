@@ -19,7 +19,6 @@ from datetime import date, datetime
 from typing import Any
 
 import pandas as pd
-
 from contracts.models import AnalystColumn, AnalystInput, ColumnRole, TableRef
 from contracts.v2 import (
     AnalystOutput,
@@ -82,7 +81,7 @@ class Timer:
 
 def _column_type(values: list[Any]) -> str:
     sample = next((value for value in values if value is not None), None)
-    if isinstance(sample, bool) or isinstance(sample, int):
+    if isinstance(sample, (bool, int)):
         return "INTEGER"
     if isinstance(sample, float):
         return "REAL"

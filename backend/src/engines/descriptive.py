@@ -20,10 +20,9 @@ import sqlite3
 from collections.abc import Mapping
 from typing import Any, Literal
 
-from pydantic import Field, ValidationError, model_validator
-
 from contracts.models import ColumnRole, ContractModel, TableRef
 from contracts.v2 import RowsColumn, RowsPayload, ToolProvenance, ToolResult
+from pydantic import Field, ValidationError, model_validator
 from semantic.layers import synthetic_caveat
 
 from .base import EngineData, Timer, derived_query_id
@@ -449,4 +448,4 @@ def _number(value: Any) -> float | None:
     return None if value is None else float(value)
 
 
-__all__ = ["DescriptiveParams", "ENGINE_VERSION", "execute", "run"]
+__all__ = ["ENGINE_VERSION", "DescriptiveParams", "execute", "run"]

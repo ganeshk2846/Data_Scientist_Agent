@@ -35,13 +35,12 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from pydantic import Field
-from scipy.stats import pearsonr, ttest_ind
-from statsmodels.stats.multitest import multipletests
-
 from analysts import registry
 from contracts.models import ContractModel, DriverContribution, Period, TableRef
 from contracts.v2 import DiagnosticEvidence, DiagnosticResult
+from pydantic import Field
+from scipy.stats import pearsonr, ttest_ind
+from statsmodels.stats.multitest import multipletests
 
 from .base import (
     EngineData,
@@ -54,7 +53,14 @@ from .base import (
     insufficient,
     table_from_frame,
 )
-from .report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from .report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 
 ENGINE_VERSION = "diagnostic-2.0.0"
 EVIDENCE_LABELS = {
@@ -267,7 +273,7 @@ def difference_in_differences(
     if rows.empty:
         return None
     treated = rows[spec.dimension].astype(str).isin(spec.treated).astype(float).to_numpy()
-    after = ((pd.to_datetime(rows[date_col].astype(str).str[:10]) >= pd.Timestamp(params.current_period.start))).astype(float).to_numpy()
+    after = (pd.to_datetime(rows[date_col].astype(str).str[:10]) >= pd.Timestamp(params.current_period.start)).astype(float).to_numpy()
     y = rows[measure].astype(float).to_numpy()
     if len(set(treated)) < 2 or len(set(after)) < 2 or len(y) < 8:
         return None
@@ -519,8 +525,8 @@ def execute(params: Mapping[str, Any], data: EngineData) -> EngineRun:
         update={
             "result": result,
             "assumptions": (*base_output.assumptions, CAUSAL_BOUNDARY,
-                            "Correlations use log series at the stated grain, the target and any 'relative' driver "
-                            "expressed against the rest of its table to remove shared trend and calendar effects."),
+                            ("Correlations use log series at the stated grain, the target and any 'relative' driver "
+                             "expressed against the rest of its table to remove shared trend and calendar effects.")),
             "sources": tuple(dict.fromkeys((*base_output.sources, *(data.tables[name].query_id for name in tables_used)))),
         }
     )

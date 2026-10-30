@@ -5,7 +5,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from engine_helpers import assert_complete_report, data, stable, table, trending_series
-
 from engines import forecast
 from engines.forecast import arima_challenger
 from engines.horizon import extract_horizon

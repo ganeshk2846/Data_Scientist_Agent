@@ -7,9 +7,13 @@ import pandas as pd
 import pytest
 from contracts.v2 import DiagnosticResult
 from engine_helpers import assert_complete_report, data, stable, table
-
 from engines import diagnostic
-from engines.diagnostic import CAUSAL_BOUNDARY, DiagnosticParams, PvmSpec, price_volume_mix
+from engines.diagnostic import (
+    CAUSAL_BOUNDARY,
+    DiagnosticParams,
+    PvmSpec,
+    price_volume_mix,
+)
 
 CURRENT = {"start": "2018-03-01", "end": "2018-06-01"}
 COMPARISON = {"start": "2017-12-01", "end": "2018-03-01"}
@@ -156,7 +160,7 @@ def test_pvm_feeds_the_value_decomposition_and_a_waterfall_hint():
 
 
 def test_null_specificity_is_not_promoted():
-    contrib, spend = _panel()
+    contrib, _spend = _panel()
     contrib["flat"] = 1.0 + np.random.default_rng(1).normal(0.0, 0.1, len(contrib))
     tables = {"contrib": table(contrib, "Q-SESSIONS", date="time", flat="measure")}
     run = diagnostic.execute({**_params(drivers=()), "specificity": {"dimension": "state", "treated": ("SP",), "date": "date",

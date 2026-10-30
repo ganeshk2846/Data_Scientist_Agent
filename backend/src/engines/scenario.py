@@ -29,15 +29,29 @@ from typing import Any
 
 import numpy as np
 import statsmodels.api as sm
-from pydantic import Field
-
 from analysts import registry
 from contracts.models import ContractModel
 from contracts.v2 import FitQuality, ScenarioResult
+from pydantic import Field
 
 from . import prep
-from .base import EngineData, Timer, analyst_input, engine_result, frame_from_table, guarded, insufficient
-from .report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from .base import (
+    EngineData,
+    Timer,
+    analyst_input,
+    engine_result,
+    frame_from_table,
+    guarded,
+    insufficient,
+)
+from .report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 
 ENGINE_VERSION = "scenario-2.0.0"
 DRAWS = 5000
@@ -287,8 +301,8 @@ def _report(
             *fit.disclosures,
             "The fit is within-category and net of common period effects (two-way fixed effects removed before OLS).",
             "Demand is mean daily units on in-stock days; stockout days censor demand and are excluded.",
-            f"Sensitivity drivers are ranked by how far they move the revenue change; each case uses {DRAWS} seeded Monte Carlo draws "
-            "over the elasticity and the driver coefficient.",
+            (f"Sensitivity drivers are ranked by how far they move the revenue change; each case uses {DRAWS} seeded Monte Carlo draws "
+             "over the elasticity and the driver coefficient."),
             *_driver_notes(coefficients, params.alpha),
         ),
         confidence=confidence_from(interval=fit.elasticity_interval, sample_size=fit.observations,

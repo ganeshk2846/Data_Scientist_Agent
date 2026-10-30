@@ -13,7 +13,6 @@ import sqlite3
 
 import pandas as pd
 import pytest
-
 from engines import execute, prep
 from engines.base import EngineData
 
@@ -200,7 +199,7 @@ def test_impact_sizes_e1_sessions_against_peer_states(db, truth):
     sessions = db("SELECT date, state, SUM(sessions) AS sessions FROM web_traffic GROUP BY date, state")
     treated = truth["E1-sessions"].dimension_values
     windows = {"baseline": ("2017-12-01", "2018-03-01"), "current": ("2018-03-15", "2018-06-15")}
-    daily = lambda frame: frame.groupby("date", as_index=False)["sessions"].sum()  # noqa: E731
+    daily = lambda frame: frame.groupby("date", as_index=False)["sessions"].sum()
     run = execute("impact", {"metric": "sessions", "unit": "sessions", "aggregation": "mean",
                              "current_period": "current", "baseline_period": "baseline", "peer_label": "other states"},
                   _data({"measurements": prep.as_table(_periods(daily(sessions[sessions.state.isin(treated)]), "sessions", windows), "GT-T"),
@@ -216,7 +215,7 @@ def test_impact_sizes_e2_units_at_minus_100_percent_while_peers_rise(sales, trut
     frame = sales["sales"]
     affected = truth["E2-units"].dimension_values
     windows = {"baseline": ("2017-10-20", "2017-11-20"), "current": ("2017-11-20", "2017-12-11")}
-    daily = lambda rows: rows.groupby("date", as_index=False)["quantity"].sum()  # noqa: E731
+    daily = lambda rows: rows.groupby("date", as_index=False)["quantity"].sum()
     run = execute("impact", {"metric": "units_sold", "unit": "units", "aggregation": "mean",
                              "current_period": "current", "baseline_period": "baseline"},
                   _data({"measurements": prep.as_table(_periods(daily(frame[frame.category.isin(affected)]), "quantity", windows), "GT-A"),

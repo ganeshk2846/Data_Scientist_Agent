@@ -13,7 +13,6 @@ from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
-
 from contracts.models import TableRef
 
 from .base import derived_query_id, frame_from_table, table_from_frame

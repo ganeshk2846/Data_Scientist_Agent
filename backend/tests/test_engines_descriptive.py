@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 from engine_helpers import assert_complete_report, data, stable, table
-
 from engines import descriptive
 
 

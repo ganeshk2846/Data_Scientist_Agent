@@ -69,11 +69,7 @@ def test_engines_import_only_the_approved_stack(source):
     offenders = []
     for name in _imports(_tree(source)):
         root = name.split(".")[0]
-        if root in MODEL_CLIENT_ROOTS or root in NETWORK_ROOTS or root in SHELL_ROOTS or root in DYNAMIC_IMPORT_ROOTS:
-            offenders.append(name)
-        elif root in DATABASE_ROOTS and not (root == "sqlite3" and source.name == SQL_ENGINE):
-            offenders.append(name)
-        elif root not in STDLIB and root not in ALLOWED_THIRD_PARTY and root not in ALLOWED_LOCAL:
+        if root in MODEL_CLIENT_ROOTS or root in NETWORK_ROOTS or root in SHELL_ROOTS or root in DYNAMIC_IMPORT_ROOTS or root in DATABASE_ROOTS and not (root == "sqlite3" and source.name == SQL_ENGINE) or root not in STDLIB and root not in ALLOWED_THIRD_PARTY and root not in ALLOWED_LOCAL:
             offenders.append(name)
     assert not offenders, f"{source.name} imports {offenders}"
 
