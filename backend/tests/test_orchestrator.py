@@ -253,17 +253,25 @@ def test_blocked_guard_short_circuits_orchestration():
     assert executor.sqls == []
 
 
-def test_risk_route_returns_explicit_insufficient_evidence_not_fake_analysis():
+def test_risk_route_clarifies_with_suggestions_not_fake_analysis():
+    """Approved change (Track 3, decision 1A): the risk dead end became a clarification.
+
+    It still fabricates nothing - no query runs and no score is produced - but it
+    names the missing model and offers answerable alternatives instead of ending.
+    """
     executor = FakeExecutor()
     outcome = _orchestrator(executor).run(
         "Which customers are likely to churn?"
     )
 
-    assert outcome.status == "insufficient_evidence"
+    assert outcome.status == "clarification"
     assert outcome.route_labels == ("risk",)
-    assert "risk" in outcome.reason.lower()
+    assert "risk" in outcome.clarification.what_understood.lower()
+    assert "no risk score is invented" in outcome.clarification.what_understood.lower()
+    assert "cancellation rate" in outcome.clarification.what_needs_clarification.lower()
     assert outcome.queries == ()
     assert executor.sqls == []
+    assert outcome.analyst_outputs == ()
 
 
 def test_route_result_can_be_reused_to_avoid_routing_twice():

@@ -172,23 +172,34 @@ class Orchestrator:
                 refusal=route.reason,
             )
         if route.primary_route == "risk":
+            # No customer-level risk model exists, so no score is invented; instead of
+            # a dead end the user is offered the nearest answerable analyses.
             state.plan.append(
                 PlanStep(
                     step_id="risk",
                     module="risk",
                     depends_on=("route",),
                     status="skipped",
-                    detail="No risk model is enabled in this slice.",
+                    detail="No customer-level risk model exists; suggestions offered instead.",
                 )
+            )
+            clarification = ClarificationResult(
+                what_understood=(
+                    "You asked about customer risk or churn. No customer-level "
+                    "risk model exists, so no risk score is invented."
+                ),
+                what_needs_clarification=(
+                    "Which of these would help: the cancellation rate by month, "
+                    "why cancellations changed between two periods, or the "
+                    "at-risk customer segment (synthetic, via /api/v2/ask)?"
+                ),
             )
             return self._finish(
                 state,
                 route,
-                status="insufficient_evidence",
-                reason=(
-                    "Risk analysis is not enabled in this slice; no customer-"
-                    "level risk score was fabricated."
-                ),
+                status="clarification",
+                reason=clarification.what_needs_clarification,
+                clarification=clarification,
             )
 
         try:
