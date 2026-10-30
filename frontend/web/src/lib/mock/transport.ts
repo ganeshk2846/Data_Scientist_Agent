@@ -9,11 +9,13 @@
  */
 
 import { MOCK_SCENARIOS, pickScenario, type MockScenario } from './envelopes';
+import { clarifyFollowOn, paceFor, pickV2Scenario, v2Run } from './v2';
 import { STAGES } from '@/lib/stages';
 import type { RunTransport } from '@/hooks/useRun';
 import type { StreamHandle } from '@/lib/sse';
 import type { AnswerEnvelope } from '@/types/envelope';
-import type { RunEvent, StepId } from '@/types/events';
+import type { StepId } from '@/types/events';
+import type { RunEvent } from '@/lib/sse';
 
 /** How long each stage appears to take, in ms of wall clock. */
 const PACE: Record<StepId, number> = {
@@ -139,45 +141,87 @@ function plan(scenario: MockScenario, runId: string): readonly { delay: number; 
   return script;
 }
 
+type MockRun = { kind: 'v1'; scenario: MockScenario } | { kind: 'v2'; id: string };
+
 export function mockTransport(): RunTransport {
-  const runs = new Map<string, MockScenario>();
+  const runs = new Map<string, MockRun>();
   let counter = 0;
 
   return {
-    ask: async (question) => {
-      const scenario = pickScenario(question);
-      const runId = `mock-${(counter += 1).toString().padStart(4, '0')}-${scenario.id}`;
-      runs.set(runId, scenario);
+    ask: async (question, clarificationOf, options = {}) => {
+      const previous = clarificationOf ? runs.get(clarificationOf) : undefined;
+      // A reply to a V2 clarification follows the captured clarify flow; any
+      // other question is matched to a V2 capture first, then to the V1 samples.
+      const v2Id =
+        previous?.kind === 'v2' && previous.id.startsWith('clarify-v2')
+          ? clarifyFollowOn(previous.id, options.optionId ?? null)
+          : pickV2Scenario(question);
+      const run: MockRun = v2Id ? { kind: 'v2', id: v2Id } : { kind: 'v1', scenario: pickScenario(question) };
+      const tag = run.kind === 'v2' ? `v2-${run.id}` : run.scenario.id;
+      const runId = `mock-${(counter += 1).toString().padStart(4, '0')}-${tag}`;
+      runs.set(runId, run);
       // A little latency, so the submitting state is actually visible.
       await new Promise((resolve) => window.setTimeout(resolve, 180));
       return runId;
     },
 
     stream: (runId, handlers): StreamHandle => {
-      const scenario = runs.get(runId);
-      if (!scenario) {
+      const run = runs.get(runId);
+      if (!run) {
         handlers.onTransportError(false);
         return { close: () => {} };
       }
 
       const timers: number[] = [];
-      for (const { delay, event } of plan(scenario, runId)) {
-        timers.push(
-          window.setTimeout(() => {
-            handlers.onEvent(event);
-            if (event.type === 'answer' || event.type === 'error') handlers.onComplete();
-          }, delay),
-        );
+      let closed = false;
+      const schedule = (script: readonly { delay: number; event: RunEvent }[]) => {
+        for (const { delay, event } of script) {
+          timers.push(
+            window.setTimeout(() => {
+              handlers.onEvent(event);
+              if (event.type === 'answer' || event.type === 'error') handlers.onComplete();
+            }, delay),
+          );
+        }
+      };
+
+      if (run.kind === 'v1') {
+        schedule(plan(run.scenario, runId));
+      } else {
+        // The captured V2 stream, replayed in order at a readable pace.
+        void v2Run(run.id, runId).then((captured) => {
+          if (closed) return;
+          if (!captured) {
+            handlers.onTransportError(false);
+            return;
+          }
+          let clock = 180;
+          schedule(
+            captured.events.map((event) => {
+              const delay = clock;
+              clock += paceFor(event);
+              return { delay, event };
+            }),
+          );
+        });
       }
       return {
-        close: () => timers.forEach((timer) => window.clearTimeout(timer)),
+        close: () => {
+          closed = true;
+          timers.forEach((timer) => window.clearTimeout(timer));
+        },
       };
     },
 
     getRun: async (runId): Promise<AnswerEnvelope> => {
-      const scenario = runs.get(runId) ?? MOCK_SCENARIOS[0]!;
+      const run = runs.get(runId) ?? { kind: 'v1', scenario: MOCK_SCENARIOS[0]! };
       // Stand in for the one 202-then-retry the real endpoint usually costs.
       await new Promise((resolve) => window.setTimeout(resolve, 420));
+      if (run.kind === 'v2') {
+        const captured = await v2Run(run.id, runId);
+        if (captured) return captured.envelope as unknown as AnswerEnvelope;
+      }
+      const scenario = run.kind === 'v1' ? run.scenario : MOCK_SCENARIOS[0]!;
       return { ...scenario.envelope, run_id: runId };
     },
   };

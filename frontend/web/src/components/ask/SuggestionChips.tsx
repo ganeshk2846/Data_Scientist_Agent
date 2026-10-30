@@ -1,20 +1,23 @@
 import { cx } from '@/lib/cx';
 
 /**
- * Four questions verified to return a full `answered` briefing against the live
- * backend. Two governed lookups (one comparative, which runs two queries and
- * yields three claims) and two anomaly runs — one inside the normal range, one
- * outside it — so the banded chart is exercised in both verdicts.
+ * The hero suggestions, in the demo order: the WHY questions lead, then the
+ * rest of the V2 must-answer set (spec/v2/scope.md §7) — so what, what next,
+ * what if, now what, discovery — then the four V1 chips, kept unchanged.
  *
- * Every chip must stay verified. The anomaly route only answers when the
- * question names BOTH a governed metric (gmv, revenue, order_count, aov) and an
- * explicit time window including the year; drop the year and the router
- * clarifies instead. Driver questions are deliberately absent: the backend's
- * driver path currently raises, so every one of them returns `error`.
+ * Every chip answers through `/api/v2/ask`. The V1 caveats still hold for the
+ * last four: the anomaly route needs a governed metric and a window including
+ * the year, and a bare month clarifies instead.
  */
 export const SUGGESTIONS: readonly string[] = [
-  'How many orders were there in August 2018?',
+  'Why did revenue drop in the top category in April 2018?',
   'Why did revenue spike in May 2018?',
+  'How much did the April 2018 drop cost us?',
+  'Forecast revenue for the next 3 months',
+  'What if we raise prices 5%?',
+  'Which customer segment should we target?',
+  'What data do you have?',
+  'How many orders were there in August 2018?',
   'How did revenue in 2018 compare to 2017?',
   'Was order count unusual in August 2018?',
 ];

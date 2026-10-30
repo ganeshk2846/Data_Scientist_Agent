@@ -19,7 +19,7 @@ export interface SessionController {
   sessionId: string;
   history: readonly HistoryEntry[];
   /** Appends a question and returns its local id. */
-  open: (question: string, clarificationOf?: string | null) => string;
+  open: (question: string, clarificationOf?: string | null, threadId?: string) => string;
   attachRunId: (localId: string, runId: string) => void;
   settle: (localId: string, envelope: AnswerEnvelope) => void;
   fail: (localId: string, status: RunStatus) => void;
@@ -43,7 +43,7 @@ export function useSession(): SessionController {
   // submit, a settle or a star, all of which are rare.
   useEffect(() => saveHistory(history), [history]);
 
-  const open = useCallback((question: string, clarificationOf: string | null = null) => {
+  const open = useCallback((question: string, clarificationOf: string | null = null, threadId?: string) => {
     const localId = nextLocalId();
     setHistory((current) => [
       {
@@ -55,6 +55,7 @@ export function useSession(): SessionController {
         envelope: null,
         clarificationOf,
         starred: false,
+        ...(threadId ? { threadId } : {}),
       },
       ...current,
     ]);
