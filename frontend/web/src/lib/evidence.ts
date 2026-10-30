@@ -30,7 +30,20 @@ export function asLookup(block: EvidenceBlock): LookupOutput | null {
   if (block.module !== 'lookup') return null;
   const output: unknown = block.output;
   if (!isObject(output)) return null;
-  if (!Array.isArray(output['columns']) || !Array.isArray(output['rows'])) return null;
+  const columns = output['columns'];
+  if (!Array.isArray(columns) || !Array.isArray(output['rows'])) return null;
+  // A V2 lookup block names its columns as bare strings and carries no
+  // row_count; it is reshaped here (never re-counted) so every reader sees one
+  // contract.
+  if (columns.every((column) => typeof column === 'string')) {
+    return {
+      query_id: String(output['query_id'] ?? ''),
+      columns: (columns as string[]).map((name) => ({ name, type: '' })),
+      rows: output['rows'] as LookupOutput['rows'],
+      row_count: typeof output['row_count'] === 'number' ? output['row_count'] : null,
+      truncated: output['truncated'] === true,
+    };
+  }
   return output as unknown as LookupOutput;
 }
 

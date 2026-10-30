@@ -5,7 +5,22 @@
 
 import { initialStageProgress, type StageProgress } from './stages';
 import type { AnswerEnvelope } from '@/types/envelope';
-import type { ClarifyEvent, ErrorEvent, RunEvent } from '@/types/events';
+import type { RunEvent } from './sse';
+import type { ClarifyEvent, ErrorEvent } from '@/types/events';
+import type { ClarifyEventV2Fields, ContextEvent, PlanEvent, ToolName, ToolStatus } from '@/types/v2';
+
+/** One step of the V2 plan as it runs, from the plan_step_* events. */
+export interface PlanStepProgress {
+  stepId: string;
+  tool: ToolName;
+  purpose: string;
+  dependsOn: readonly string[];
+  state: 'pending' | 'running' | ToolStatus;
+  /** True between `engine_running` and the step's finish: a live model fit. */
+  modelRunning: boolean;
+  durationMs: number | null;
+  summary: string | null;
+}
 
 export type RunPhase =
   | 'idle'
@@ -24,7 +39,11 @@ export interface RunState {
   localId: string | null;
   stages: readonly StageProgress[];
   /** Arrives before the terminal `answer` event, so it can be shown early. */
-  clarify: ClarifyEvent | null;
+  clarify: (ClarifyEvent & ClarifyEventV2Fields) | null;
+  /** V2: the decomposed plan, live. Empty for a V1 run. */
+  plan: readonly PlanStepProgress[];
+  /** V2: how a follow-up was read against the session's earlier turns. */
+  context: ContextEvent | null;
   /** From a terminal `error` event. */
   streamError: ErrorEvent['error'] | null;
   envelope: AnswerEnvelope | null;
@@ -43,6 +62,8 @@ export const IDLE_RUN: RunState = {
   localId: null,
   stages: initialStageProgress(),
   clarify: null,
+  plan: [],
+  context: null,
   streamError: null,
   envelope: null,
   failure: null,
@@ -74,8 +95,54 @@ function closeOutStages(stages: readonly StageProgress[]): StageProgress[] {
   );
 }
 
+function planFrom(event: PlanEvent): PlanStepProgress[] {
+  return event.steps.map((step) => ({
+    stepId: step.step_id,
+    tool: step.tool,
+    purpose: step.purpose,
+    dependsOn: step.depends_on,
+    state: 'pending',
+    modelRunning: false,
+    durationMs: null,
+    summary: null,
+  }));
+}
+
+function patchStep(
+  plan: readonly PlanStepProgress[],
+  stepId: string,
+  changes: Partial<PlanStepProgress>,
+): PlanStepProgress[] {
+  return plan.map((step) => (step.stepId === stepId ? { ...step, ...changes } : step));
+}
+
 function applyEvent(state: RunState, event: RunEvent): RunState {
   switch (event.type) {
+    case 'context':
+      return { ...state, context: event };
+    case 'plan':
+      // A re-plan replaces the checklist; the new plan is what runs.
+      return { ...state, plan: planFrom(event) };
+    case 'plan_step_started':
+      return { ...state, plan: patchStep(state.plan, event.step_id, { state: 'running' }) };
+    case 'engine_running':
+      return { ...state, plan: patchStep(state.plan, event.step_id, { modelRunning: true }) };
+    case 'plan_step_finished':
+      return {
+        ...state,
+        plan: patchStep(state.plan, event.step_id, {
+          state: event.status,
+          modelRunning: false,
+          durationMs: event.duration_ms,
+          summary: event.summary,
+        }),
+      };
+    case 'intent':
+    case 'grounding':
+    case 'compose':
+    case 'replan':
+      return state;
+
     case 'step_started':
       return {
         ...state,

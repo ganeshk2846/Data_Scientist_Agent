@@ -31,7 +31,7 @@ export function LookupTable({
       }))}
       rows={output.rows}
       label={`Result rows for ${output.query_id}`}
-      rowCount={output.row_count}
+      {...(output.row_count !== null ? { rowCount: output.row_count } : {})}
       truncated={output.truncated}
       csvFilename={safeFilename([subject ?? null, output.query_id], 'csv')}
       footnote={output.query_id}
