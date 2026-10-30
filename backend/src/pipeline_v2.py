@@ -19,11 +19,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 import clarify
+import followup
 from composer import compose
 from contracts.models import BlockBlock, Period
 from contracts.v2 import (
     AnswerEnvelopeV2,
     ClarificationRequest,
+    ContextState,
     Entities,
     IntentResult,
     IntentSignals,
@@ -66,6 +68,9 @@ class PipelineOutcome:
     clarification: ClarificationRequest | None
     replans: int = 0
     issues: list[str] = field(default_factory=list)
+    #: Track 4: how the message was read against the session context.
+    rewrite: followup.Rewrite | None = None
+    reset: bool = False
 
 
 class PipelineV2:
@@ -136,7 +141,8 @@ class PipelineV2:
     # ------------------------------------------------------------------ #
 
     def run(self, question: str, *, run_id: str | None = None, emit: Emit | None = None,
-            reply: ClarificationReply | None = None) -> PipelineOutcome:
+            reply: ClarificationReply | None = None, context: ContextState | None = None) -> PipelineOutcome:
+        """Run one turn. ``context`` is the session's stored context; without it every question is cold."""
         run_id = run_id or uuid.uuid4().hex
         emit = emit or (lambda *args, **kwargs: None)
         started = time.perf_counter()
@@ -150,13 +156,32 @@ class PipelineV2:
         if not guard.passed:
             return self._blocked(run_id, question, guard, started)
 
+        # Track 4 - read the message against the last turns of the session (deterministic, no model).
+        rewrite: followup.Rewrite | None = None
+        if reply is None:
+            try:
+                rewrite = followup.rewrite(question, context, extractor=self.extractor, registry=self.registry, anchor=self.anchor)
+            except Exception:  # context must never break a run: fall back to a cold question
+                rewrite = None
+        if rewrite is not None and rewrite.kind != "cold":
+            emit("context", mode=rewrite.kind, shape=rewrite.shape, interpreted_as=rewrite.effective_text,
+                 inherited_fields=list(rewrite.inherited_fields), prior_turn_id=rewrite.prior_turn_id)
+        reset = rewrite is not None and rewrite.kind == "reset"
+        if reset and not rewrite.text:
+            outcome = self._reset_ack(run_id, question, started, emit)
+            outcome.rewrite, outcome.reset = rewrite, True
+            return outcome
+
         # Step 2 - intent, entities and grounding.
         emit("step_started", step="2", component="Router and Extractor", at=_now())
         patch: dict[str, Any] = {}
         round_number = 1
         of_run_id = None
         notes: list[str] = []
-        text = question
+        text = rewrite.text if reset else question
+        if rewrite is not None and rewrite.kind == "followup":
+            text = rewrite.effective_text or question
+            patch = dict(rewrite.patch)
         if reply is not None:
             round_number = reply.request.round + 1
             of_run_id = reply.of_run_id
@@ -167,12 +192,16 @@ class PipelineV2:
                 text = patch.pop("effective_text", None) or reply.original_question
             else:
                 text = f"{reply.original_question} {reply.text}"
-        extraction = self.extractor.extract(text)
+        extraction = followup.promote_bare_metric(self.extractor.extract(text))
         emit("intent", intents=[{"intent": item.intent, "score": item.score, "span": item.span} for item in extraction.intents],
              confidence=extraction.confidence, reason=extraction.reason,
              entities=extraction.entities.model_dump(mode="json", exclude_none=True),
              model_consulted=extraction.signals.model is not None)
-        grounded = self.grounder.ground(extraction, patch=patch, round_number=round_number, of_run_id=of_run_id)
+        if rewrite is not None and rewrite.kind == "clarify" and rewrite.clarification is not None:
+            # Ambiguous even with context (scope.md U2, U4, V10): one question with complete options.
+            grounded = Grounded(self.grounder._clarify_intent(extraction, rewrite.clarification), None, rewrite.clarification, (), ())
+        else:
+            grounded = self.grounder.ground(extraction, patch=patch, round_number=round_number, of_run_id=of_run_id)
         if grounded.clarification is not None and round_number > clarify.MAX_ROUNDS:
             default_patch, note = clarify.patch_for(grounded.clarification, None)
             if "effective_text" in default_patch:
@@ -182,6 +211,11 @@ class PipelineV2:
         if notes and grounded.resolved is not None:
             grounded = Grounded(grounded.intent, grounded.resolved.model_copy(update={"assumptions": (*grounded.resolved.assumptions, *notes)}),
                                 None, grounded.special, (*grounded.assumptions, *notes))
+        if rewrite is not None and rewrite.kind == "followup" and grounded.resolved is not None and rewrite.inherited_fields:
+            # RQ-2: inheritance is never silent - the fields and the rewritten question are on the envelope.
+            resolved_followup = followup.apply_to_resolved(grounded.resolved, rewrite, raw_text=question)
+            grounded = Grounded(grounded.intent, resolved_followup, None, grounded.special,
+                                (*grounded.assumptions, *([rewrite.note] if rewrite.note else ())))
         emit("grounding", status="clarify" if grounded.needs_clarification else "grounded",
              metric_id=grounded.resolved.metric_id if grounded.resolved else None,
              assumptions=list(grounded.assumptions),
@@ -198,12 +232,15 @@ class PipelineV2:
             envelope, _ = compose(run_id=run_id, intent=grounded.intent, resolved=None, plan=None, results={}, reports={}, queries=[],
                                   clarification=request, catalog_version=self.catalog_version, latency_ms=_ms(started))
             emit("compose", status=envelope.status, claims=0)
-            return PipelineOutcome(envelope, text, request)
+            return PipelineOutcome(envelope, text if rewrite is None or rewrite.kind != "clarify" else question, request,
+                                   rewrite=rewrite, reset=reset)
 
         intent, resolved = grounded.intent, grounded.resolved
         assert resolved is not None
         execution, plan_issues, replans, resolved = self._plan_and_execute(intent, resolved, grounded.special, warehouse, run_id, emit)
-        return self._compose(run_id, text, intent, resolved, execution, warehouse, plan_issues, replans, started, emit)
+        outcome = self._compose(run_id, text, intent, resolved, execution, warehouse, plan_issues, replans, started, emit)
+        outcome.rewrite, outcome.reset = rewrite, reset
+        return outcome
 
     # ------------------------------------------------------------------ #
 
@@ -272,6 +309,26 @@ class PipelineV2:
              summary="The narrative passed numeric fact checking." if envelope.conclusion else "No narrative was produced.")
         emit("compose", status=envelope.status, claims=len(ledger.claims), replans=replans)
         return PipelineOutcome(envelope, text, None, replans=replans, issues=issues)
+
+    def _reset_ack(self, run_id: str, question: str, started: float, emit: Emit) -> PipelineOutcome:
+        """A bare "new topic": the context is cleared by the caller; offer fresh starting points."""
+        request = clarify.build(slot="intent", understood="You started a new topic, so earlier questions in this session are no longer used.",
+                                needs="What would you like to ask?", question="Context cleared. What would you like to look at",
+                                choices=clarify.question_choices([("What data do you have?", "What data do you have?"),
+                                                                  ("Revenue trend", "How does revenue trend look today?"),
+                                                                  ("Forecast revenue", "Forecast revenue for the next 3 months")]),
+                                rationale="Listing the data held is always a safe starting point.")
+        intent = IntentResult(intents=(ScoredIntent(intent="clarify", score=1.0, span=question[:200]),), entities=Entities(),
+                              signals=IntentSignals(), confidence=1.0, reason="Topic reset: the session context was cleared.",
+                              clarification=request, prd_intent_label="Descriptive")
+        emit("clarify", what_understood=request.what_understood, what_needs_clarification=request.what_needs_clarification,
+             question=request.question, slot=request.slot, round=request.round,
+             options=[{"option_id": option.option_id, "label": option.label, "detail": option.detail} for option in request.options],
+             default_option_id=request.default_assumption.option_id)
+        envelope, _ = compose(run_id=run_id, intent=intent, resolved=None, plan=None, results={}, reports={}, queries=[],
+                              clarification=request, catalog_version=self.catalog_version, latency_ms=_ms(started))
+        emit("compose", status=envelope.status, claims=0)
+        return PipelineOutcome(envelope, question, request)
 
     def _blocked(self, run_id: str, question: str, guard, started: float) -> PipelineOutcome:
         request = clarify.build(slot="intent", understood="The request was blocked by the ingress guard.",

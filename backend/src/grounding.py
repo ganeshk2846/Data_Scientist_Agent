@@ -341,6 +341,10 @@ def _apply_patch(entities: Entities, patch: Mapping[str, Any]) -> Entities:
     if "period" in patch and patch["period"] is not None:
         value = patch["period"]
         changes["period"] = value if isinstance(value, Period) else Period.model_validate(value)
+    if "comparison_period" in patch:
+        # A follow-up patch may also clear an inherited comparison (None).
+        value = patch["comparison_period"]
+        changes["comparison_period"] = None if value is None else value if isinstance(value, Period) else Period.model_validate(value)
     if "grain" in patch:
         changes["grain"] = patch["grain"]
     if "dimensions" in patch:
