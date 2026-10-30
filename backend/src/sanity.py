@@ -15,7 +15,6 @@ from dataclasses import dataclass
 from typing import Literal
 
 from contracts.v2 import ToolResult
-
 from executor_v2 import Execution
 
 MAX_REPLANS = 2
@@ -79,4 +78,4 @@ def actionable(issues: list[Issue]) -> list[Issue]:
     return [issue for issue in issues if issue.fix != "none"]
 
 
-__all__ = ["BOUNDED", "Issue", "MAX_REPLANS", "NON_NEGATIVE", "actionable", "check"]
+__all__ = ["BOUNDED", "MAX_REPLANS", "NON_NEGATIVE", "Issue", "actionable", "check"]

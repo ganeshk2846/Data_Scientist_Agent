@@ -12,11 +12,13 @@ default, recorded in ``assumptions`` in plain words.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import date
 from typing import Any
 
+import clarify
 from contracts.models import Period
 from contracts.v2 import (
     ClarificationRequest,
@@ -26,8 +28,6 @@ from contracts.v2 import (
     ResolvedQuestion,
     ScoredIntent,
 )
-
-import clarify
 from intent import DEFAULT_ANCHOR, HISTORY_START, Extraction, describe_period, prd_label
 
 #: Dimensions a governed dataset (not a registry metric) may be split by.
@@ -80,10 +80,11 @@ class Grounder:
         patch = dict(patch or {})
         if patch:
             entities = _apply_patch(entities, patch)
-            if "metric_id" in patch:
+            # A vague ask the user has just made specific is a descriptive question.
+            specific = entities.metric_id is not None and (entities.period is not None or "period" in patch or force_defaults)
+            if "vague" in special and ({"metric_id", "period"} & set(patch)) and specific:
                 special.discard("vague")
-            if "period" in patch:
-                special.discard("vague")
+                names = names or ["descriptive"]
 
         def ask(request: ClarificationRequest) -> Grounded:
             if force_defaults or round_number > clarify.MAX_ROUNDS:
@@ -97,7 +98,7 @@ class Grounder:
                                resolved=_with_assumption(regrounded.resolved, note))
             return Grounded(self._clarify_intent(extraction, request), None, request, tuple(special), tuple(assumptions))
 
-        build = lambda **kwargs: clarify.build(round_number=round_number, of_run_id=of_run_id, **kwargs)  # noqa: E731
+        build = lambda **kwargs: clarify.build(round_number=round_number, of_run_id=of_run_id, **kwargs)
 
         # 1. Attributes that exist in neither layer are named, with the nearest answerable questions.
         if extraction.absent:
@@ -131,6 +132,13 @@ class Grounder:
                 rationale="The at-risk segment is the closest measured signal to churn in this data.",
             ))
 
+        # 3a. A scope with no question ("What about SP?", "last month?"): ask which metric.
+        if not names and "vague" not in special and (entities.filters or entities.period) and entities.metric_id is None:
+            scope = ", ".join([*(value for item in entities.filters for value in item.values), *([describe_period(entities.period)] if entities.period else [])])
+            return ask(build(slot="metric", understood=f"You asked about {scope}, but not which measure.",
+                             needs="Which metric should I report?", question=f"Which metric should I report for {scope}",
+                             choices=clarify.METRIC_CHOICES, rationale="Revenue is the governed headline metric."))
+
         # 3. Nothing recognisable: suggest answerable questions instead of refusing.
         if not names and "vague" not in special:
             metric = entities.metric_id or "revenue"
@@ -162,8 +170,9 @@ class Grounder:
             ))
 
         # 5. Vague asks: resolve what can be resolved, ask about exactly one thing.
+        sales_only = [mention.phrase for mention in extraction.metric_mentions] in (["sales"], ["total sales"])
         if "vague" in special and names[:1] != ["discovery"]:
-            if entities.metric_id is None:
+            if entities.metric_id is None or (sales_only and "metric_id" not in patch):
                 understood = "You asked for a general view of the business." if not entities.filters else (
                     f"You asked about {', '.join(value for item in entities.filters for value in item.values)}.")
                 if "anything unusual" in extraction.question.lower() or "unusual" in extraction.question.lower():
@@ -197,7 +206,11 @@ class Grounder:
         if entities.metric_id and metric is None:
             entities = replace_entities(entities, metric_id=None)
         if metric is None and not dataset_question and set(names) & NEEDS_METRIC:
-            if {"diagnostic", "impact"} & set(names) and (entities.period is not None or "prescriptive" in names):
+            timed = entities.period is not None or entities.comparison_period is not None
+            # A "why" needs a time scope to default the metric; sizing ("what is SP worth") only needs a scope.
+            scoped = timed or ("impact" in names and "diagnostic" not in names and bool(entities.filters))
+            if ({"diagnostic", "impact"} & set(names) and (scoped or "prescriptive" in names)) or (
+                    names[:1] == ["descriptive"] and entities.comparison_period is not None):
                 entities = replace_entities(entities, metric_id="revenue")
                 metric = self.registry.get("revenue")
                 assumptions.append("No metric was named, so revenue (payments received) was used.")
@@ -257,7 +270,7 @@ class Grounder:
                                       clarify.Choice(f"Forecast {describe_period(period)} instead", {"effective_text": f"Forecast {(entities.metric_id or 'revenue').replace('_', ' ')} for the next 3 months"})],
                              rationale="The last 12 complete months are the most recent measured window."))
         if period is None and names[:1] in (["descriptive"], ["diagnostic"], ["impact"]) and not {"spike_scan", "delivery"} & special:
-            if names[0] == "descriptive":
+            if names[0] == "descriptive" or (names[0] == "impact" and re.search(r"\bworth\b|\bexposed\b|\bmattered\b|\bhow much of\b", extraction.question.lower())):
                 period = Period(start=_add_months(self.anchor_date, -11), end=end_cap)
                 assumptions.append(f"No window was given, so the last 12 complete months ({describe_period(period)}) were used.")
             else:

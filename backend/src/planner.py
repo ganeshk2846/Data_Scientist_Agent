@@ -25,8 +25,6 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import Field, ValidationError
-
 from contracts.models import ContractModel, Period
 from contracts.v2 import (
     MAX_PLAN_STEPS,
@@ -45,6 +43,7 @@ from engines.forecast import ForecastEngineParams
 from engines.impact import ImpactEngineParams
 from engines.prescriptive import PrescriptiveParams
 from engines.scenario import ScenarioEngineParams
+from pydantic import Field, ValidationError
 from semantic.metrics_v2 import all_metrics
 
 RATIO_METRICS = frozenset({"aov", "cancellation_rate", "review_score", "conversion_rate", "stockout_rate", "return_rate",
@@ -579,15 +578,15 @@ def plan_shape(plan: Plan) -> list[str]:
 
 __all__ = [
     "ANALYTICAL_DIMENSIONS",
+    "DATASETS",
+    "RATIO_METRICS",
+    "TOOL_PARAMS",
     "AnalyticalParams",
     "Capabilities",
     "CatalogParams",
-    "DATASETS",
     "PlanValidationError",
     "Planner",
-    "RATIO_METRICS",
     "SqlParams",
-    "TOOL_PARAMS",
     "plan_shape",
     "validate_plan",
     "validate_step_params",

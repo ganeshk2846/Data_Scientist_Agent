@@ -18,20 +18,27 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from contracts.models import BlockBlock, Period
-from contracts.v2 import AnswerEnvelopeV2, ClarificationRequest, IntentResult, ResolvedQuestion
-from gateway.executor import QueryExecutor
-from semantic.metrics_v2 import all_metrics
-from semantic.versioning import catalog_version as current_catalog_version
-from sql.compiler import SQLCompiler
-
 import clarify
 from composer import compose
+from contracts.models import BlockBlock, Period
+from contracts.v2 import (
+    AnswerEnvelopeV2,
+    ClarificationRequest,
+    Entities,
+    IntentResult,
+    IntentSignals,
+    ResolvedQuestion,
+    ScoredIntent,
+)
 from executor_v2 import Execution, PlanExecutor
+from gateway.executor import QueryExecutor
 from grounding import Grounded, Grounder
 from intent import DEFAULT_ANCHOR, EntityExtractor, IntentExtractor, ValueIndex
 from planner import Capabilities, Planner, PlanValidationError
 from sanity import MAX_REPLANS, actionable, check
+from semantic.metrics_v2 import all_metrics
+from semantic.versioning import catalog_version as current_catalog_version
+from sql.compiler import SQLCompiler
 from tools.registry import Warehouse
 
 Emit = Callable[..., None]
@@ -267,8 +274,6 @@ class PipelineV2:
         return PipelineOutcome(envelope, text, None, replans=replans, issues=issues)
 
     def _blocked(self, run_id: str, question: str, guard, started: float) -> PipelineOutcome:
-        from contracts.v2 import Entities, IntentSignals, ScoredIntent
-
         request = clarify.build(slot="intent", understood="The request was blocked by the ingress guard.",
                                 needs="Ask an analytics question instead.", question="Would one of these help",
                                 choices=clarify.question_choices([("What data do you have?", "What data do you have?"),

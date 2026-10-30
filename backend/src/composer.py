@@ -13,7 +13,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, datetime
 from typing import Any
 
 from contracts.models import (
@@ -45,7 +45,6 @@ from contracts.v2 import (
 from engines.diagnostic import CAUSAL_BOUNDARY
 from engines.report import EngineReport
 from evidence.ledger import FactChecker, format_number
-
 from intent import describe_period
 
 _MONEY = frozenset({"revenue", "gmv", "aov", "freight_value", "marketing_spend", "R$"})
@@ -429,9 +428,7 @@ def compose(
         status = "clarify"
     elif plan is None:
         status = "error"
-    elif not ok_steps:
-        status = "insufficient_evidence"
-    elif not conclusion:
+    elif not ok_steps or not conclusion:
         status = "insufficient_evidence"
     else:
         status = "answered"
@@ -463,7 +460,7 @@ def compose(
         run_metrics=RunMetrics(latency_ms=max(0, latency_ms), tokens=0, queries=len(queries),
                                rows=sum(int(item.get("rows", 0) or 0) for item in queries), retries=0),
         provenance=Provenance(model_name="ollama" if model_used else "none", snapshot_id="brazil-ecommerce", catalog_version=catalog_version,
-                              timestamp=date.today().isoformat() + "T00:00:00Z"),
+                              timestamp=datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")),
         resolved_question=resolved,
         intent=intent,
         plan=plan,

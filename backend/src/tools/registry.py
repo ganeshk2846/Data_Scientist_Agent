@@ -22,10 +22,9 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any
 
-import pandas as pd
-
 import engines
-from contracts.models import ExecutionResult, Period
+import pandas as pd
+from contracts.models import ExecutionResult, MetricFilter, Period
 from contracts.v2 import (
     CatalogFact,
     CatalogFactsPayload,
@@ -38,7 +37,14 @@ from contracts.v2 import (
 )
 from engines import descriptive, prep
 from engines.base import EngineData, Timer, insufficient, table_from_frame
-from engines.report import ChartHint, EngineReport, EngineRun, KeyNumber, ReportTable, confidence_from
+from engines.report import (
+    ChartHint,
+    EngineReport,
+    EngineRun,
+    KeyNumber,
+    ReportTable,
+    confidence_from,
+)
 from semantic.layers import data_layer_for, synthetic_caveat
 from semantic.metrics_v2 import all_metrics, is_synthetic_metric
 from sql.validator import SQLValidator
@@ -205,8 +211,6 @@ def _sql(step: PlanStep, ctx: StepContext) -> EngineRun:
     if params.get("kind") == "dataset":
         return _dataset(step, ctx, timer)
     metric = warehouse.registry.require(params["metric_id"])
-    from contracts.models import MetricFilter
-
     filters = []
     for item in params.get("filters", ()):
         dimension = next((d for d in metric.allowed_dimensions if d.name == item["dimension"]), None)
@@ -794,13 +798,13 @@ def _actions_table(ctx: StepContext, step: PlanStep, sources: list[str]) -> pd.D
     rows = []
     for index, (action_id, subject, impact, grade) in enumerate(candidates, start=1):
         template = next(item for item in ACTION_LIBRARY if item[0] == action_id)
-        fill = lambda text, subject=subject: text.format(driver=subject, segment=subject, metric=metric)  # noqa: E731
+        fill = lambda text, subject=subject: text.format(driver=subject, segment=subject, metric=metric)
         rows.append((f"{action_id}_{index}", fill(template[1]), impact, 1.0, grade, template[2], fill(template[3]), fill(template[4]),
                      fill(template[5]), fill(template[6]), fill(template[7])))
     # REC-4: when evidence is weak, the cheapest information-gathering options are what gets ranked.
     for action_id in ("gather_evidence", "monitor_metric"):
         template = next(item for item in ACTION_LIBRARY if item[0] == action_id)
-        fill = lambda text: text.format(metric=metric, driver=metric, segment=metric)  # noqa: E731
+        fill = lambda text: text.format(metric=metric, driver=metric, segment=metric)
         rows.append((action_id, fill(template[1]), 0.0, 1.0 if action_id == "gather_evidence" else 0.5, 1, template[2], fill(template[3]),
                      fill(template[4]), fill(template[5]), fill(template[6]), fill(template[7])))
     return pd.DataFrame(rows, columns=["action_id", "title", "expected_impact", "cost", "evidence_grade", "kind", "assumptions",

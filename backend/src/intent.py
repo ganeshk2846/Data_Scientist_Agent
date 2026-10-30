@@ -220,7 +220,7 @@ def read_time(question: str, *, anchor: str = DEFAULT_ANCHOR) -> TimeReading:
     relative = None
     if re.search(r"\blast (?:complete )?month\b|\bthis month\b", text):
         relative = (Period(start=last, end=end_cap), "last month")
-    elif re.search(r"\blast quarter\b|\blast 3 months\b|\blast three months\b|\brecent\w*\b|\blately\b", text):
+    elif re.search(r"\blast quarter\b|\blast 3 months\b|\blast three months\b", text):
         relative = (Period(start=_add_months(last, -2), end=end_cap), "last 3 complete months")
     elif re.search(r"\blast 12 months\b|\blast year\b(?!.*\bvs\b)|\btoday\b|\bnow\b|\bthis year\b|\bytd\b|\byear to date\b", text):
         if re.search(r"\bthis year\b|\bytd\b|\byear to date\b", text):
@@ -249,10 +249,10 @@ def read_time(question: str, *, anchor: str = DEFAULT_ANCHOR) -> TimeReading:
             unique.append(period)
     current = unique[0] if unique else None
     comparison = unique[1] if len(unique) > 1 else None
-    if current is not None and comparison is not None and current.start < comparison.start:
-        # "compare 2018 to 2017" keeps 2018 current; "between Q1 and Q2" makes Q2 current.
-        if not re.search(r"\bcompare\w* (?:20\d\d|q[1-4]|\w+ 20\d\d) (?:to|with|against|versus|vs)\b", text):
-            current, comparison = comparison, current
+    # "compare 2018 to 2017" keeps 2018 current; "between Q1 and Q2" makes Q2 current.
+    explicit_order = re.search(r"\bcompare\w* (?:20\d\d|q[1-4]|\w+ 20\d\d) (?:to|with|against|versus|vs)\b", text)
+    if current is not None and comparison is not None and current.start < comparison.start and not explicit_order:
+        current, comparison = comparison, current
     if current is not None and comparison is not None:
         current_length = (current.end.year - current.start.year) * 12 + current.end.month - current.start.month
         comparison_length = (comparison.end.year - comparison.start.year) * 12 + comparison.end.month - comparison.start.month
@@ -353,11 +353,7 @@ _DIMENSION_WORDS = {
     "segment": ("segment", "segments"),
 }
 _STOPWORDS = frozenset(
-    "a an the of in on for by to and or is was were are be been what why how which who whom when where will would "
-    "should could can do did does me my we our us you your it its this that these those than then there their "
-    "from with into over across all any each every per vs versus about last next month months year years quarter "
-    "quarters week weeks day days show give tell list total top much many most more less up down rise fall drop "
-    "if happens raise cut lose forecast trend look today now please numbers number data also just only so".split()
+    ["a", "an", "the", "of", "in", "on", "for", "by", "to", "and", "or", "is", "was", "were", "are", "be", "been", "what", "why", "how", "which", "who", "whom", "when", "where", "will", "would", "should", "could", "can", "do", "did", "does", "me", "my", "we", "our", "us", "you", "your", "it", "its", "this", "that", "these", "those", "than", "then", "there", "their", "from", "with", "into", "over", "across", "all", "any", "each", "every", "per", "vs", "versus", "about", "last", "next", "month", "months", "year", "years", "quarter", "quarters", "week", "weeks", "day", "days", "show", "give", "tell", "list", "total", "top", "much", "many", "most", "more", "less", "up", "down", "rise", "fall", "drop", "if", "happens", "raise", "cut", "lose", "forecast", "trend", "look", "today", "now", "please", "numbers", "number", "data", "also", "just", "only", "so"]
 )
 
 
@@ -486,7 +482,7 @@ class EntityExtractor:
         if re.search(r"\beliminat\w*\b|\bremov\w* (?:the )?\w+", lowered) and not any(param.kind == "remove" for param in params):
             subject = re.search(r"\b(?:eliminat\w*|remov\w*) (?:the |all )?(\w+)", lowered)
             target = self._target_for(subject.group(1)) if subject else None
-            params.append(ScenarioParam(target=target or "stockout_rate", kind="multiplicative", value=0.0,
+            params.append(ScenarioParam(target=target or "stockout_rate", kind="absolute", value=0.0,
                                         source_phrase=subject.group(0) if subject else "eliminate"))
         if re.search(r"\blaunch\w* in (\w+)", lowered):
             place = re.search(r"\blaunch\w* in (\w+)", lowered).group(1)  # type: ignore[union-attr]
@@ -625,7 +621,7 @@ class IntentExtractor:
             special.append("segments")
         if re.search(r"\bdeliver\w*\b|\bcarrier\b|\bsla\b|\bdelays?\b", lowered):
             special.append("delivery")
-        if re.search(r"\bsummar\w*\b|\boverview\b|\bhow'?s business\b|\bhow is business\b|\bhow are sales doing\b|\bhow are we doing\b|\bgive me the numbers\b|\btell me about\b|\bperformance\b|\bbest and worst\b|\bshow growth\b|\bis growth good\b|\banything unusual\b|\bbreak it down\b|\bnumbers for\b", lowered):
+        if re.search(r"\bsummar\w*\b|\boverview\b|\bhow'?s business\b|\bhow is business\b|\bhow are sales doing\b|\bhow are we doing\b|\bgive me the numbers\b|\btell me about\b|\bperformance\b|\bbest and worst\b|\bshow growth\b|\bis growth good\b|\banything unusual\b|\bbreak it down\b|\bnumbers for\b|\brecent\w*\b|\blately\b", lowered):
             special.append("vague")
 
         intents = _order(chosen)
@@ -652,7 +648,10 @@ class IntentExtractor:
                 horizon = Horizon(periods=max(1, months), grain="month", anchor=self.anchor)
             if horizon is None:
                 horizon = Horizon(periods=3, grain="month", anchor=self.anchor)
-        scenario = self.entities.scenario_params(text, metric.metric_id if metric else None) if "scenario" in intent_names else []
+        try:
+            scenario = self.entities.scenario_params(text, metric.metric_id if metric else None) if "scenario" in intent_names else []
+        except ValueError:  # a parameter the contract rejects is not extracted; grounding then asks
+            scenario = []
         if "scenario" in intent_names and not scenario:
             intents = tuple(item for item in intents if item.intent != "scenario") or (ScoredIntent(intent="descriptive", score=0.6, span=text),)
             special.append("scenario_without_parameter")

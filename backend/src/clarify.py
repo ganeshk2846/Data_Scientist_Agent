@@ -158,11 +158,11 @@ def option_by_label(request: ClarificationRequest, reply: str) -> str | None:
 
 
 __all__ = [
-    "Choice",
     "GRAIN_CHOICES",
     "GROSS_NET_CHOICES",
     "MAX_ROUNDS",
     "METRIC_CHOICES",
+    "Choice",
     "build",
     "horizon_choices",
     "next_round",
