@@ -177,3 +177,34 @@ def test_real_snapshot_last_complete_month():
     assert report.last_complete_period == "2018-08"
     for period in ("2016-09", "2018-09", "2018-10"):
         assert not report.is_complete(period)
+
+
+def test_a_month_must_be_complete_in_every_date_table(tmp_path):
+    db = tmp_path / "mixed.sqlite"
+    scaled = {period: max(1, count // 10) for period, count in OLIST_MONTHLY_ORDERS.items()}
+    scaled["2018-09"], scaled["2018-10"] = 2, 1
+    _write_orders_db(db, scaled)
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE regional_targets (state TEXT, month TEXT, revenue_target REAL)")
+        conn.executemany(
+            "INSERT INTO regional_targets VALUES ('SP', ?, 1.0)",
+            [(period,) for period in OLIST_MONTHLY_ORDERS],
+        )
+    engine = create_engine(f"sqlite:///file:{db.as_posix()}?mode=ro&uri=true")
+    from semantic.metrics_v2 import all_metrics
+
+    metric = all_metrics().require("target_attainment")
+    with engine.connect() as connection:
+        alone = assess_metric(connection, metric, catalog_version="v")
+        joint = assess_metric(
+            connection,
+            metric,
+            catalog_version="v",
+            also_date_columns=("orders.order_purchase_timestamp",),
+        )
+
+    assert alone.last_complete_period == "2018-10"  # the target table alone is full
+    assert joint.last_complete_period == "2018-08"
+    assert "orders.order_purchase_timestamp is incomplete" in next(
+        item for item in joint.periods if item.period == "2018-09"
+    ).reason

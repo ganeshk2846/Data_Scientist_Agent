@@ -296,14 +296,37 @@ def read_monthly_volumes(connection: Connection, date_column: str) -> dict[str, 
     user or model text reaches this query.
     """
     table, column = _split_date_column(date_column)
+    # substr, not strftime: it reads ISO timestamps, dates and YYYY-MM months.
     statement = text(
-        f'SELECT strftime(\'%Y-%m\', "{table}"."{column}") AS period, '
+        f'SELECT substr("{table}"."{column}", 1, 7) AS period, '
         f'COUNT(*) AS volume FROM "{table}" '
         f'WHERE "{table}"."{column}" IS NOT NULL '
         "GROUP BY period ORDER BY period"
     )
     rows = connection.execute(statement).all()
     return {str(period): int(volume) for period, volume in rows if period}
+
+
+def _intersect(
+    primary: tuple[PeriodCoverage, ...],
+    other: tuple[PeriodCoverage, ...],
+    column: str,
+) -> tuple[PeriodCoverage, ...]:
+    by_period = {item.period: item for item in other}
+    merged = []
+    for item in primary:
+        match = by_period.get(item.period)
+        if item.complete and (match is None or not match.complete):
+            reason = (
+                f"{column} has no rows in this period"
+                if match is None
+                else f"{column} is incomplete: {match.reason}"
+            )
+            item = PeriodCoverage(
+                period=item.period, observed=item.observed, complete=False, reason=reason
+            )
+        merged.append(item)
+    return tuple(merged)
 
 
 def assess_metric(
@@ -313,13 +336,26 @@ def assess_metric(
     grain: CompletenessGrain = "month",
     catalog_version: str,
     rule: CompletenessRule | None = None,
+    also_date_columns: tuple[str, ...] = (),
 ) -> CompletenessReport:
-    """Publish the completeness report for one metric at one grain."""
+    """Publish the completeness report for one metric at one grain.
+
+    ``also_date_columns`` names further ``table.column`` dates the metric
+    depends on. A month is complete only when it is complete in every one:
+    real revenue over a synthetic target is not complete in 2018-09 just
+    because the target table has a row for it.
+    """
     rule = rule or CompletenessRule()
     table, _ = _split_date_column(metric.date_column)
     months = assess_monthly_volumes(
         read_monthly_volumes(connection, metric.date_column), rule
     )
+    for column in also_date_columns:
+        months = _intersect(
+            months,
+            assess_monthly_volumes(read_monthly_volumes(connection, column), rule),
+            column,
+        )
     periods = months if grain == "month" else roll_up(months, grain)
     return CompletenessReport(
         metric_id=metric.metric_id,

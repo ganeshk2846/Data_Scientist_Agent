@@ -103,3 +103,41 @@ the indexes are missing or `ANALYZE` has not been run.
 * Back up first: `cp brazil_ecommerce.sqlite brazil_ecommerce.backup.sqlite`.
 * If you write a loader script, create these indexes as its final step so a
   rebuilt database does not reintroduce the failure.
+
+---
+
+## V2 database — `data/brazil_ecommerce_v2.sqlite`
+
+The V2 build is generated, so its indexes are created by the generator
+(`scripts/synth/generate.py`, `INDEXES`), followed by `ANALYZE`. Nothing has
+to be applied by hand. The real snapshot is opened read-only and is never
+indexed by the build.
+
+The same rule applies: every index is **covering**, with the join or filter
+key first and the columns the queries read after it.
+
+| Index | Serves |
+|---|---|
+| the three indexes above | the governed metric fast path, unchanged |
+| `idx_orders_purchase_cover` on `orders(order_purchase_timestamp, order_id, order_status, customer_id)` | per-day and per-month KPI builds |
+| `idx_customers_unique_cover` on `customers(customer_unique_id, customer_id, customer_state)` | `customer_segments` ⇄ `customers` |
+| `idx_order_items_product_cover` on `order_items(product_id, order_id, order_item_id, price)` | `price_history` / `competitor_prices` ⇄ `order_items` (margin) |
+| `idx_returns_item_cover` on `returns(order_id, order_item_id, refund_value, reason)` | `returns` ⇄ `order_items` (return rate) |
+| `idx_price_history_cover` on `price_history(product_id, date, price, unit_cost)` | point-in-time price and cost lookups |
+| `idx_competitor_prices_cover` on `competitor_prices(product_id, date, competitor, price)` | elasticity controls |
+| `idx_customer_segments_cover` on `customer_segments(customer_unique_id, segment, ltv_band)` | segment breakdowns |
+| `idx_regional_targets_cover` on `regional_targets(state, month, revenue_target)` | target attainment |
+| `idx_web_traffic_cover` on `web_traffic(state, date, sessions, conversion_rate)` | sessions and conversion by state |
+| `idx_inventory_daily_cover` on `inventory_daily(category, date, units_sold, stockout_flag)` | stockout rate by category |
+| `idx_marketing_spend_cover` on `marketing_spend(category, date, channel, spend)` | spend by category and channel |
+| `idx_delivery_sla_cover` on `delivery_sla(state, date, carrier, actual_days, promised_days)` | SLA by state and carrier |
+| `idx_promotions_category` on `promotions(category, start_date, end_date, discount_pct)` | active-promotion lookups |
+
+### Pointing the backend at the V2 database
+
+```bash
+export DS_AGENT_DB=data/brazil_ecommerce_v2.sqlite
+```
+
+`DS_AGENT_DB` takes precedence over the older `DS_AGENT_DATABASE`. With
+neither set, the backend still opens `brazil_ecommerce.sqlite`, as before.

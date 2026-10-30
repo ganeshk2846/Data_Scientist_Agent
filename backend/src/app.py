@@ -27,8 +27,15 @@ from service import (
 from trace_logger import TraceLogger
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
+# DS_AGENT_DB points the backend at another database, e.g. the V2 build
+# data/brazil_ecommerce_v2.sqlite; DS_AGENT_DATABASE is the older name and
+# still works. With neither set, the real snapshot stays the default.
 _DATABASE_PATH = (
-    Path(os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH))
+    Path(
+        os.environ.get("DS_AGENT_DB")
+        or os.environ.get("DS_AGENT_DATABASE")
+        or _DEFAULT_DATABASE_PATH
+    )
     .expanduser()
     .resolve()
 )
