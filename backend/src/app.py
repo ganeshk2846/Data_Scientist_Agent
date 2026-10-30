@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator, Iterator
 
+# Automatically add backend/src to Python search path
+_SRC_DIR = str(Path(__file__).resolve().parent)
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
+from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
+
+from auth import ApiTokenAuthenticator
+from contracts.models import AnswerEnvelope, AskRequest, AskResponse
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
-
-from contracts.models import AnswerEnvelope, AskRequest, AskResponse
-from auth import ApiTokenAuthenticator
 from service import (
     RunNotFoundError,
     RunService,
@@ -21,9 +27,11 @@ from service import (
 from trace_logger import TraceLogger
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
-_DATABASE_PATH = Path(
-    os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
-).expanduser().resolve()
+_DATABASE_PATH = (
+    Path(os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH))
+    .expanduser()
+    .resolve()
+)
 _TRACE_DIR = Path(__file__).resolve().parents[1] / "traces"
 _FRONTEND_INDEX = (
     Path(__file__).resolve().parents[2] / "frontend" / "index.html"
@@ -42,10 +50,18 @@ def create_app(
 
     if run_service is None:
         resolved_database = Path(database_path or _DATABASE_PATH)
+        client = reasoning_client
+        if client is None:
+            try:
+                from models.client import OllamaClient
+
+                client = OllamaClient(model="deepseek-r1:7b")
+            except Exception:
+                client = None
         service = RunService(
             lambda: build_runtime(
                 resolved_database,
-                reasoning_client=reasoning_client,
+                reasoning_client=client,
             ),
             logger=TraceLogger(trace_dir or _TRACE_DIR),
         )

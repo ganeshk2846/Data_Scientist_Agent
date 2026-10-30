@@ -1,4 +1,5 @@
 """OpenAI-compatible model gateway with bounded retries and safe telemetry."""
+
 from __future__ import annotations
 
 import logging
@@ -12,7 +13,13 @@ from urllib.parse import urlparse
 
 import httpx
 from dotenv import load_dotenv
-from openai import APIConnectionError, APIStatusError, APITimeoutError, OpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    OpenAI,
+    RateLimitError,
+)
 
 from src.onboarding.privacy import redact_payload
 
@@ -58,9 +65,11 @@ def _positive_float(name: str, default: str, *, maximum: float = 3600.0) -> floa
 
 class LLMGateway:
     def __init__(self, model: str | None = None, *, client=None):
-        self.model = model or os.getenv("LLM_MODEL", "qwen-plus")
+        self.model = model or os.getenv("LLM_MODEL", "deepseek-r1:7b")
         self.max_attempts = _positive_int("LLM_MAX_ATTEMPTS", "3", maximum=10)
-        self.failure_threshold = _positive_int("LLM_CIRCUIT_FAILURE_THRESHOLD", "3", maximum=100)
+        self.failure_threshold = _positive_int(
+            "LLM_CIRCUIT_FAILURE_THRESHOLD", "3", maximum=100
+        )
         self.circuit_reset_seconds = _positive_float("LLM_CIRCUIT_RESET_SECONDS", "30")
         try:
             jitter_seed = int(os.getenv("LLM_RETRY_JITTER_SEED", "0"))
@@ -79,27 +88,40 @@ class LLMGateway:
         if client is not None:
             self.client = client
         else:
-            base_url = os.getenv("LLM_BASE_URL")
-            if not base_url:
-                raise LLMError("LLM_UNAVAILABLE")
-            api_key = os.getenv("LLM_API_KEY")
-            if not api_key:
-                raise LLMError("LLM_UNAVAILABLE")
+            base_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1")
+            api_key = os.getenv("LLM_API_KEY", "ollama")
             parsed = urlparse(base_url)
             if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                 raise LLMError("LLM_CONFIG_INVALID")
-            if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            if parsed.scheme != "https" and parsed.hostname not in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }:
                 raise LLMError("LLM_CONFIG_INVALID")
-            if api_key.startswith("sk-your-") or api_key.startswith("sk-or-..."):
+            if api_key.startswith(("sk-your-", "sk-or-...")):
                 raise LLMError("LLM_CONFIG_INVALID")
-            timeout = httpx.Timeout(read_timeout, connect=connect_timeout, read=read_timeout)
-            self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
+            timeout = httpx.Timeout(
+                read_timeout, connect=connect_timeout, read=read_timeout
+            )
+            self.client = OpenAI(
+                api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0
+            )
 
-    def chat(self, system: str, user: str, temperature: float = 0.0, max_retries: int | None = None) -> LLMResult:
+    def chat(
+        self,
+        system: str,
+        user: str,
+        temperature: float = 0.0,
+        max_retries: int | None = None,
+    ) -> LLMResult:
         attempts = min(self.max_attempts, max(1, max_retries or self.max_attempts))
         with self._lock:
             if self._circuit_opened_at is not None:
-                if time.monotonic() - self._circuit_opened_at < self.circuit_reset_seconds:
+                if (
+                    time.monotonic() - self._circuit_opened_at
+                    < self.circuit_reset_seconds
+                ):
                     raise LLMError("LLM_UNAVAILABLE")
                 self._circuit_opened_at = None
                 self._failures = 0
@@ -112,7 +134,10 @@ class LLMGateway:
             try:
                 response = self.client.chat.completions.create(
                     model=self.model,
-                    messages=[{"role": "system", "content": prompt_system}, {"role": "user", "content": prompt_user}],
+                    messages=[
+                        {"role": "system", "content": prompt_system},
+                        {"role": "user", "content": prompt_user},
+                    ],
                     temperature=temperature,
                 )
                 elapsed = int((time.perf_counter() - started) * 1000)
@@ -130,8 +155,19 @@ class LLMGateway:
                     self.total_completion_tokens += completion_tokens
                     if cost is not None:
                         self.total_cost_usd += cost
-                logger.info("llm_call", extra={"model": self.model, "latency_ms": elapsed, "prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens, "cost_usd": cost})
-                return LLMResult(text, prompt_tokens, completion_tokens, elapsed, self.model, cost)
+                logger.info(
+                    "llm_call",
+                    extra={
+                        "model": self.model,
+                        "latency_ms": elapsed,
+                        "prompt_tokens": prompt_tokens,
+                        "completion_tokens": completion_tokens,
+                        "cost_usd": cost,
+                    },
+                )
+                return LLMResult(
+                    text, prompt_tokens, completion_tokens, elapsed, self.model, cost
+                )
             except (APITimeoutError, httpx.TimeoutException):
                 failure_code = "LLM_TIMEOUT"
             except RateLimitError:
@@ -139,16 +175,25 @@ class LLMGateway:
             except APIConnectionError:
                 failure_code = "LLM_UNAVAILABLE"
             except APIStatusError as error:
-                failure_code = "LLM_QUOTA" if error.status_code == 429 else "LLM_UNAVAILABLE"
+                failure_code = (
+                    "LLM_QUOTA" if error.status_code == 429 else "LLM_UNAVAILABLE"
+                )
             except Exception:
                 failure_code = "LLM_UNAVAILABLE"
-            logger.warning("llm_call_failed", extra={"model": self.model, "failure_code": failure_code, "attempt": attempt + 1})
+            logger.warning(
+                "llm_call_failed",
+                extra={
+                    "model": self.model,
+                    "failure_code": failure_code,
+                    "attempt": attempt + 1,
+                },
+            )
             with self._lock:
                 self._failures += 1
                 if self._failures >= self.failure_threshold:
                     self._circuit_opened_at = time.monotonic()
             if attempt + 1 < attempts:
-                base = min(8.0, 0.5 * (2 ** attempt))
+                base = min(8.0, 0.5 * (2**attempt))
                 time.sleep(base * (0.75 + self._random.random() * 0.5))
         raise LLMError(failure_code)
 

@@ -11,10 +11,10 @@ import os
 import threading
 import time
 import uuid
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Callable, Iterator
 
 from analysts.harness import AnalystHarness
 from catalog import MetricRegistry
@@ -50,19 +50,17 @@ from sql.reconciler import Reconciler
 from trace_logger import TraceLogger, mask_sensitive
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
-_DATABASE_PATH = Path(
-    os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
-).expanduser().resolve()
+_DATABASE_PATH = (
+    Path(os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH))
+    .expanduser()
+    .resolve()
+)
 _TERMINAL_EVENTS = frozenset({"answer", "error"})
 _GOVERNED_ROUTES = frozenset({"lookup", "anomaly", "driver"})
 
 
 def _utc_now() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
+    return datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 @dataclass(slots=True)
@@ -91,6 +89,13 @@ def build_runtime(
     timeout_ms: int = 5_000,
     max_rows: int = 500,
 ) -> AgentRuntime:
+    if reasoning_client is None:
+        try:
+            from models.client import OllamaClient
+
+            reasoning_client = OllamaClient(model="deepseek-r1:7b")
+        except Exception:
+            reasoning_client = None
     from contracts.models import GatewayConfig
 
     config = GatewayConfig(
@@ -233,9 +238,7 @@ class RunStore:
     def events(self, run_id: str, *, after: int = 0) -> tuple[dict[str, object], ...]:
         with self._condition:
             record = self._require(run_id)
-            return tuple(
-                event for event in record.events if int(event["seq"]) > after
-            )
+            return tuple(event for event in record.events if int(event["seq"]) > after)
 
     def stream(
         self,
@@ -254,11 +257,7 @@ class RunStore:
                 ):
                     if not self._condition.wait(timeout=keepalive_seconds):
                         break
-                pending = [
-                    event
-                    for event in record.events
-                    if int(event["seq"]) > last
-                ]
+                pending = [event for event in record.events if int(event["seq"]) > last]
                 terminal = record.terminal
 
             if pending:
@@ -321,10 +320,7 @@ class RunService:
         if not owner_id.strip():
             raise ValueError("owner_id must not be empty")
         if clarification_of is not None:
-            try:
-                clarification_owner = self._store.owner_id(clarification_of)
-            except RunNotFoundError:
-                raise
+            clarification_owner = self._store.owner_id(clarification_of)
             if clarification_owner != owner_id:
                 raise RunNotFoundError(clarification_of)
         run_id = uuid.uuid4().hex
@@ -359,7 +355,7 @@ class RunService:
             runtime.close()
 
     def _execute(self, run_id: str, question: str) -> None:
-        started = self._clock()
+        self._clock()
         try:
             runtime = self._get_runtime()
             guard_started = self._clock()
@@ -418,9 +414,7 @@ class RunService:
                     route_result=route,
                 )
                 query_status = "ok" if outcome.status != "error" else "failed"
-                query_duration = sum(
-                    query.duration_ms for query in outcome.queries
-                )
+                query_duration = sum(query.duration_ms for query in outcome.queries)
                 self._emit(
                     run_id,
                     "step_finished",
@@ -629,11 +623,7 @@ def build_answer_envelope(
     conclusion = (
         fact_check.repaired_narrative or _fallback_narrative(outcome, ledger)
         if status == "answered"
-        else (
-            outcome.reason
-            if status == "insufficient_evidence"
-            else None
-        )
+        else (outcome.reason if status == "insufficient_evidence" else None)
     )
     return AnswerEnvelope(
         run_id=run_id,
@@ -691,11 +681,7 @@ def _fallback_narrative(
     narrative = _default_narrative(outcome, ledger)
     if narrative is not None:
         return narrative
-    tokens = [
-        number.token
-        for claim in ledger.claims
-        for number in claim.numbers
-    ]
+    tokens = [number.token for claim in ledger.claims for number in claim.numbers]
     if not tokens:
         return None
     return "The evidence ledger supports " + ", ".join(tokens[:4]) + "."
@@ -723,18 +709,17 @@ def _scope(outcome: OrchestrationResult) -> EnvelopeScope:
             if period is not None
             else None
         ),
-        filters=tuple(
-            f"{item.term}={item.value_phrase}" for item in slots.filters
-        ),
+        filters=tuple(f"{item.term}={item.value_phrase}" for item in slots.filters),
         grain=slots.time.grain,
         governed=(
-            outcome.candidate is not None
-            and outcome.candidate.origin == "compiler"
+            outcome.candidate is not None and outcome.candidate.origin == "compiler"
         ),
     )
 
 
-def _evidence(outcome: OrchestrationResult, ledger: Ledger) -> tuple[EvidenceBlock, ...]:
+def _evidence(
+    outcome: OrchestrationResult, ledger: Ledger
+) -> tuple[EvidenceBlock, ...]:
     blocks: list[EvidenceBlock] = []
     for execution in outcome.executions:
         claim_ids = tuple(
@@ -792,19 +777,14 @@ def _method(outcome: OrchestrationResult) -> tuple[MethodStep, ...]:
 
 def _queries(outcome: OrchestrationResult) -> tuple[EnvelopeQueryRecord, ...]:
     rows_scanned = {
-        execution.query_id: execution.rows_scanned
-        for execution in outcome.executions
+        execution.query_id: execution.rows_scanned for execution in outcome.executions
     }
     origin = outcome.candidate.origin if outcome.candidate is not None else "compiler"
     return tuple(
         EnvelopeQueryRecord(
             query_id=query.query_id,
             sql=query.sql,
-            status=(
-                "ok"
-                if query.status in {"ok", "truncated"}
-                else "error"
-            ),
+            status=("ok" if query.status in {"ok", "truncated"} else "error"),
             duration_ms=query.duration_ms,
             rows_scanned=rows_scanned.get(query.query_id),
             origin=origin,
@@ -887,9 +867,7 @@ def _default_narrative(
             pct = (diff / val2 * 100.0) if val2 != 0 else 0.0
             slots = getattr(outcome.router, "slots", None)
             metric_term = (
-                slots.metric_terms[0]
-                if slots and slots.metric_terms
-                else "metric"
+                slots.metric_terms[0] if slots and slots.metric_terms else "metric"
             )
             metric_name = metric_term.replace("_", " ")
             t1 = slots.time.current if slots and slots.time else None
@@ -938,7 +916,7 @@ def _error_envelope(run_id: str, reason: str) -> AnswerEnvelope:
 
 
 def _elapsed_ms(started: float, finished: float) -> int:
-    return max(0, int(round((finished - started) * 1_000)))
+    return max(0, round((finished - started) * 1_000))
 
 
 def format_sse_event(event: dict[str, object]) -> str:

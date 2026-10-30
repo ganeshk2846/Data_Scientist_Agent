@@ -1,28 +1,55 @@
+# Python bytecode & environments
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
+venv/
+ENV/
+env/
+
+# Testing & Linting caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local databases & runtime storage
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
 *.db
-.cadra/
-.opencode/node_modules/
-.opencode/package-lock.json
-.opencode/commands/
-.pytest_cache/
-.coverage
-htmlcov/
-.venv/
-venv/
+bird_data/
+eval/
+
+# Secrets & Environment variables
 .env
-/DEVELOPMENT_HISTORY.md
-# Runtime traces
+.env.*
+!.env.example
+
+# Temporary folders, logs & external clones
+.cadra/
+.opencode/
+dataagent/
+DEVELOPMENT_HISTORY.md
+*.log
+
+# Runtime traces & telemetry
 traces/
 backend/traces/
 
+# Frontend dependencies & build artifacts
+frontend/web/node_modules/
+frontend/web/dist/
+*.tsbuildinfo
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+
+# TextToSQL specific exclusions
 !TextToSQL/data/
 TextToSQL/data/raw/
 TextToSQL/data/metric_registry.json
 TextToSQL/data/*.lock
-bird_data/
-eval/

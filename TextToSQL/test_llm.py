@@ -1,5 +1,14 @@
-"""Opt-in live smoke check. Unit tests use an injected fake client instead."""
+"""Opt-in live smoke check using local Ollama deepseek-r1:7b."""
+
 import os
+import sys
+
+# Ensure UTF-8 output on Windows
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except OSError:
+        pass
 
 
 def main():
@@ -8,7 +17,9 @@ def main():
         return 0
     from src.llm.gateway import LLMGateway
 
-    result = LLMGateway().chat("You are helpful.", "Say hello in one sentence.")
+    gateway = LLMGateway(model="deepseek-r1:7b")
+    result = gateway.chat("You are helpful.", "Say hello in one sentence.")
+    print("Local Ollama deepseek-r1:7b response:")
     print(result.text)
     return 0
 

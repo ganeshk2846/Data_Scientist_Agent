@@ -1,0 +1,13 @@
+target-version = "py311"
+
+[lint]
+ignore = [
+    "BLE001",  # Blind exception catch
+    "S110",    # try-except-pass
+    "RUF007",  # zip vs itertools.pairwise
+    "TRY203",  # useless re-raise
+    "F841",    # unused variable
+    "RUF046",  # unnecessary int cast
+    "PIE810",  # startswith tuple
+]
+

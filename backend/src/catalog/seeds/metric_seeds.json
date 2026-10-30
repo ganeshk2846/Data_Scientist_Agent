@@ -1,0 +1,47 @@
+[
+  {
+    "seed_id": "texttosql-demo-v1-order-count",
+    "name": "demo_order_count",
+    "synonyms": ["demo orders", "order volume"],
+    "formula": "COUNT(DISTINCT ord_hdr.ord_key)",
+    "required_filters": ["lower(trim(ord_hdr.status)) <> 'cancelled'", "ord_hdr.deleted_at IS NULL", "ord_hdr.is_test = 0"],
+    "grain": "one row per order",
+    "date_column": "ord_hdr.order_date",
+    "allowed_dimensions": ["ord_hdr.status"],
+    "base_table": "ord_hdr",
+    "join_path": [],
+    "caveats": ["Synthetic demo seed only; confirm the warehouse schema and cancellation policy before approval."],
+    "reconciliation_values": {"fixture": "generator seed 7, 50 tables", "expected": 436},
+    "seed_status": "requires human review"
+  },
+  {
+    "seed_id": "texttosql-demo-v1-order-revenue",
+    "name": "demo_order_revenue",
+    "synonyms": ["demo sales", "order sales", "order revenue"],
+    "formula": "SUM(ord_hdr.amount)",
+    "required_filters": ["lower(trim(ord_hdr.status)) <> 'cancelled'", "ord_hdr.deleted_at IS NULL", "ord_hdr.is_test = 0"],
+    "grain": "one row per order",
+    "date_column": "ord_hdr.order_date",
+    "allowed_dimensions": ["ord_hdr.status"],
+    "base_table": "ord_hdr",
+    "join_path": [],
+    "caveats": ["Synthetic demo seed only; confirm currency, cancellation, deletion, and test-order semantics before approval."],
+    "reconciliation_values": {"fixture": "generator seed 7, 50 tables", "expected_gbp": 194191.92},
+    "seed_status": "requires human review"
+  },
+  {
+    "seed_id": "texttosql-demo-v1-monthly-region-revenue",
+    "name": "demo_monthly_region_revenue",
+    "synonyms": ["monthly regional sales", "monthly revenue by region"],
+    "formula": "SUM(monthly_kpi.revenue)",
+    "required_filters": [],
+    "grain": "one row per month and region",
+    "date_column": "monthly_kpi.month",
+    "allowed_dimensions": ["monthly_kpi.region"],
+    "base_table": "monthly_kpi",
+    "join_path": [],
+    "caveats": ["The source is pre-aggregated by month and region; do not join to order-line grain without a validated path."],
+    "reconciliation_values": {"fixture": "generator seed 7, 50 tables", "2024-06 North": 1800.0, "2024-06 South": 900.0},
+    "seed_status": "requires human review"
+  }
+]
