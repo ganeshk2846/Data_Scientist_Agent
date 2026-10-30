@@ -9,7 +9,9 @@ hold (``SAFE-8``, acceptance 1.16).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
@@ -170,5 +172,33 @@ class TableRegistry:
         """A new registry with ``extra`` (e.g. ingested tables) appended."""
         return TableRegistry((*self.tables, *extra))
 
+    def with_ingested(self, registry_path: Path) -> TableRegistry:
+        """Add the tables ``scripts/ingest.py`` registered, if any."""
+        return self.with_tables(load_ingested(registry_path))
 
-__all__ = ["SYNTHETIC_WINDOW", "TableInfo", "TableRegistry", "TableSource"]
+
+def load_ingested(registry_path: Path) -> tuple[TableInfo, ...]:
+    """Tables registered by ``scripts/ingest.py`` (``source = user_supplied``)."""
+    path = Path(registry_path)
+    if not path.is_file():
+        return ()
+    return ingested_tables(json.loads(path.read_text(encoding="utf-8")))
+
+
+def ingested_tables(payload: dict) -> tuple[TableInfo, ...]:
+    """TableInfo entries from an ingestion registry payload."""
+    return tuple(
+        TableInfo(
+            name=entry["name"],
+            subject="user_data",
+            grain=entry["grain"],
+            description=entry["description"],
+            key_columns=tuple(entry["key_columns"]),
+            date_column=entry.get("date_column"),
+            source="user_supplied",
+        )
+        for entry in payload.get("tables", ())
+    )
+
+
+__all__ = ["SYNTHETIC_WINDOW", "TableInfo", "TableRegistry", "TableSource", "ingested_tables", "load_ingested"]
