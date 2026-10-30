@@ -500,6 +500,12 @@ def _analytical_report(table: str, frame: pd.DataFrame, params: Mapping[str, Any
 # --------------------------------------------------------------------------- #
 
 
+def _synthetic_note(tables: tuple[str, ...]) -> str:
+    from semantic.layers import synthetic_caveat
+
+    return synthetic_caveat(list(tables)) or f"Based on synthetic data: {', '.join(tables)}."
+
+
 def _catalog(step: PlanStep, ctx: StepContext) -> EngineRun:
     timer = Timer()
     lookup = step.params["lookup"]
@@ -527,6 +533,44 @@ def _catalog(step: PlanStep, ctx: StepContext) -> EngineRun:
                 "dimensions": [d.name for d in metric.allowed_dimensions], "required_filters": list(metric.required_filters),
                 "caveats": list(metric.caveats), "is_synthetic": is_synthetic_metric(metric_id)}, source="catalog"))
             text_rows.append((metric_id, metric.name, metric.base_table, ", ".join(d.name for d in metric.allowed_dimensions)))
+    elif lookup == "table":
+        from semantic.discovery import describe_table
+
+        synthetic_read: tuple[str, ...] = ()
+
+        if warehouse.connection_factory is None:
+            return _not_available(step, timer, "No catalog connection is configured.")
+        with warehouse.connection_factory() as connection:
+            detail = describe_table(connection, step.params.get("table") or "")
+        if detail is not None:
+            table = detail.table
+            facts.append(CatalogFact(key=f"table.{table.name}.layer", value=table.layer, source="catalog"))
+            facts.append(CatalogFact(key=f"table.{table.name}.grain", value=table.grain, source="catalog"))
+            facts.append(CatalogFact(key=f"table.{table.name}.columns", value=[column.name for column in detail.columns], source="catalog"))
+            facts.append(CatalogFact(key=f"table.{table.name}.metrics", value=list(detail.metrics), source="catalog"))
+            if table.present:
+                facts.append(CatalogFact(key=f"table.{table.name}.row_count", value=table.row_count, source="sql"))
+            if table.date_min:
+                facts.append(CatalogFact(key=f"table.{table.name}.date_range", value=[table.date_min, table.date_max], source="sql"))
+            if table.layer == "synthetic" and table.present:
+                synthetic_read = (table.name,)  # SY-1/SY-2: computed from the table actually read
+            text_rows = [("table", table.name), ("layer", table.layer), ("subject", table.subject), ("grain", table.grain),
+                         ("description", table.description), ("present", "yes" if table.present else "no"),
+                         ("rows", table.row_count), ("from", table.date_min), ("to", table.date_max),
+                         ("keys", ", ".join(detail.key_columns)), ("columns", ", ".join(column.name for column in detail.columns)),
+                         ("metrics", ", ".join(detail.metrics)), *(("example", question) for question in detail.example_questions)]
+    elif lookup == "metrics":
+        from semantic.discovery import example_questions
+
+        for metric in warehouse.registry.metrics:
+            synthetic = is_synthetic_metric(metric.metric_id)
+            dimensions = [d.name for d in metric.allowed_dimensions if d.name not in ("month", "year")]
+            facts.append(CatalogFact(key=f"metric.{metric.metric_id}", value={"name": metric.name, "base_table": metric.base_table,
+                                                                             "dimensions": dimensions, "is_synthetic": synthetic},
+                                     source="catalog"))
+            examples = example_questions(metric.metric_id)
+            text_rows.append((metric.metric_id, metric.name, "synthetic" if synthetic else "real", metric.base_table, ", ".join(dimensions),
+                              examples[0] if examples else ""))
     else:
         for action_id, title, kind, *_ in ACTION_LIBRARY:
             facts.append(CatalogFact(key=f"action.{action_id}", value={"title": title, "kind": kind}, source="catalog"))
@@ -534,10 +578,14 @@ def _catalog(step: PlanStep, ctx: StepContext) -> EngineRun:
     payload = CatalogFactsPayload(catalog_version=warehouse.catalog_version or "unknown", facts=tuple(facts))
     result = ToolResult(step_id=step.step_id, tool="catalog", status="ok" if facts else "insufficient_evidence", produces="catalog_facts",
                         catalog_facts=payload if facts else None,
-                        provenance=ToolProvenance(source="catalog", input_step_ids=step.depends_on, deterministic=True),
+                        provenance=ToolProvenance(source="catalog", input_step_ids=step.depends_on, deterministic=True,
+                                                  **({"data_layer": "synthetic", "synthetic_tables": synthetic_read}
+                                                     if lookup == "table" and synthetic_read else {})),
+                        caveats=(_synthetic_note(synthetic_read),) if lookup == "table" and synthetic_read else (),
                         reason=None if facts else "The catalog holds nothing for this lookup.", duration_ms=timer.elapsed_ms())
     columns = {"warehouse": ("table", "layer", "rows", "from", "to"), "metric_definition": ("metric_id", "name", "base_table", "dimensions"),
-               "action_library": ("action_id", "title", "kind")}[lookup]
+               "action_library": ("action_id", "title", "kind"), "table": ("item", "value"),
+               "metrics": ("metric_id", "name", "layer", "base_table", "dimensions", "example")}[lookup]
     report = EngineReport(engine="catalog", method=f"catalog.{lookup}",
                           tables=(ReportTable(name="catalog", columns=columns, rows=tuple(text_rows)),),
                           key_numbers=(KeyNumber(name="facts", value=float(len(facts)), label="catalog facts"),),

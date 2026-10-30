@@ -44,7 +44,7 @@ from contracts.v2 import (
 )
 from engines.diagnostic import CAUSAL_BOUNDARY
 from engines.report import EngineReport
-from evidence.ledger import FactChecker, format_number
+from evidence.ledger import _NUMBER, FactChecker, _token_value, format_number
 from intent import describe_period
 
 _MONEY = frozenset({"revenue", "gmv", "aov", "freight_value", "marketing_spend", "R$"})
@@ -166,6 +166,25 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
             for row in rows:
                 sentence = f"{row[1]} ({row[0]}) is computed from {row[2]}; it can be broken down by {row[3]}."
                 ids.append(claims.add(sentence, [], ("artifact", "catalog")))
+                out.append(sentence)
+        elif method == "catalog.table":
+            for sentence in _table_sentences(dict((row[0], row[1]) for row in rows if row[0] != "example"),
+                                             [row[1] for row in rows if row[0] == "example"]):
+                ids.append(claims.add(sentence, _catalog_numbers(sentence), ("query", "catalog")))
+                out.append(sentence)
+        elif method == "catalog.metrics":
+            real = [row for row in rows if row[2] == "real"]
+            synthetic = [row for row in rows if row[2] == "synthetic"]
+            sentence = (f"You can ask about {len(rows)} governed metrics: {len(real)} on the real Olist data "
+                        f"({', '.join(row[0] for row in real)}) and {len(synthetic)} on synthetic tables "
+                        f"({', '.join(row[0] for row in synthetic)}), which are labelled synthetic in every answer.")
+            ids.append(claims.add(sentence, [float(len(rows)), float(len(real)), float(len(synthetic))], ("query", "catalog"), kind="fact"))
+            out.append(sentence)
+            for row in rows:
+                split = f", by {row[4]}" if row[4] else ""
+                example = f" Try: \u201c{row[5]}\u201d" if row[5] else ""
+                sentence = f"{row[1]} ({row[0]}, {row[2]}) from {row[3]}{split}.{example}"
+                ids.append(claims.add(sentence, _catalog_numbers(sentence), ("artifact", "catalog")))
                 out.append(sentence)
         return out, ids
 
@@ -334,6 +353,36 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
 # --------------------------------------------------------------------------- #
 # Envelope
 # --------------------------------------------------------------------------- #
+
+
+_LAYER_WORDS = {"real": "a real Olist", "synthetic": "a synthetic (generated, not real business)", "user_supplied": "a user-supplied",
+                "analytical": "a derived (engine output)"}
+
+
+def _catalog_numbers(sentence: str) -> list[float]:
+    """Every figure in a catalog sentence: catalog-held counts and dates read by fixed statements (acceptance 1.16)."""
+    return [_token_value(match.group(1)) for match in _NUMBER.finditer(sentence)]
+
+
+def _table_sentences(facts: dict[str, Any], examples: list[str]) -> list[str]:
+    """Deterministic sentences describing one table (discovery), one claim each."""
+    name = facts.get("table")
+    sentences = [f"{name} is {_LAYER_WORDS.get(str(facts.get('layer')), 'a')} table about {facts.get('subject')}, "
+                 f"one row per {facts.get('grain')}: {str(facts.get('description', '')).rstrip('.')}."]
+    if facts.get("present") != "yes":
+        sentences.append(f"{name} is registered in the catalog but is not loaded in this database.")
+    else:
+        span = f", dated {facts['from']} to {facts['to']}" if facts.get("from") else ""
+        sentences.append(f"{name} holds {format_number(float(facts.get('rows') or 0))} rows{span}.")
+    if facts.get("columns"):
+        sentences.append(f"Its columns are {facts['columns']}; the key is {facts.get('keys')}.")
+    if facts.get("metrics"):
+        sentences.append(f"Governed metrics built on {name}: {facts['metrics']}.")
+    else:
+        sentences.append(f"No governed metric is built directly on {name}.")
+    if examples:
+        sentences.append("You could ask: " + "; ".join(f"\u201c{question}\u201d" for question in examples) + ".")
+    return sentences
 
 
 def _years(*periods) -> list[float]:

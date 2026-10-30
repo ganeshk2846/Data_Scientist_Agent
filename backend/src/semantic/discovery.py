@@ -12,6 +12,7 @@ into the deterministic markdown answer.
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from contracts.models import ContractModel
@@ -192,4 +193,116 @@ def render_answer(description: WarehouseDescription) -> str:
     return "\n".join(lines) + "\n"
 
 
-__all__ = ["MetricFact", "TableFact", "WarehouseDescription", "catalog_facts", "describe_warehouse", "render_answer"]
+# --------------------------------------------------------------------------- #
+# Track 4: one table, the metric list, and example questions. Same rules as
+# above: catalog facts plus fixed COUNT / MIN / MAX / PRAGMA statements over
+# identifiers from the closed registry. No SQL is generated from user text.
+# --------------------------------------------------------------------------- #
+
+_TABLE_CUE = re.compile(
+    r"\btables?\b|\bcolumns?\b|\bschema\b|\bfields?\b|\bwhat(?:'s| is| does)\s+(?:in|inside)\b|\bwhat(?:'s| is)\s+in\b|"
+    r"\bdescribe\b|\binside\b|\bcontains?\b|\bstructure of\b",
+    re.IGNORECASE,
+)
+_METRIC_LIST = re.compile(
+    r"\b(?:which|what) (?:metrics|kpis|measures)\b|\bmetrics (?:can|could|do) (?:i|you|we)\b|\blist (?:the |all |your )?(?:metrics|kpis)\b|"
+    r"\bwhat can i ask\b|\bwhat (?:can|could) you (?:calculate|measure|compute)\b",
+    re.IGNORECASE,
+)
+_DIMENSION_WORDS = {"product_category": "category", "customer_state": "state", "payment_type": "payment type",
+                    "order_status": "order status", "customer_city": "city", "seller_state": "seller state"}
+
+
+def table_mentioned(question: str, registry: TableRegistry | None = None) -> str | None:
+    """The registered table a question asks *about* ("what is in order_items?"), if any.
+
+    A table name alone is not enough - "orders" and "customers" are ordinary
+    words - so a structural cue (table, columns, describe, what is in ...) is
+    required too. Only names from the closed registry can match.
+    """
+    if not _TABLE_CUE.search(question):
+        return None
+    registry = registry or TableRegistry.default()
+    text = question.lower()
+    for table in sorted(registry.tables, key=lambda item: len(item.name), reverse=True):
+        spaced = table.name.replace("_", " ")
+        if re.search(rf"\b(?:{re.escape(table.name)}|{re.escape(spaced)})\b", text):
+            return table.name
+    return None
+
+
+def asks_for_metric_list(question: str) -> bool:
+    return bool(_METRIC_LIST.search(question))
+
+
+def example_questions(metric_id: str) -> tuple[str, ...]:
+    """Questions the agent can answer about a metric. Digit-free, so they carry no figure."""
+    metric = all_metrics().get(metric_id)
+    if metric is None:
+        return ()
+    label = metric.name if metric.name.isupper() else metric.name.lower()
+    questions = [f"What was {label} last month?", f"How does {label} trend look today?"]
+    dimensions = [d.name for d in metric.allowed_dimensions]
+    split = next((name for name in ("product_category", "customer_state", "payment_type", "order_status") if name in dimensions), None)
+    if split is not None:
+        questions.append(f"What was {label} by {_DIMENSION_WORDS[split]} last month?")
+    questions.append(f"Why did {label} change last month?")
+    return tuple(questions)
+
+
+class ColumnFact(ContractModel):
+    name: str
+    data_type: str
+
+
+class TableDetail(ContractModel):
+    table: TableFact
+    key_columns: tuple[str, ...]
+    columns: tuple[ColumnFact, ...]
+    metrics: tuple[str, ...]
+    example_questions: tuple[str, ...]
+
+
+def describe_table(connection: Connection, name: str, registry: TableRegistry | None = None) -> TableDetail | None:
+    """One table from the catalog: layer, grain, row count, date span, columns, the metrics built on it."""
+    registry = registry or TableRegistry.default()
+    info = registry.get(name)
+    if info is None:
+        return None
+    present = name in _present(connection)
+    count = low = high = None
+    columns: tuple[ColumnFact, ...] = ()
+    if present:
+        # Identifiers come from the closed registry, never from user text.
+        (count,) = connection.execute(text(f'SELECT COUNT(*) FROM "{info.name}"')).one()
+        if info.date_column:
+            low, high = connection.execute(
+                text(f'SELECT MIN("{info.date_column}"), MAX("{info.date_column}") FROM "{info.name}"')
+            ).one()
+        columns = tuple(ColumnFact(name=str(row[1]), data_type=str(row[2] or "")) for row in
+                        connection.execute(text(f'PRAGMA table_info("{info.name}")')).all())
+    fact = TableFact(
+        name=info.name, subject=info.subject, layer=_layer(info), grain=info.grain, description=info.description,
+        present=present, row_count=None if count is None else int(count), date_column=info.date_column,
+        date_min=None if low is None else str(low)[:10], date_max=None if high is None else str(high)[:10],
+    )
+    metrics = tuple(metric.metric_id for metric in all_metrics().metrics if metric.base_table == info.name)
+    examples = tuple(dict.fromkeys(question for metric_id in metrics[:2] for question in example_questions(metric_id)[:2]))
+    return TableDetail(table=fact, key_columns=info.key_columns, columns=columns, metrics=metrics,
+                       example_questions=examples or ("What data do you have?", "Which metrics can I ask about?"))
+
+
+__all__ = [
+    "ColumnFact",
+    "MetricFact",
+    "TableDetail",
+    "TableFact",
+    "WarehouseDescription",
+    "asks_for_metric_list",
+    "catalog_facts",
+    "describe_table",
+    "describe_warehouse",
+    "example_questions",
+    "render_answer",
+    "table_mentioned",
+]

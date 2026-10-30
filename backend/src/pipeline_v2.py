@@ -192,7 +192,7 @@ class PipelineV2:
                 text = patch.pop("effective_text", None) or reply.original_question
             else:
                 text = f"{reply.original_question} {reply.text}"
-        extraction = followup.promote_bare_metric(self.extractor.extract(text))
+        extraction = _route_discovery(followup.promote_bare_metric(self.extractor.extract(text)))
         emit("intent", intents=[{"intent": item.intent, "score": item.score, "span": item.span} for item in extraction.intents],
              confidence=extraction.confidence, reason=extraction.reason,
              entities=extraction.entities.model_dump(mode="json", exclude_none=True),
@@ -342,6 +342,34 @@ class PipelineV2:
                               clarification=None, catalog_version=self.catalog_version, latency_ms=_ms(started),
                               blocked=BlockBlock(reason=guard.reason or "unsafe", detail=guard.matched_rule or guard.reason or "Blocked by guard."))
         return PipelineOutcome(envelope, question, None)
+
+
+def _route_discovery(extraction):
+    """Track 4: "what is in order_items?" and "which metrics can I ask about?" are catalog questions.
+
+    They name a table or ask for the metric list, so they are answered from the
+    catalog (no generated SQL), even when a table name also looks like a metric
+    ("orders").
+    """
+    from dataclasses import replace
+
+    from grounding import replace_entities
+    from semantic.discovery import asks_for_metric_list, table_mentioned
+
+    table = table_mentioned(extraction.question)
+    if table is None and not asks_for_metric_list(extraction.question):
+        return extraction
+    marker = f"table:{table}" if table else "metric_list"
+    return replace(
+        extraction,
+        intents=(ScoredIntent(intent="discovery", score=0.95, span=extraction.question[:200]),),
+        entities=replace_entities(extraction.entities, metric_id=None, secondary_metric_ids=(), dimensions=(), filters=(), period=None,
+                                  comparison_period=None, horizon=None, scenario_params=()),
+        special=(*(item for item in extraction.special if item != "vague"), marker),
+        rules_matched=(*extraction.rules_matched, marker),
+        confidence=max(extraction.confidence, 0.95),
+        reason=f"Answered from the catalog because the question asks about {'the ' + table + ' table' if table else 'the available metrics'}.",
+    )
 
 
 def _ms(started: float) -> int:
