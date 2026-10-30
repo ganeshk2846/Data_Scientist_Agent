@@ -30,5 +30,12 @@ where = ["src"]
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tests"]
 addopts = "-ra"
+
+[tool.pyrefly]
+search-path = ["src", "tests"]
+
+[tool.pyright]
+extraPaths = ["src", "tests"]
+
