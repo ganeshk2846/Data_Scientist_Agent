@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from analysts.harness import AnalystHarness
 from catalog import MetricRegistry
 from catalog.metric_resolver import MetricResolver
 from contracts.models import (
     AnomalyResult,
+    BudgetPolicy,
     ExecutionBudget,
     ExecutionColumn,
     ExecutionResult,
@@ -121,7 +124,7 @@ def _catalog() -> SchemaCatalog:
     )
 
 
-def _orchestrator(executor, budget=None) -> Orchestrator:
+def _orchestrator(executor, budget=None, budget_policy=None) -> Orchestrator:
     catalog = _catalog()
     registry = MetricRegistry.default()
     router = Router(
@@ -143,6 +146,7 @@ def _orchestrator(executor, budget=None) -> Orchestrator:
         reconciler=Reconciler(),
         harness=AnalystHarness(),
         budget=budget,
+        budget_policy=budget_policy,
     )
 
 
@@ -376,3 +380,99 @@ def test_driver_route_passes_distinct_periods_to_the_contribution_table():
     assert parameters["current_period"] != parameters["comparison_period"]
     assert parameters["current_period"] == "2018-08-01/2018-09-01"
     assert parameters["comparison_period"] == "2018-07-01/2018-08-01"
+
+
+def test_each_route_gets_its_own_budget_by_default():
+    """V2-PRE-2: one flat budget could not serve every route (OPS-2, OPS-6).
+
+    A governed lookup runs one or two queries and belongs inside the fast-path
+    SLA; the driver route runs a query per window and needs more. With a
+    single budget, a route that legitimately needed another query raised
+    BudgetExceeded and reported an error instead of an answer.
+    """
+
+    orchestrator = _orchestrator(FakeExecutor())
+
+    assert orchestrator.budget_for("lookup").max_queries == 2
+    assert orchestrator.budget_for("anomaly").max_queries == 2
+    assert orchestrator.budget_for("driver").max_queries == 3
+
+    # Routes that must never reach the warehouse get no query budget at all.
+    for route in ("risk", "clarify", "refused", "blocked"):
+        assert orchestrator.budget_for(route).max_queries == 0, route
+
+    # Analysis routes get more wall time than the lookup fast path.
+    assert (
+        orchestrator.budget_for("driver").max_wall_ms
+        > orchestrator.budget_for("lookup").max_wall_ms
+    )
+
+
+def test_an_explicit_budget_still_pins_every_route():
+    """Backwards compatibility: an explicit budget overrides the policy."""
+
+    pinned = ExecutionBudget(max_queries=1, max_tokens=10, max_wall_ms=5)
+    orchestrator = _orchestrator(FakeExecutor(), budget=pinned)
+
+    for route in ("lookup", "anomaly", "driver", "risk"):
+        assert orchestrator.budget_for(route) == pinned, route
+
+
+def test_budget_and_budget_policy_cannot_both_be_supplied():
+    """Two sources of truth for one limit is a configuration error."""
+
+    with pytest.raises(ValueError, match="not both"):
+        _orchestrator(
+            FakeExecutor(),
+            budget=ExecutionBudget(),
+            budget_policy=BudgetPolicy.defaults(),
+        )
+
+
+def test_driver_route_fits_inside_its_own_budget():
+    """The driver route's two queries must not exhaust its own budget.
+
+    Under the old flat budget this worked only because the default happened
+    to be 3. Asserting it against the policy keeps the two in step.
+    """
+
+    executor = DriverExecutor(
+        current_rows=(("SP", 60),),
+        comparison_rows=(("SP", 100),),
+    )
+    orchestrator = _orchestrator(executor)
+    outcome = orchestrator.run(
+        "What drove the order count change by state in August 2018?"
+    )
+
+    assert outcome.status == "ok", outcome.reason
+    assert outcome.budget.queries == 2
+    assert outcome.budget.queries <= orchestrator.budget_for("driver").max_queries
+
+
+def test_a_route_policy_override_is_enforced_at_execution_time():
+    """A tightened per-route budget must actually block the query."""
+
+    executor = DriverExecutor(
+        current_rows=(("SP", 60),),
+        comparison_rows=(("SP", 100),),
+    )
+    policy = BudgetPolicy(
+        per_route={"driver": ExecutionBudget(max_queries=1)},
+    )
+    outcome = _orchestrator(executor, budget_policy=policy).run(
+        "What drove the order count change by state in August 2018?"
+    )
+
+    # The first contribution query runs, the second is refused by the budget.
+    assert outcome.status == "error"
+    assert "budget" in outcome.reason.lower()
+    assert len(executor.sqls) == 1
+
+
+def test_a_route_absent_from_the_policy_falls_back_to_the_default():
+    policy = BudgetPolicy(default=ExecutionBudget(max_queries=7), per_route={})
+    orchestrator = _orchestrator(FakeExecutor(), budget_policy=policy)
+
+    assert orchestrator.budget_for("lookup").max_queries == 7
+    assert orchestrator.budget_for("driver").max_queries == 7

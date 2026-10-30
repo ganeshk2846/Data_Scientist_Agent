@@ -20,6 +20,7 @@ from contracts.models import (
     AnalystColumn,
     AnalystOutput,
     AnomalyParams,
+    BudgetPolicy,
     BudgetUsage,
     ClarificationResult,
     ExecutionBudget,
@@ -30,6 +31,7 @@ from contracts.models import (
     PlanStep,
     QueryRecord,
     ReconciliationResult,
+    RouteLabel,
     RouterResult,
     SqlCandidate,
     TableRef,
@@ -48,6 +50,7 @@ class BudgetExceeded(RuntimeError):
 @dataclass(slots=True)
 class _RunState:
     started: float
+    budget: ExecutionBudget
     queries: list[QueryRecord] = field(default_factory=list)
     tokens: int = 0
     plan: list[PlanStep] = field(default_factory=list)
@@ -73,6 +76,7 @@ class Orchestrator:
         reconciler: Reconciler,
         harness: AnalystHarness,
         budget: ExecutionBudget | None = None,
+        budget_policy: BudgetPolicy | None = None,
         guard: Guard | None = None,
         clock: Callable[[], float] | None = None,
     ) -> None:
@@ -83,13 +87,29 @@ class Orchestrator:
         self._compiler = compiler
         self._reconciler = reconciler
         self._harness = harness
-        self._budget = budget or ExecutionBudget()
+        if budget is not None and budget_policy is not None:
+            raise ValueError(
+                "pass either budget (one budget for every route) or "
+                "budget_policy (per-route budgets), not both"
+            )
+        # An explicit `budget` pins every route to it, which is what the
+        # existing callers and tests expect. Otherwise each route gets its
+        # own budget (V2-PRE-2, OPS-2).
+        self._fixed_budget = budget
+        self._budget_policy = budget_policy or BudgetPolicy.defaults()
         self._guard = guard or Guard()
         self._clock = clock or time.monotonic
 
     @property
     def router(self) -> Router:
         return self._router
+
+    def budget_for(self, route: RouteLabel) -> ExecutionBudget:
+        """The budget this run will enforce for ``route``."""
+
+        if self._fixed_budget is not None:
+            return self._fixed_budget
+        return self._budget_policy.for_route(route)
 
     def run(
         self,
@@ -98,12 +118,18 @@ class Orchestrator:
         guard_result=None,
         route_result: RouterResult | None = None,
     ) -> OrchestrationResult:
-        state = _RunState(started=self._clock())
+        state = _RunState(
+            started=self._clock(),
+            # Provisional until the route is known; routing itself runs no
+            # query, so no budget is spent before this is settled.
+            budget=self.budget_for("lookup"),
+        )
         guard = guard_result or self._guard.check(question)
         route = route_result or self._router.route(
             question,
             guard_result=guard,
         )
+        state.budget = self.budget_for(route.primary_route)
         state.tokens = _route_tokens(route)
         state.plan.append(
             PlanStep(
@@ -570,9 +596,9 @@ class Orchestrator:
         purpose: str,
         state: _RunState,
     ) -> tuple[ExecutionResult, str]:
-        if len(state.queries) >= self._budget.max_queries:
+        if len(state.queries) >= state.budget.max_queries:
             raise BudgetExceeded(
-                f"query limit {self._budget.max_queries} reached"
+                f"query limit {state.budget.max_queries} reached"
             )
         self._check_wall_budget(state)
         query_id = f"Q{len(state.queries) + 1}"
@@ -599,9 +625,9 @@ class Orchestrator:
         state: _RunState,
         route: RouterResult,
     ) -> None:
-        if state.tokens > self._budget.max_tokens:
+        if state.tokens > state.budget.max_tokens:
             raise BudgetExceeded(
-                f"token limit {self._budget.max_tokens} exceeded by "
+                f"token limit {state.budget.max_tokens} exceeded by "
                 f"{state.tokens}"
             )
         if route.primary_route == "blocked":
@@ -609,9 +635,9 @@ class Orchestrator:
 
     def _check_wall_budget(self, state: _RunState) -> None:
         elapsed_ms = (self._clock() - state.started) * 1_000
-        if elapsed_ms > self._budget.max_wall_ms:
+        if elapsed_ms > state.budget.max_wall_ms:
             raise BudgetExceeded(
-                f"wall-clock limit {self._budget.max_wall_ms}ms exceeded"
+                f"wall-clock limit {state.budget.max_wall_ms}ms exceeded"
             )
 
     def _finish(
