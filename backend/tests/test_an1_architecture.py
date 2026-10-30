@@ -49,7 +49,15 @@ NETWORK_ROOTS = {
 }
 SHELL_ROOTS = {"pty", "subprocess"}
 DYNAMIC_IMPORT_ROOTS = {"importlib", "runpy"}
-ALLOWED_THIRD_PARTY_ROOTS = {"numpy", "pydantic"}
+ALLOWED_THIRD_PARTY_ROOTS = {
+    "numpy",
+    "pandas",
+    "prophet",
+    "pydantic",
+    "scipy",
+    "sklearn",
+    "statsmodels",
+}
 ALLOWED_LOCAL_ROOTS = {"analysts", "contracts"}
 STDLIB_ROOTS = frozenset(sys.stdlib_module_names)
 SHELL_CALLS = {
@@ -233,6 +241,14 @@ def test_analyst_sources_do_not_import_model_clients(source):
 
 
 @pytest.mark.parametrize("source", ANALYST_FILES, ids=lambda path: path.name)
+def test_prophet_import_is_confined_to_adapter(source):
+    offenders = _matching_imports(source, {"prophet"})
+    assert not offenders or source.name == "_prophet.py", (
+        f"{source.name} imports Prophet outside the optional adapter: {offenders}"
+    )
+
+
+@pytest.mark.parametrize("source", ANALYST_FILES, ids=lambda path: path.name)
 def test_analyst_sources_do_not_import_databases(source):
     offenders = _matching_imports(source, DATABASE_ROOTS)
     assert not offenders, f"{source.name} imports database modules: {offenders}"
@@ -301,8 +317,13 @@ def test_analyst_sources_do_not_contain_hard_coded_secrets(source):
         "analysts",
         "analysts.anomaly",
         "analysts.driver",
+        "analysts.forecast",
         "analysts.harness",
+        "analysts.impact",
+        "analysts.elasticity",
         "analysts.registry",
+        "analysts.scenario",
+        "analysts.segment",
     ),
 )
 def test_analyst_modules_remain_importable(module_name):
@@ -312,14 +333,31 @@ def test_analyst_modules_remain_importable(module_name):
 def test_registry_exposes_only_the_fixed_approved_modules():
     registry = importlib.import_module("analysts.registry")
 
-    assert registry.APPROVED_MODULES == ("anomaly", "driver", "risk", "advisor")
+    assert registry.APPROVED_MODULES == (
+        "anomaly",
+        "driver",
+        "forecast",
+        "impact",
+        "scenario",
+        "segment",
+        "risk",
+        "advisor",
+    )
     assert tuple(item.module for item in registry.list_modules()) == (
         "anomaly",
         "driver",
+        "forecast",
+        "impact",
+        "scenario",
+        "segment",
         "risk",
         "advisor",
     )
     assert registry.resolve("anomaly").module == "anomaly"
     assert registry.resolve("driver").module == "driver"
+    assert registry.resolve("forecast").module == "forecast"
+    assert registry.resolve("impact").module == "impact"
+    assert registry.resolve("scenario").module == "scenario"
+    assert registry.resolve("segment").module == "segment"
     assert not hasattr(registry, "register")
     assert not hasattr(registry, "register_module")

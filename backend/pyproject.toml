@@ -11,14 +11,21 @@ dependencies = [
     "fastapi>=0.115,<1",
     "jinja2>=3.1",
     "numpy>=1.26",
+    "pandas>=2.2",
     "pydantic>=2.7,<3",
+    "scikit-learn>=1.5",
+    "scipy>=1.13",
     "sqlglot>=25.0",
     "sqlalchemy>=2.0",
+    "statsmodels>=0.14",
     "rich>=13.7",
     "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
+forecast = [
+    "prophet>=1.1.5",
+]
 dev = [
     "httpx>=0.27",
     "pytest>=8.0",
@@ -38,4 +45,3 @@ search-path = ["src", "tests"]
 
 [tool.pyright]
 extraPaths = ["src", "tests"]
-
