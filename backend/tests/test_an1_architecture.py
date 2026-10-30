@@ -49,6 +49,8 @@ NETWORK_ROOTS = {
 }
 SHELL_ROOTS = {"pty", "subprocess"}
 DYNAMIC_IMPORT_ROOTS = {"importlib", "runpy"}
+# pandas, scipy, scikit-learn, statsmodels and prophet are the approved V2 engine stack
+# (build-plan-v2.md section 4); prophet is confined to _prophet.py.
 ALLOWED_THIRD_PARTY_ROOTS = {
     "numpy",
     "pandas",

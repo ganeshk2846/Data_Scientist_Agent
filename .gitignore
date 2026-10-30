@@ -53,3 +53,10 @@ Thumbs.db
 TextToSQL/data/raw/
 TextToSQL/data/metric_registry.json
 TextToSQL/data/*.lock
+
+# Python packaging metadata from editable installs
+*.egg-info/
+
+# Synthetic-layer build outputs (rebuild with scripts/build_v2.py)
+data/synthetic_ground_truth.json
+data/*.partial
