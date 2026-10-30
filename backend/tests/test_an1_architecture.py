@@ -49,7 +49,9 @@ NETWORK_ROOTS = {
 }
 SHELL_ROOTS = {"pty", "subprocess"}
 DYNAMIC_IMPORT_ROOTS = {"importlib", "runpy"}
-ALLOWED_THIRD_PARTY_ROOTS = {"numpy", "pydantic"}
+# pandas, statsmodels and prophet are the approved V2 engine stack
+# (build-plan-v2.md section 4); prophet is confined to _prophet.py.
+ALLOWED_THIRD_PARTY_ROOTS = {"numpy", "pandas", "prophet", "pydantic", "statsmodels"}
 ALLOWED_LOCAL_ROOTS = {"analysts", "contracts"}
 STDLIB_ROOTS = frozenset(sys.stdlib_module_names)
 SHELL_CALLS = {
