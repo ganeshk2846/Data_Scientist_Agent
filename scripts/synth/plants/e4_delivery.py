@@ -58,3 +58,4 @@ class DeliveryDelaySpikePlant:
                 "target_month": "2018-06",
             },
         )
+

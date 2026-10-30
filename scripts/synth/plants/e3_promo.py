@@ -73,3 +73,4 @@ class PromotionDilutionPlant:
                 "promo_id": "PROMO_2018_SUMMER_DEAL",
             },
         )
+

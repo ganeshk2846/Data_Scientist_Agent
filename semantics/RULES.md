@@ -54,3 +54,4 @@ These rules are retrieved into agent context for reasoning discipline, never as 
 - Ratio metrics (`aov`, `cancellation_rate`, `conversion_rate`, `stockout_rate`, `margin`) are **non-additive**:
   - You cannot sum AOV across states or months.
   - Decompositions must analyze the numerator (`revenue`) and denominator (`order_count`) independently.
+

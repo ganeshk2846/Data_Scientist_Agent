@@ -18,10 +18,10 @@ function heading(envelope: AnswerEnvelope, question: string | null): string[] {
     `**Route** ${envelope.route.labels.join(', ')}`,
     `**Confidence** ${Math.round(envelope.route.confidence * 100)}%`,
   ];
-  if (envelope.scope.metric) facts.push(`**Metric** ${humanise(envelope.scope.metric)}`);
-  const window = formatWindow(envelope.scope.window);
+  if (envelope.scope?.metric) facts.push(`**Metric** ${humanise(envelope.scope.metric)}`);
+  const window = formatWindow(envelope.scope?.window ?? null);
   if (window) facts.push(`**Period** ${window}`);
-  if (envelope.scope.governed) facts.push('**Governed** yes');
+  if (envelope.scope?.governed) facts.push('**Governed** yes');
   lines.push(facts.join(' · '), '');
   return lines;
 }
@@ -67,9 +67,9 @@ export function briefingToMarkdown(
     );
   }
 
-  if (envelope.claims.length > 0) {
+  if ((envelope.claims?.length ?? 0) > 0) {
     lines.push('## Claims', '');
-    for (const claim of envelope.claims) {
+    for (const claim of (envelope.claims ?? [])) {
       const numbers = claim.numbers.map((number) => number.token).join(', ');
       lines.push(
         `- **${claim.claim_id}** ${claim.text}  ` +
@@ -83,7 +83,7 @@ export function briefingToMarkdown(
 
   // Evidence, each block in its own voice.
   const evidenceLines: string[] = [];
-  for (const block of envelope.evidence) {
+  for (const block of (envelope.evidence ?? [])) {
     const anomaly = asAnomalyResult(block);
     if (anomaly) {
       evidenceLines.push(
@@ -145,9 +145,9 @@ export function briefingToMarkdown(
   }
   if (evidenceLines.length > 0) lines.push('## Evidence', '', ...evidenceLines);
 
-  if (envelope.queries.length > 0) {
+  if ((envelope.queries?.length ?? 0) > 0) {
     lines.push('## How this was computed', '');
-    for (const query of envelope.queries) {
+    for (const query of (envelope.queries ?? [])) {
       const meta = [
         query.status,
         formatDuration(query.duration_ms),
@@ -161,9 +161,9 @@ export function briefingToMarkdown(
     }
   }
 
-  if (envelope.caveats.length > 0) {
+  if ((envelope.caveats?.length ?? 0) > 0) {
     lines.push('## Caveats', '');
-    for (const caveat of envelope.caveats) lines.push(`- ${caveat}`);
+    for (const caveat of (envelope.caveats ?? [])) lines.push(`- ${caveat}`);
     lines.push('');
   }
 

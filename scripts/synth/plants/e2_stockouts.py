@@ -68,3 +68,4 @@ class StockoutsPlant:
                 "window_end": "2017-12-15",
             },
         )
+

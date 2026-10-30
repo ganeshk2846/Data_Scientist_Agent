@@ -28,17 +28,17 @@ export function RouteStrip({
   route,
   status,
 }: {
-  route: RouteSummary;
+  route?: RouteSummary | null;
   status: RunStatus;
 }) {
-  if (status === 'error') return null;
+  if (status === 'error' || !route) return null;
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-5">
       <div className="min-w-0">
         <SectionLabel>Route</SectionLabel>
         <div className="mt-2.5 flex flex-wrap gap-2">
-          {route.labels.map((label) => (
+          {route.labels?.map((label) => (
             <Tag key={label}>
               {label}
             </Tag>
@@ -48,21 +48,22 @@ export function RouteStrip({
           {route.reason}
         </p>
       </div>
-      <ConfidenceGauge confidence={route.confidence} />
+      <ConfidenceGauge confidence={route.confidence ?? 0} />
     </div>
   );
 }
 
 /** Scope as a quiet definition row. Only fields the backend actually set. */
-export function ScopeLine({ scope }: { scope: EnvelopeScope }) {
+export function ScopeLine({ scope }: { scope?: EnvelopeScope | null }) {
+  if (!scope) return null;
   const items: readonly (readonly [string, string])[] = [
     ...(scope.metric ? ([['Metric', humanise(scope.metric)]] as const) : []),
     ...(scope.window
       ? ([['Window', formatWindow(scope.window) ?? scope.window]] as const)
       : []),
     ...(scope.grain ? ([['Grain', humanise(scope.grain)]] as const) : []),
-    ...(scope.filters.length > 0
-      ? ([['Filters', scope.filters.join(', ')]] as const)
+    ...(scope.filters && scope.filters.length > 0
+      ? ([['Filters', scope.filters?.join(', ')]] as const)
       : []),
     ...(scope.data_range
       ? ([['Data range', formatWindow(scope.data_range) ?? scope.data_range]] as const)
@@ -95,24 +96,25 @@ export function ScopeLine({ scope }: { scope: EnvelopeScope }) {
 
 /** Caveats and the causal boundary note, in a quiet bordered callout. */
 export function CaveatCallout({
-  caveats,
+  caveats = [],
   causalBoundaryNote,
 }: {
-  caveats: readonly string[];
-  causalBoundaryNote: string | null;
+  caveats?: readonly string[];
+  causalBoundaryNote?: string | null;
 }) {
-  if (caveats.length === 0 && !causalBoundaryNote) return null;
+  const safeCaveats = caveats ?? [];
+  if (safeCaveats.length === 0 && !causalBoundaryNote) return null;
 
   return (
     <Card tone="sunken" className="p-5 sm:p-6">
-      {caveats.length > 0 ? (
+      {safeCaveats.length > 0 ? (
         <div>
           <div className="flex items-center gap-2">
             <Info size={13} strokeWidth={1.5} aria-hidden className="text-ink-faint" />
             <SectionLabel>Caveats</SectionLabel>
           </div>
           <ul className="mt-3 space-y-2">
-            {caveats.map((caveat) => (
+            {safeCaveats.map((caveat) => (
               <li
                 key={caveat}
                 className="max-w-prose text-small leading-relaxed text-ink-muted"

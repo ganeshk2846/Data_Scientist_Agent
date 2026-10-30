@@ -16,3 +16,4 @@ This glossary maps common executive and conversational business expressions to g
 | **Stockout / OOS** | `inventory_daily.stockout_flag = 1` | Zero units on hand for customer fulfillment. |
 | **AOV / Basket Size** | `aov` (`revenue / order_count`) | Average expenditure per completed order. |
 | **CSAT / Rating** | `review_score` | Average customer review rating between 1.0 and 5.0. |
+

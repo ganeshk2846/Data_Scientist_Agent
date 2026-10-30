@@ -39,3 +39,4 @@ def compute_data_layer(tables: Iterable[str]) -> DataLayerType:
     if has_synthetic:
         return "synthetic"
     return "real"
+

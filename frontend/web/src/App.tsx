@@ -1,3 +1,4 @@
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
@@ -363,7 +364,8 @@ export default function App() {
               ) : null}
             </div>
 
-            <AnswerCanvas
+            <ErrorBoundary>
+              <AnswerCanvas
               state={state}
               theme={theme.resolved}
               onAsk={(question) => submit(question)}
@@ -377,6 +379,7 @@ export default function App() {
               onPin={pinFigure}
               onInspect={() => setInspectorOpen(true)}
             />
+            </ErrorBoundary>
 
             {mock ? (
               <MockBar

@@ -21,3 +21,4 @@ class PlantPlugin(Protocol):
     ) -> None:
         """Inject causal effect into the synthetic tables and record in manifest."""
         ...
+

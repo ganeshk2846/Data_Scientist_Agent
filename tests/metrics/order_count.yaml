@@ -7,3 +7,4 @@ tolerance: 0
 aggregation: count
 base_table: orders
 is_synthetic: false
+

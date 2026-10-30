@@ -124,3 +124,4 @@ class ManifestWriter:
             f.write("\n".join(lines) + "\n")
 
         return md_path, json_path
+

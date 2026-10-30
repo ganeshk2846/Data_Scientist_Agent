@@ -70,3 +70,4 @@ class PriceElasticityPlant:
                 "elasticity": -1.50,
             },
         )
+

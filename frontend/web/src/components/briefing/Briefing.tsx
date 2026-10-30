@@ -103,19 +103,19 @@ export function Briefing({
   const reduced = useReducedMotion();
 
   const segments = useMemo(
-    () => annotateNarrative(envelope.conclusion ?? '', envelope.claims),
+    () => annotateNarrative(envelope.conclusion ?? '', envelope.claims ?? []),
     [envelope.conclusion, envelope.claims],
   );
   const leftover = useMemo(
-    () => unplacedClaims(segments, envelope.claims),
+    () => unplacedClaims(segments, envelope.claims ?? []),
     [segments, envelope.claims],
   );
   const followUps = useMemo(() => buildFollowUps(envelope), [envelope]);
 
   // The run's SQL origin is stamped per run, so it is read once, here.
-  const origin = envelope.queries[0]?.origin ?? null;
-  const period = formatWindow(envelope.scope.window);
-  const sqlHeading = envelope.scope.metric
+  const origin = envelope.queries?.[0]?.origin ?? null;
+  const period = formatWindow(envelope.scope?.window ?? null);
+  const sqlHeading = envelope.scope?.metric
     ? `${humanise(envelope.scope.metric)}${period ? ` · ${period}` : ''}`
     : null;
 
@@ -125,11 +125,11 @@ export function Briefing({
   const next = () => cue++;
 
   const hasScope =
-    !!envelope.scope.metric ||
-    !!envelope.scope.window ||
-    !!envelope.scope.grain ||
-    envelope.scope.filters.length > 0 ||
-    envelope.scope.governed;
+    !!envelope.scope?.metric ||
+    !!envelope.scope?.window ||
+    !!envelope.scope?.grain ||
+    (envelope.scope?.filters?.length ?? 0) > 0 ||
+    !!envelope.scope?.governed;
 
   return (
     <LineageProvider>
@@ -171,7 +171,7 @@ export function Briefing({
             {envelope.conclusion ? (
               <Conclusion
                 conclusion={envelope.conclusion}
-                claims={envelope.claims}
+                claims={envelope.claims ?? []}
                 className="mt-8"
               />
             ) : (
@@ -185,7 +185,7 @@ export function Briefing({
             <Hairline className="my-8" />
             <RouteStrip route={envelope.route} status={envelope.status} />
 
-            {hasScope ? (
+            {hasScope && envelope.scope ? (
               <>
                 <Hairline className="my-8" />
                 <SectionLabel className="mb-4">Scope</SectionLabel>
@@ -196,11 +196,11 @@ export function Briefing({
         </Card>
 
         {/* ── How this was computed. A first-class section, expanded. ───── */}
-        {envelope.queries.length > 0 ? (
+        {(envelope.queries?.length ?? 0) > 0 ? (
           <Reveal step={next()} reduced={reduced}>
             <QueryList
               queries={envelope.queries}
-              claims={envelope.claims}
+              claims={envelope.claims ?? []}
               origin={origin}
               {...(sqlHeading ? { heading: sqlHeading } : {})}
             />
@@ -211,7 +211,7 @@ export function Briefing({
         ) : null}
 
         {/* ── Evidence. ─────────────────────────────────────────────────── */}
-        {envelope.evidence.length > 0 ? (
+        {(envelope.evidence?.length ?? 0) > 0 ? (
           <Reveal step={next()} reduced={reduced}>
             <EvidenceSection envelope={envelope} theme={theme} />
           </Reveal>
@@ -223,16 +223,16 @@ export function Briefing({
           </Reveal>
         ) : null}
 
-        {envelope.caveats.length > 0 || envelope.causal_boundary_note ? (
+        {(envelope.caveats?.length ?? 0) > 0 || envelope.causal_boundary_note ? (
           <Reveal step={next()} reduced={reduced}>
             <CaveatCallout
-              caveats={envelope.caveats}
+              caveats={envelope.caveats ?? []}
               causalBoundaryNote={envelope.causal_boundary_note}
             />
           </Reveal>
         ) : null}
 
-        {envelope.next_actions.length > 0 ? (
+        {(envelope.next_actions?.length ?? 0) > 0 ? (
           <Reveal step={next()} reduced={reduced}>
             <NextActions actions={envelope.next_actions} />
           </Reveal>

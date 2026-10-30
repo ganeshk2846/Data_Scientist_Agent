@@ -18,3 +18,4 @@
 | `return_rate` | Return Rate | `ratio` | `returned_units / total_units` | `returns` | month, category | Customer merchandise return percentage. |
 | `margin` | Gross Product Margin | `ratio` | `(revenue - cost) / revenue` | `order_items` | month, category | Product profitability margin. |
 | `target_attainment` | Regional Attainment | `ratio` | `actual_revenue / revenue_target` | `regional_targets` | month, state | Achievement percentage against governed monthly quotas. |
+

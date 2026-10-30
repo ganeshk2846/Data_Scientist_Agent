@@ -72,14 +72,14 @@ export interface FollowUp {
 export function buildFollowUps(envelope: AnswerEnvelope): readonly FollowUp[] {
   if (envelope.status !== 'answered') return [];
 
-  const metricId = envelope.scope.metric?.toLowerCase() ?? null;
+  const metricId = envelope.scope?.metric?.toLowerCase() ?? null;
   if (!metricId || !isGovernedMetric(metricId)) return [];
   const metric = METRIC_PHRASE[metricId];
 
-  const period = readPeriod(envelope.scope.window);
+  const period = readPeriod(envelope.scope?.window ?? null);
   if (!period) return [];
 
-  const routes = new Set(envelope.route.labels);
+  const routes = new Set(envelope.route?.labels ?? []);
   const out: FollowUp[] = [];
 
   // If this run was a plain lookup, the interesting next step is diagnostic.

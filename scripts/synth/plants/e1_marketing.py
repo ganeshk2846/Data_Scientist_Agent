@@ -80,3 +80,4 @@ class MarketingCutPlant:
                 "channel": "paid_search",
             },
         )
+

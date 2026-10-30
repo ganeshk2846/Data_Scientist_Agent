@@ -9,3 +9,4 @@ numerator_metric: revenue
 denominator_metric: order_count
 base_table: order_items
 is_synthetic: false
+

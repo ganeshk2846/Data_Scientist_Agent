@@ -7,3 +7,4 @@ tolerance: 1.00
 aggregation: sum
 base_table: order_items
 is_synthetic: false
+

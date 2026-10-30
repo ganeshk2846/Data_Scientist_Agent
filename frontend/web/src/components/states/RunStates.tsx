@@ -161,10 +161,10 @@ export function InsufficientEvidenceState({
         'The analysis ran, but the evidence was too weak to support a conclusion.'
       }
     >
-      {envelope.caveats.length > 0 ? (
+      {(envelope.caveats?.length ?? 0) > 0 ? (
         <StateField label="Why">
           <ul className="space-y-2">
-            {envelope.caveats.map((caveat) => (
+            {envelope.caveats?.map((caveat) => (
               <li
                 key={caveat}
                 className="before:mr-2 before:text-ink-faint before:content-['—']"

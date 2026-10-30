@@ -137,11 +137,11 @@ export function AnswerCanvas({
       return (
         <div className="space-y-block">
           <InsufficientEvidenceState envelope={envelope} />
-          {envelope.queries.length > 0 ? (
+          {(envelope.queries?.length ?? 0) > 0 ? (
             <QueryList
               queries={envelope.queries}
-              claims={envelope.claims}
-              origin={envelope.queries[0]?.origin ?? null}
+              claims={envelope.claims ?? []}
+              origin={envelope.queries?.[0]?.origin ?? null}
             />
           ) : null}
           <Tail envelope={envelope} skipCaveats />
@@ -152,7 +152,7 @@ export function AnswerCanvas({
       return (
         <div className="space-y-block">
           <ErrorState
-            detail={envelope.caveats[0] ?? envelope.route.reason}
+            detail={envelope.caveats?.[0] ?? envelope.route?.reason ?? 'An error occurred'}
             streamError={state.streamError}
             onRetry={onRetry}
           />
@@ -174,7 +174,7 @@ function Tail({
     <>
       {!skipCaveats ? (
         <CaveatCallout
-          caveats={envelope.caveats}
+          caveats={envelope.caveats ?? []}
           causalBoundaryNote={envelope.causal_boundary_note}
         />
       ) : null}
