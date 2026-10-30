@@ -47,8 +47,8 @@ _DOWN = r"(?:cut|cutting|lower|lowering|reduce|reducing|decrease|decreasing|drop
 _PCT = r"([0-9]+(?:[.,][0-9]+)?)\s*(?:%|percent|por cento)"
 _PRICE = r"(?:the\s+)?(?:list\s+)?(?:prices?|pre[cç]os?)"
 _PATTERNS = (
-    (re.compile(rf"{_UP}\s+{_PRICE}\s+(?:\w+\s+){{0,4}}?(?:by|em|de)?\s*{_PCT}"), 1.0),
-    (re.compile(rf"{_DOWN}\s+{_PRICE}\s+(?:\w+\s+){{0,4}}?(?:by|em|de)?\s*{_PCT}"), -1.0),
+    (re.compile(rf"{_UP}\s+(?:[\w-]+\s+){{0,3}}?{_PRICE}\s+(?:[\w-]+\s+){{0,4}}?(?:by|em|de)?\s*{_PCT}"), 1.0),
+    (re.compile(rf"{_DOWN}\s+(?:[\w-]+\s+){{0,3}}?{_PRICE}\s+(?:[\w-]+\s+){{0,4}}?(?:by|em|de)?\s*{_PCT}"), -1.0),
     (re.compile(rf"{_PCT}\s+(?:price\s+)?(?:increase|rise|hike|higher)"), 1.0),
     (re.compile(rf"{_PCT}\s+(?:price\s+)?(?:cut|decrease|drop|reduction|lower)"), -1.0),
     (re.compile(rf"{_PRICE}\s*([+-])\s*([0-9]+(?:[.,][0-9]+)?)\s*%"), 0.0),
