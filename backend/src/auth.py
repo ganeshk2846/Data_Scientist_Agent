@@ -36,6 +36,9 @@ class ApiTokenAuthenticator:
     def from_environment(cls) -> ApiTokenAuthenticator:
         raw = os.environ.get(TOKEN_ENV, "").strip()
         if not raw:
+            single = os.environ.get("DS_AGENT_TOKEN", "").strip()
+            if single:
+                return cls({"dev_user": single})
             return cls()
         try:
             parsed = json.loads(raw)
@@ -74,4 +77,4 @@ class ApiTokenAuthenticator:
         return principal
 
 
-__all__ = ["ApiTokenAuthenticator", "TOKEN_ENV"]
+__all__ = ["TOKEN_ENV", "ApiTokenAuthenticator"]
