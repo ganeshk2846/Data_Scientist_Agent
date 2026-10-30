@@ -53,3 +53,6 @@ Thumbs.db
 TextToSQL/data/raw/
 TextToSQL/data/metric_registry.json
 TextToSQL/data/*.lock
+
+# Python packaging metadata from editable installs
+*.egg-info/
