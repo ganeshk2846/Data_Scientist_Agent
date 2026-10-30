@@ -43,11 +43,10 @@ from collections.abc import Iterable, Mapping
 from statistics import median
 from typing import Literal
 
+from contracts.models import ContractModel, MetricDefinition
 from pydantic import Field, model_validator
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
-
-from contracts.models import ContractModel, MetricDefinition
 
 CompletenessGrain = Literal["month", "quarter", "year"]
 

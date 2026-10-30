@@ -33,10 +33,10 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "scripts.synth"
 
-from . import base  # noqa: E402
-from .context import REAL_TABLES, load_context, open_read_only  # noqa: E402
-from .manifest import ManifestWriter, write_outputs  # noqa: E402
-from .plants import PLANTS  # noqa: E402
+from . import base
+from .context import REAL_TABLES, load_context, open_read_only
+from .manifest import ManifestWriter, write_outputs
+from .plants import PLANTS
 
 GENERATOR_VERSION = "v2.0.0"
 DEFAULT_SEED = 20261030

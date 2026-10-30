@@ -22,9 +22,15 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.build_analytical_tables import build  # noqa: E402
-from scripts.synth.fixture import build_fixture  # noqa: E402
-from scripts.synth.generate import DEFAULT_MARKDOWN, DEFAULT_SEED, DEFAULT_SOURCE, DEFAULT_TARGET, generate  # noqa: E402
+from scripts.build_analytical_tables import build
+from scripts.synth.fixture import build_fixture
+from scripts.synth.generate import (
+    DEFAULT_MARKDOWN,
+    DEFAULT_SEED,
+    DEFAULT_SOURCE,
+    DEFAULT_TARGET,
+    generate,
+)
 
 
 def main(argv: list[str] | None = None) -> int:

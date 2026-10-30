@@ -6,8 +6,6 @@ import sqlite3
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine
-
 from catalog.registry import MetricRegistry
 from dataset_fixtures import DB_PATH, requires_olist
 from semantic.completeness import (
@@ -16,6 +14,7 @@ from semantic.completeness import (
     assess_monthly_volumes,
     roll_up,
 )
+from sqlalchemy import create_engine
 
 # Orders per purchase month on the Olist snapshot (scope.md section 2.1).
 # 2016-11 has no orders at all; 2016-12 has one.

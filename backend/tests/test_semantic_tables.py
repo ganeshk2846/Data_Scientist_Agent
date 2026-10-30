@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from contracts.v2 import ToolProvenance
 from semantic.layers import (
     data_layer_for,

@@ -38,8 +38,8 @@ import pandas as pd
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend" / "src"))
 
-from semantic.tables import TableRegistry, ingested_tables  # noqa: E402
-from semantic.versioning import catalog_version  # noqa: E402
+from semantic.tables import TableRegistry, ingested_tables
+from semantic.versioning import catalog_version
 
 DEFAULT_DB = REPO_ROOT / "data" / "brazil_ecommerce_v2.sqlite"
 DEFAULT_REGISTRY = REPO_ROOT / "semantics" / "ingested_tables.json"
@@ -185,8 +185,8 @@ def _semantics_page(entry: dict) -> str:
     lines = [
         f"# `{entry['name']}`",
         "",
-        "**Source:** user-supplied (`scripts/ingest.py`), loaded from "
-        f"`{entry['file']}`. Not part of the Olist snapshot and not synthetic.",
+        ("**Source:** user-supplied (`scripts/ingest.py`), loaded from "
+        f"`{entry['file']}`. Not part of the Olist snapshot and not synthetic."),
         "",
         entry["description"],
         "",

@@ -5,12 +5,12 @@ from __future__ import annotations
 import sqlite3
 
 import pytest
-
 from contracts.v2 import AnomalyRow, ForecastRow
-from scripts.build_analytical_tables import build
 from semantic.kpis import KPI_SPECS
 from semantic.metrics_v2 import SYNTHETIC_METRIC_IDS
 from semantic.versioning import catalog_version
+
+from scripts.build_analytical_tables import build
 
 REAL_KPIS = {spec.kpi for spec in KPI_SPECS} - SYNTHETIC_METRIC_IDS
 

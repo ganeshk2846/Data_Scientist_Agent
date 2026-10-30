@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-
 from catalog import MetricRegistry
 from contracts.models import GatewayConfig, Period
 from dataset_fixtures import DB_PATH, requires_olist

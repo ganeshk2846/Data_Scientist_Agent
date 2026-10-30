@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 
 import pytest
-
 from catalog.registry import MetricRegistry
 from semantic.aggregation import AggregationRegistry, MetricAggregation, MetricComponent
 from semantic.metrics_v2 import SYNTHETIC_METRIC_IDS, all_metrics

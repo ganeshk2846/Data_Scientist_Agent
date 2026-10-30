@@ -14,12 +14,12 @@ from __future__ import annotations
 
 from typing import Literal
 
+from contracts.models import ContractModel
+from contracts.v2 import CatalogFact, CatalogFactsPayload
 from pydantic import Field
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from contracts.models import ContractModel
-from contracts.v2 import CatalogFact, CatalogFactsPayload
 from semantic.aggregation import AggregationRegistry
 from semantic.metrics_v2 import all_metrics, is_synthetic_metric
 from semantic.tables import TableInfo, TableRegistry
@@ -148,8 +148,8 @@ def render_answer(description: WarehouseDescription) -> str:
     base = [t for t in description.tables if t.present and t.layer != "analytical"]
     synthetic = [t for t in base if t.layer == "synthetic"]
     lines = [
-        f"The warehouse holds **{len(base)} tables**: "
-        f"{len(base) - len(synthetic)} real or user-supplied and {len(synthetic)} synthetic.",
+        (f"The warehouse holds **{len(base)} tables**: "
+        f"{len(base) - len(synthetic)} real or user-supplied and {len(synthetic)} synthetic."),
         "",
     ]
     if synthetic:
@@ -183,9 +183,9 @@ def render_answer(description: WarehouseDescription) -> str:
         lines.append(f"| `{metric.metric_id}` ({metric.name}) | {metric.aggregation} | {layer} | {', '.join(metric.dimensions) or '-'} |")
     lines += [
         "",
-        "Real order data runs to 2018-10, but 2018-09 and 2018-10 are incomplete "
+        ("Real order data runs to 2018-10, but 2018-09 and 2018-10 are incomplete "
         "collection months; the last complete month is reported per metric by the "
-        "completeness rule.",
+        "completeness rule."),
         "",
         f"Catalog version `{description.catalog_version}`.",
     ]

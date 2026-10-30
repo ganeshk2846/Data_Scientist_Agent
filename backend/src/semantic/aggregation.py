@@ -17,9 +17,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Literal
 
-from pydantic import Field, model_validator
-
 from contracts.models import ContractModel, MetricDefinition
+from pydantic import Field, model_validator
 
 AggregationClass = Literal["sum", "count", "mean", "ratio"]
 

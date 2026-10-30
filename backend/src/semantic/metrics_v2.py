@@ -11,9 +11,8 @@ labelled synthetic wherever it is reported.
 
 from __future__ import annotations
 
-from contracts.models import MetricAllowedDimension, MetricDefinition, MetricJoinPath
-
 from catalog.registry import MetricRegistry
+from contracts.models import MetricAllowedDimension, MetricDefinition, MetricJoinPath
 
 _APPROVED_AT = "2026-10-30T00:00:00Z"
 _APPROVED_BY = "v2-synthetic-layer"

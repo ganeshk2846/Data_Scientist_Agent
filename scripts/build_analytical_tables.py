@@ -26,26 +26,25 @@ import argparse
 import sqlite3
 import sys
 from collections.abc import Iterable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from statistics import NormalDist
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend" / "src"))
 
-from sqlalchemy import create_engine  # noqa: E402
-
-from analysts.anomaly import AnomalyAnalyst  # noqa: E402
-from analysts.driver import DriverAnalyst  # noqa: E402
-from analysts.forecast import ENGINE_VERSION as FORECAST_VERSION  # noqa: E402
-from analysts.forecast import forecast_series  # noqa: E402
-from contracts.models import AnalystColumn, AnalystInput, Period, TableRef  # noqa: E402
-from contracts.v2 import AnomalyRow, ForecastRow  # noqa: E402
-from semantic.aggregation import AggregationRegistry  # noqa: E402
-from semantic.completeness import CompletenessReport, assess_metric  # noqa: E402
-from semantic.kpis import KPI_SPECS, KpiSpec  # noqa: E402
-from semantic.metrics_v2 import all_metrics  # noqa: E402
-from semantic.versioning import catalog_version  # noqa: E402
+from analysts.anomaly import AnomalyAnalyst
+from analysts.driver import DriverAnalyst
+from analysts.forecast import ENGINE_VERSION as FORECAST_VERSION
+from analysts.forecast import forecast_series
+from contracts.models import AnalystColumn, AnalystInput, Period, TableRef
+from contracts.v2 import AnomalyRow, ForecastRow
+from semantic.aggregation import AggregationRegistry
+from semantic.completeness import CompletenessReport, assess_metric
+from semantic.kpis import KPI_SPECS, KpiSpec
+from semantic.metrics_v2 import all_metrics
+from semantic.versioning import catalog_version
+from sqlalchemy import create_engine
 
 DEFAULT_DB = REPO_ROOT / "data" / "brazil_ecommerce_v2.sqlite"
 REAL_SNAPSHOT = REPO_ROOT / "brazil_ecommerce.sqlite"
@@ -350,7 +349,7 @@ def build(
         raise ValueError("analytical tables are never written into the real snapshot (V2-SYN-1)")
     if not db.is_file():
         raise FileNotFoundError(f"{db} not found; run scripts/synth/generate.py first")
-    computed_at = computed_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    computed_at = computed_at or datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     wanted = set(kpis) if kpis is not None else None
     engine = create_engine(f"sqlite:///file:{db.as_posix()}?mode=ro&uri=true")
     with engine.connect() as connection:

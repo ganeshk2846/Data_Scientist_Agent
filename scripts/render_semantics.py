@@ -15,8 +15,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "backend" / "src"))
 
-from semantic.aggregation import AggregationRegistry  # noqa: E402
-from semantic.metrics_v2 import all_metrics, is_synthetic_metric  # noqa: E402
+from semantic.aggregation import AggregationRegistry
+from semantic.metrics_v2 import all_metrics, is_synthetic_metric
 
 METRICS_PAGE = REPO_ROOT / "semantics" / "metrics.md"
 

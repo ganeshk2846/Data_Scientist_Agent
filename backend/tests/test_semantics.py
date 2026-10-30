@@ -7,17 +7,17 @@ import sys
 from pathlib import Path
 
 import pytest
+from semantic.metrics_v2 import all_metrics
+from semantic.tables import TableRegistry
 
 from scripts.synth.fixture import _DDL
 from scripts.synth.generate import SCHEMAS
-from semantic.metrics_v2 import all_metrics
-from semantic.tables import TableRegistry
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SEMANTICS = REPO_ROOT / "semantics"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
-from render_semantics import render_metrics  # noqa: E402
+from render_semantics import render_metrics
 
 REAL_COLUMNS = {
     match.group(1): re.findall(r'"(\w+)" (?:TEXT|INTEGER|REAL)', match.group(2))

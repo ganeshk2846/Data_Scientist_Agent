@@ -23,9 +23,8 @@ from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
-from pydantic import Field, model_validator
-
 from contracts.models import ContractModel
+from pydantic import Field, model_validator
 
 from ._prophet import prophet_forecast
 
@@ -73,6 +72,7 @@ def _ets(values: np.ndarray, horizon: int, alpha: float) -> list[tuple[float, fl
     # statsmodels' prediction results need a pandas index on the endog.
     endog = pd.Series(values, index=pd.RangeIndex(len(values)))
     seasonal = 12 if len(values) >= 24 else None
+    last_error: Exception | None = None
     for trend, damped in (("add", True), (None, False)):
         try:
             with warnings.catch_warnings():
@@ -93,9 +93,9 @@ def _ets(values: np.ndarray, horizon: int, alpha: float) -> list[tuple[float, fl
             ]
             if all(all(math.isfinite(v) for v in point) for point in out):
                 return out
-        except Exception:
-            continue
-    raise ValueError("ETS failed to fit")
+        except Exception as exc:  # try the simpler model next
+            last_error = exc
+    raise ValueError(f"ETS failed to fit: {type(last_error).__name__ if last_error else 'non-finite forecast'}")
 
 
 def _project(values: np.ndarray, periods: Sequence[str], horizon: int, alpha: float, prefer_prophet: bool):

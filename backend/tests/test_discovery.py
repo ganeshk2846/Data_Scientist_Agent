@@ -5,9 +5,8 @@ from __future__ import annotations
 import re
 import sqlite3
 
-from sqlalchemy import create_engine
-
 from semantic.discovery import catalog_facts, describe_warehouse, render_answer
+from sqlalchemy import create_engine
 
 
 def _describe(db):

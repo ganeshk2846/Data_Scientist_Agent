@@ -147,9 +147,9 @@ def load_context(conn: sqlite3.Connection) -> SourceContext:
 __all__ = [
     "COMPLETE_MONTHS",
     "REAL_TABLES",
-    "SourceContext",
     "WINDOW_END",
     "WINDOW_START",
+    "SourceContext",
     "load_context",
     "open_read_only",
 ]

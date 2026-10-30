@@ -115,7 +115,8 @@ def build_fixture(path: Path, seed: int = 7) -> Path:
     unique_pool: list[tuple[str, str]] = []  # (customer_unique_id, state)
     for period, count in FIXTURE_MONTHLY_ORDERS.items():
         year, month = (int(part) for part in period.split("-"))
-        first = datetime(year, month, 1)
+        # Olist timestamps are naive local times; the fixture matches them.
+        first = datetime(year, month, 1)  # noqa: DTZ001
         days = ((first.replace(day=28) + timedelta(days=4)).replace(day=1) - first).days
         if period == "2018-10":
             days = 17
@@ -130,7 +131,7 @@ def build_fixture(path: Path, seed: int = 7) -> Path:
             customer_id, order_id = _hex(rng), _hex(rng)
             customers.append((customer_id, unique_id, 1000 + int(rng.integers(0, 9000)), "cidade", state))
             roll = rng.random()
-            if moment >= datetime(2018, 9, 1):
+            if moment >= datetime(2018, 9, 1):  # noqa: DTZ001
                 status = "canceled" if roll < 0.5 else "shipped"
             else:
                 status = "canceled" if roll < 0.007 else "unavailable" if roll < 0.013 else "delivered"

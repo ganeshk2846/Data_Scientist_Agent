@@ -7,11 +7,11 @@ import shutil
 import sqlite3
 
 import pytest
-
-from scripts.ingest import ingest
 from semantic.layers import data_layer_for
 from semantic.tables import TableRegistry
 from semantic.versioning import catalog_version
+
+from scripts.ingest import ingest
 
 
 @pytest.fixture()

@@ -10,9 +10,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 import sqlglot
+from contracts.v2 import DataLayer
 from sqlglot import exp
 
-from contracts.v2 import DataLayer
 from semantic.tables import TableRegistry
 
 

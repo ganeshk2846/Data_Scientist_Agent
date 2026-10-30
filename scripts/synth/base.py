@@ -165,7 +165,7 @@ def finalize_inventory(frame: pd.DataFrame, rng: np.random.Generator) -> pd.Data
     demand = rng.poisson(np.maximum(frame["expected_demand"] * frame["demand_noise"], 0.0))
     sold = np.zeros(len(frame), dtype=np.int64)
     stock = np.zeros(len(frame), dtype=np.int64)
-    for _, rows in frame.groupby("category", sort=False).indices.items():
+    for rows in frame.groupby("category", sort=False).indices.values():
         expected = frame["expected_demand"].to_numpy()[rows]
         forced = frame["forced_out"].to_numpy()[rows]
         cover = max(float(np.mean(expected)), 0.2)

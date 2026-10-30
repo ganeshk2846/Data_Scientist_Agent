@@ -13,11 +13,12 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from contracts.models import GroundTruthManifest  # noqa: E402
-from scripts.synth.context import REAL_TABLES, open_read_only  # noqa: E402
-from scripts.synth.fixture import build_fixture  # noqa: E402
-from scripts.synth.generate import SCHEMAS, generate, sha256  # noqa: E402
-from semantic.tables import TableRegistry  # noqa: E402
+from contracts.models import GroundTruthManifest
+from semantic.tables import TableRegistry
+
+from scripts.synth.context import REAL_TABLES, open_read_only
+from scripts.synth.fixture import build_fixture
+from scripts.synth.generate import SCHEMAS, generate, sha256
 
 COMMITTED_ANSWER_KEY = REPO_ROOT / "data" / "SYNTHETIC_GROUND_TRUTH.md"
 

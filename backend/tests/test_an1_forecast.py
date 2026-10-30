@@ -6,7 +6,6 @@ import math
 from pathlib import Path
 
 import pytest
-
 from analysts.forecast import MIN_HISTORY, forecast_series
 from test_an1_architecture import _matching_imports
 

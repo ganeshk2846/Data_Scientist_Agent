@@ -14,9 +14,8 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
-
 from contracts.models import ContractModel
+from pydantic import Field
 
 Subject = Literal[
     "orders",
