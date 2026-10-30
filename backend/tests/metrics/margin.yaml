@@ -1,0 +1,11 @@
+# Known-good value for `margin`, checked by tests/test_metric_values.py.
+# fixture: scripts/synth/fixture.py (seed 7) -> scripts/synth/generate.py (seed 20261030)
+#          -> scripts/build_analytical_tables.py. Regenerate deliberately if a definition changes.
+metric_id: margin
+layer: synthetic
+checks:
+  - source: fixture
+    period: "2018-03"
+    dimension: null
+    value: 0.434847
+    tolerance: 0.000001

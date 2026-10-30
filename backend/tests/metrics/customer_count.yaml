@@ -1,0 +1,11 @@
+# Known-good value for `customer_count`, checked by tests/test_metric_values.py.
+# fixture: scripts/synth/fixture.py (seed 7) -> scripts/synth/generate.py (seed 20261030)
+#          -> scripts/build_analytical_tables.py. Regenerate deliberately if a definition changes.
+metric_id: customer_count
+layer: real
+checks:
+  - source: fixture
+    period: "2018-03"
+    dimension: null
+    value: 361
+    tolerance: 0

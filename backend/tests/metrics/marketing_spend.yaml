@@ -1,0 +1,11 @@
+# Known-good value for `marketing_spend`, checked by tests/test_metric_values.py.
+# fixture: scripts/synth/fixture.py (seed 7) -> scripts/synth/generate.py (seed 20261030)
+#          -> scripts/build_analytical_tables.py. Regenerate deliberately if a definition changes.
+metric_id: marketing_spend
+layer: synthetic
+checks:
+  - source: fixture
+    period: "2018-03"
+    dimension: null
+    value: 615223.33
+    tolerance: 0.01
