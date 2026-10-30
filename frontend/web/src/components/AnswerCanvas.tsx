@@ -10,7 +10,10 @@ import {
   RefusedState,
 } from '@/components/states/RunStates';
 import { CaveatCallout, RunMetricsFooter } from '@/components/briefing/BriefingParts';
+import type { ClarifyChoice } from '@/components/ask/ClarifyOptions';
 import type { ResolvedTheme } from '@/lib/theme';
+import { asV2 } from '@/lib/v2';
+import type { ReactNode } from 'react';
 import type { RunState } from '@/lib/runState';
 import { isRunInFlight } from '@/lib/runState';
 
@@ -19,6 +22,10 @@ interface AnswerCanvasProps {
   theme: ResolvedTheme;
   onAsk: (question: string) => void;
   onClarify: (answer: string, clarificationOf: string) => void;
+  /** V2: answer a clarification with one of its options. */
+  onChooseOption?: (optionId: string, label: string, clarificationOf: string) => void;
+  /** Rendered under an answered briefing's trust panel (the feedback control). */
+  afterTrust?: ReactNode;
   onRetry: () => void;
   onPresent: () => void;
   /** The briefing's own actions, threaded through from App. */
@@ -40,6 +47,8 @@ export function AnswerCanvas({
   theme,
   onAsk,
   onClarify,
+  onChooseOption,
+  afterTrust,
   onRetry,
   onPresent,
   starred,
@@ -66,8 +75,21 @@ export function AnswerCanvas({
     // The clarify event arrives before the terminal one, so it can be shown
     // while the envelope is still being collected.
     if (state.clarify && state.runId) {
+      const live = state.clarify;
+      const choice: ClarifyChoice | null =
+        live.options && live.options.length > 0
+          ? {
+              question: live.question ?? live.what_needs_clarification,
+              options: live.options,
+              defaultOptionId: live.default_option_id ?? null,
+              defaultRationale: null,
+              round: live.round ?? 1,
+            }
+          : null;
       return (
         <ClarifyState
+          choice={choice}
+          {...(onChooseOption ? { onChoose: onChooseOption } : {})}
           clarification={{
             what_understood: state.clarify.what_understood,
             what_needs_clarification: state.clarify.what_needs_clarification,
@@ -98,14 +120,27 @@ export function AnswerCanvas({
           onToggleStar={onToggleStar}
           onPin={onPin}
           onInspect={onInspect}
+          afterTrust={afterTrust}
         />
       );
 
-    case 'clarify':
+    case 'clarify': {
+      const request = asV2(envelope)?.clarification ?? null;
+      const choice: ClarifyChoice | null = request
+        ? {
+            question: request.question,
+            options: request.options,
+            defaultOptionId: request.default_assumption.option_id,
+            defaultRationale: request.default_assumption.rationale,
+            round: request.round,
+          }
+        : null;
       return (
         <div className="space-y-block">
           {envelope.clarification ? (
             <ClarifyState
+              choice={choice}
+              {...(onChooseOption ? { onChoose: onChooseOption } : {})}
               clarification={envelope.clarification}
               runId={envelope.run_id}
               onClarify={onClarify}
@@ -114,6 +149,7 @@ export function AnswerCanvas({
           <Tail envelope={envelope} />
         </div>
       );
+    }
 
     case 'refused':
       return (

@@ -10,6 +10,7 @@ import { useState } from 'react';
 
 import { StateField, StateShell } from './StateShell';
 import { AskBox } from '@/components/ask/AskBox';
+import { ClarifyOptions, type ClarifyChoice } from '@/components/ask/ClarifyOptions';
 import { Tag } from '@/components/briefing/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { Card, SectionLabel } from '@/components/ui/Card';
@@ -29,9 +30,12 @@ interface ClarifyStateProps {
   /** The run being clarified; sent back as `clarification_of`. */
   runId: string;
   onClarify: (answer: string, clarificationOf: string) => void;
+  /** V2: the offered options, default and round. Absent for a V1 clarify. */
+  choice?: ClarifyChoice | null;
+  onChoose?: (optionId: string, label: string, clarificationOf: string) => void;
 }
 
-export function ClarifyState({ clarification, runId, onClarify }: ClarifyStateProps) {
+export function ClarifyState({ clarification, runId, onClarify, choice, onChoose }: ClarifyStateProps) {
   const [reply, setReply] = useState('');
 
   return (
@@ -47,8 +51,15 @@ export function ClarifyState({ clarification, runId, onClarify }: ClarifyStatePr
           {clarification.what_understood}
         </StateField>
 
+        {choice && choice.options.length > 0 && onChoose ? (
+          <ClarifyOptions
+            choice={choice}
+            onChoose={(optionId, label) => onChoose(optionId, label, runId)}
+          />
+        ) : null}
+
         <div>
-          <SectionLabel>Your reply</SectionLabel>
+          <SectionLabel>{choice && choice.options.length > 0 ? 'Or say it in your own words' : 'Your reply'}</SectionLabel>
           <div className="mt-2.5">
             <AskBox
               value={reply}
