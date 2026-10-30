@@ -96,10 +96,14 @@ def _sqlite_type(kind: str) -> str:
 
 def _load(table: TableRef) -> sqlite3.Connection:
     connection = sqlite3.connect(":memory:")
-    columns = ", ".join(f"{_quote(column.name)} {_sqlite_type(column.type)}" for column in table.columns)
-    connection.execute(f"CREATE TABLE input_rows ({columns})")
-    placeholders = ", ".join("?" for _ in table.columns)
-    connection.executemany(f"INSERT INTO input_rows VALUES ({placeholders})", table.rows)
+    try:
+        columns = ", ".join(f"{_quote(column.name)} {_sqlite_type(column.type)}" for column in table.columns)
+        connection.execute(f"CREATE TABLE input_rows ({columns})")
+        placeholders = ", ".join("?" for _ in table.columns)
+        connection.executemany(f"INSERT INTO input_rows VALUES ({placeholders})", table.rows)
+    except (sqlite3.Error, ValueError):
+        connection.close()
+        raise
     return connection
 
 
@@ -272,7 +276,10 @@ def execute(params: Mapping[str, Any], data: EngineData) -> EngineRun:
     except ValueError as exc:
         return _insufficient(str(exc), data, timer)
 
-    connection = _load(table)
+    try:
+        connection = _load(table)
+    except (sqlite3.Error, ValueError) as exc:
+        return _insufficient(f"The input rows could not be loaded for SQL: {exc}", data, timer)
     try:
         rows = [tuple(row) for row in connection.execute(sql, values).fetchall()]
         summary_row: tuple[Any, ...] | None = None
