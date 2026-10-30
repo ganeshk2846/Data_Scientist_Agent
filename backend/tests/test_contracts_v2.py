@@ -311,7 +311,6 @@ def test_v1_types_are_reexported_rather_than_redefined():
     for name in (
         "Period",
         "MetricDefinition",
-        "AnalystOutput",
         "ExecutionResult",
         "LedgerClaim",
         "ActionOption",
@@ -321,6 +320,12 @@ def test_v1_types_are_reexported_rather_than_redefined():
         "ColumnRole",
     ):
         assert getattr(v2, name) is getattr(v1, name), name
+    assert issubclass(v2.AnalystOutput, v1.AnalystOutput)
+    result_annotation = v2.AnalystOutput.model_fields["result"].annotation
+    assert v2.ForecastResult in result_annotation.__args__
+    assert v2.ImpactResult in result_annotation.__args__
+    assert v2.ScenarioResult in result_annotation.__args__
+    assert v2.SegmentResult in result_annotation.__args__
 
 
 def test_every_v2_model_is_frozen_and_rejects_unknown_fields():
