@@ -192,6 +192,36 @@ it through a source whose terms permit your intended use, then set
 CLI, or integration tests. See [deployment readiness](docs/DEPLOYMENT_READINESS.md)
 for the missing-fixture and authentication limitations.
 
+### Building the V2 database (synthetic layer + analytical tables)
+
+V2 adds ten synthetic tables, planted effects and precomputed analytical
+tables in a separate file, `data/brazil_ecommerce_v2.sqlite`. The real
+snapshot is opened read-only and never modified. Rebuild everything with one
+command from the repository root:
+
+```bash
+python scripts/build_v2.py --source brazil_ecommerce.sqlite
+```
+
+Without the snapshot, `--fixture` runs the same pipeline on a seeded,
+Olist-shaped stand-in (its figures describe nothing real):
+
+```bash
+python scripts/build_v2.py --fixture
+```
+
+Then point the backend at it; the default database is unchanged:
+
+```bash
+export DS_AGENT_DB=data/brazil_ecommerce_v2.sqlite
+```
+
+The database and `data/synthetic_ground_truth.json` are build outputs and are
+not committed. `data/SYNTHETIC_GROUND_TRUTH.md` (the evaluation answer key) and
+`semantics/` (per-table notes, metrics, glossary, rules) are. To load your own
+CSVs as extra tables: `python scripts/ingest.py <folder>`; join edges it finds
+are proposed for approval, never applied automatically.
+
 ### Running the Test Suite (TDD)
 Run backend tests from `backend/`. Tests that use Olist's fixed data and expected
 aggregates require the separately obtained database described above; unit tests
