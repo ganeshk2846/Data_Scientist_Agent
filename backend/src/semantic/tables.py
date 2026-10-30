@@ -26,12 +26,16 @@ Subject = Literal[
     "pricing",
     "operations",
     "targets",
+    "analytics",
+    "user_data",
 ]
 
-TableSource = Literal["olist_snapshot", "synthetic_generator", "user_supplied"]
+TableSource = Literal["olist_snapshot", "synthetic_generator", "user_supplied", "analytical"]
 
-#: The window the synthetic generator writes, complete periods only (V2-SYN-3).
-SYNTHETIC_WINDOW = ("2016-10", "2018-08")
+#: The calendar window the synthetic generator writes (V2-SYN-3): the real
+#: snapshot's months, 2016-09 to 2018-10, so every synthetic date can be
+#: joined to a real one.
+SYNTHETIC_WINDOW = ("2016-09-01", "2018-10-31")
 
 
 class TableInfo(ContractModel):
@@ -69,6 +73,20 @@ def _synthetic(name, subject, grain, description, keys, date_column) -> TableInf
     )
 
 
+def _analytical(name, description, keys) -> TableInfo:
+    # Derived engine/SQL output. The table itself is not synthetic, but each
+    # row carries ``is_synthetic`` for the KPI it holds (AT-5): readers must
+    # label per row, never per table.
+    return TableInfo(
+        name=name,
+        subject="analytics",
+        grain="see description",
+        description=description,
+        key_columns=keys,
+        source="analytical",
+    )
+
+
 _TABLES: tuple[TableInfo, ...] = (
     _real("orders", "orders", "order", "One row per order with its status and lifecycle timestamps.", ("order_id",), "order_purchase_timestamp"),
     _real("order_items", "orders", "order item", "One row per item in an order, with price and freight.", ("order_id", "order_item_id")),
@@ -79,16 +97,21 @@ _TABLES: tuple[TableInfo, ...] = (
     _real("sellers", "sellers", "seller", "Seller location.", ("seller_id",)),
     _real("geolocation", "geography", "zip prefix point", "Latitude and longitude per zip code prefix.", ("geolocation_zip_code_prefix",)),
     _real("product_category_translation", "products", "category", "Portuguese to English category names.", ("product_category_name",)),
-    _synthetic("marketing_spend", "marketing", "channel x state x day", "Daily paid spend, impressions and clicks per channel and state.", ("date", "channel", "customer_state"), "date"),
-    _synthetic("promotions", "marketing", "promo x category x day", "Discount promotions per category and channel.", ("promo_id", "date", "product_category"), "date"),
-    _synthetic("inventory_daily", "operations", "product x day", "Units on hand, units sold and stockout flag per product.", ("date", "product_id"), "date"),
-    _synthetic("web_traffic", "marketing", "channel x day", "Sessions, bounce rate and funnel steps per channel.", ("date", "channel"), "date"),
-    _synthetic("price_history", "pricing", "product x day", "List and effective price per product.", ("date", "product_id"), "date"),
-    _synthetic("competitor_prices", "pricing", "product x competitor x day", "Observed competitor price per product.", ("date", "product_id", "competitor_name"), "date"),
+    _synthetic("marketing_spend", "marketing", "channel x category x day", "Daily paid spend per marketing channel and product category (BRL).", ("date", "channel", "category"), "date"),
+    _synthetic("promotions", "marketing", "promotion x category", "Discount promotions per category, with start and end dates.", ("promo_id", "category"), "start_date"),
+    _synthetic("inventory_daily", "operations", "category x day", "Stock on hand, units sold and stockout flag per category.", ("date", "category"), "date"),
+    _synthetic("web_traffic", "marketing", "state x day", "Sessions, conversion rate and boleto checkout share per customer state.", ("date", "state"), "date"),
+    _synthetic("price_history", "pricing", "product x price change", "List price and unit cost per product, one row per price change.", ("product_id", "date"), "date"),
+    _synthetic("competitor_prices", "pricing", "product x competitor x week", "Weekly observed competitor price for the top-selling products.", ("product_id", "date", "competitor"), "date"),
     _synthetic("customer_segments", "customers", "customer", "Segment, LTV band and acquisition channel per customer_unique_id.", ("customer_unique_id",), "assigned_at"),
-    _synthetic("regional_targets", "targets", "state x month x metric", "Monthly target per state and governed metric.", ("month", "customer_state", "metric_id"), "month"),
-    _synthetic("returns", "operations", "order item", "Returned order items with reason and refund.", ("order_id", "order_item_id"), "return_date"),
-    _synthetic("delivery_sla", "operations", "carrier x state x day", "Promised vs actual delivery days and SLA breach flag.", ("date", "carrier", "customer_state"), "date"),
+    _synthetic("regional_targets", "targets", "state x month", "Monthly revenue target per customer state (BRL).", ("state", "month"), "month"),
+    _synthetic("returns", "operations", "order item", "Returned order items with reason and refund value.", ("order_id", "order_item_id"), "return_date"),
+    _synthetic("delivery_sla", "operations", "carrier x state x day", "Promised vs actual delivery days, SLA breach flag and freight cost per carrier and state.", ("date", "carrier", "state"), "date"),
+    _analytical("kpi_daily", "Daily value of every governed and synthetic KPI, with numerator and denominator.", ("kpi", "date")),
+    _analytical("analytical_series", "Monthly KPI series, total and by each governed dimension.", ("kpi", "period", "dimension", "dimension_value")),
+    _analytical("analytical_anomalies", "python.anomaly output for every tested month and series.", ("kpi", "date", "dimension", "dimension_value")),
+    _analytical("analytical_forecasts", "python.forecast output anchored on the last complete month.", ("kpi", "dimension", "dimension_value", "date")),
+    _analytical("driver_contributions", "python.driver month-over-month contributions by dimension.", ("kpi", "dimension", "dimension_value", "current_period")),
 )
 
 
@@ -130,7 +153,22 @@ class TableRegistry:
         return tuple(table for table in self.tables if table.is_synthetic)
 
     def real(self) -> tuple[TableInfo, ...]:
-        return tuple(table for table in self.tables if not table.is_synthetic)
+        return tuple(
+            table
+            for table in self.tables
+            if table.source in ("olist_snapshot", "user_supplied")
+        )
+
+    def base(self) -> tuple[TableInfo, ...]:
+        """The warehouse tables, excluding derived analytical tables."""
+        return tuple(table for table in self.tables if table.source != "analytical")
+
+    def analytical(self) -> tuple[TableInfo, ...]:
+        return tuple(table for table in self.tables if table.source == "analytical")
+
+    def with_tables(self, extra: Iterable[TableInfo]) -> TableRegistry:
+        """A new registry with ``extra`` (e.g. ingested tables) appended."""
+        return TableRegistry((*self.tables, *extra))
 
 
 __all__ = ["SYNTHETIC_WINDOW", "TableInfo", "TableRegistry", "TableSource"]

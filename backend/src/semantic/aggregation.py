@@ -116,6 +116,79 @@ _AGGREGATIONS: tuple[MetricAggregation, ...] = (
         ),
         bounds=(0.0, 1.0),
     ),
+    # Synthetic-layer KPIs (semantic.metrics_v2).
+    MetricAggregation(metric_id="marketing_spend", aggregation="sum"),
+    MetricAggregation(metric_id="sessions", aggregation="sum"),
+    MetricAggregation(
+        metric_id="conversion_rate",
+        aggregation="ratio",
+        numerator=MetricComponent(
+            name="converted_sessions",
+            formula="SUM({{ web_traffic }}.sessions * {{ web_traffic }}.conversion_rate)",
+            aggregation="sum",
+        ),
+        denominator=MetricComponent(
+            name="sessions",
+            formula="SUM({{ web_traffic }}.sessions)",
+            aggregation="sum",
+        ),
+        bounds=(0.0, 1.0),
+    ),
+    MetricAggregation(
+        metric_id="stockout_rate",
+        aggregation="ratio",
+        numerator=MetricComponent(
+            name="stockout_days",
+            formula="SUM({{ inventory_daily }}.stockout_flag)",
+            aggregation="sum",
+        ),
+        denominator=MetricComponent(name="category_days", formula="COUNT(*)", aggregation="count"),
+        bounds=(0.0, 1.0),
+    ),
+    MetricAggregation(
+        metric_id="return_rate",
+        aggregation="ratio",
+        numerator=MetricComponent(
+            name="returned_items",
+            formula="COUNT({{ returns }}.order_item_id)",
+            aggregation="count",
+        ),
+        denominator=MetricComponent(
+            name="delivered_items",
+            formula="COUNT({{ order_items }}.order_item_id)",
+            aggregation="count",
+        ),
+        bounds=(0.0, 1.0),
+    ),
+    MetricAggregation(
+        metric_id="margin",
+        aggregation="ratio",
+        numerator=MetricComponent(
+            name="gross_profit",
+            formula="(SUM({{ order_items }}.price) - SUM({{ price_history }}.unit_cost))",
+            aggregation="sum",
+        ),
+        denominator=MetricComponent(
+            name="item_revenue",
+            formula="SUM({{ order_items }}.price)",
+            aggregation="sum",
+        ),
+        bounds=(-1.0, 1.0),
+    ),
+    MetricAggregation(
+        metric_id="target_attainment",
+        aggregation="ratio",
+        numerator=MetricComponent(
+            name="revenue",
+            formula="SUM({{ order_payments }}.payment_value)",
+            aggregation="sum",
+        ),
+        denominator=MetricComponent(
+            name="revenue_target",
+            formula="SUM({{ regional_targets }}.revenue_target)",
+            aggregation="sum",
+        ),
+    ),
 )
 
 

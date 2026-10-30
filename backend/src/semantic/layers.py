@@ -31,14 +31,32 @@ def tables_in_sql(sql: str, dialect: str = "sqlite") -> tuple[str, ...]:
 def data_layer_for(
     tables: Iterable[str],
     registry: TableRegistry | None = None,
+    *,
+    analytical_rows_synthetic: bool | None = None,
 ) -> tuple[DataLayer, tuple[str, ...]]:
-    """Return ``(data_layer, synthetic_tables)`` for the tables read."""
+    """Return ``(data_layer, synthetic_tables)`` for the tables read.
+
+    Analytical tables are labelled per row (AT-5), so a caller reading one
+    must say whether the rows it served were synthetic; leaving it unset is
+    an error rather than a silent "real".
+    """
     registry = registry or TableRegistry.default()
     read = sorted({name.lower() for name in tables})
     unknown = [name for name in read if name not in registry]
     if unknown:
         raise KeyError(f"unregistered tables cannot be labelled: {', '.join(unknown)}")
-    synthetic = tuple(name for name in read if registry.require(name).is_synthetic)
+    analytical = [name for name in read if registry.require(name).source == "analytical"]
+    if analytical and analytical_rows_synthetic is None:
+        raise ValueError(
+            "analytical tables are labelled per row: pass analytical_rows_synthetic "
+            f"for {', '.join(analytical)}"
+        )
+    synthetic = tuple(
+        name
+        for name in read
+        if registry.require(name).is_synthetic
+        or (name in analytical and analytical_rows_synthetic)
+    )
     if not synthetic:
         return "real", ()
     if len(synthetic) == len(read):

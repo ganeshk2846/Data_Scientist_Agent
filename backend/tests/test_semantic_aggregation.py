@@ -8,6 +8,7 @@ import pytest
 
 from catalog.registry import MetricRegistry
 from semantic.aggregation import AggregationRegistry, MetricAggregation, MetricComponent
+from semantic.metrics_v2 import SYNTHETIC_METRIC_IDS, all_metrics
 
 
 def _squash(sql: str) -> str:
@@ -15,11 +16,28 @@ def _squash(sql: str) -> str:
 
 
 def test_every_registry_metric_has_exactly_one_aggregation():
-    metrics = MetricRegistry.default()
+    metrics = all_metrics()
     aggregations = AggregationRegistry()
 
     assert set(aggregations.metric_ids()) == {m.metric_id for m in metrics.metrics}
-    assert len(aggregations) == len(metrics) == 9
+    assert len(MetricRegistry.default()) == 9
+    assert len(aggregations) == len(metrics) == 16
+
+
+def test_synthetic_kpis_are_registered_and_labelled():
+    assert SYNTHETIC_METRIC_IDS == {
+        "marketing_spend",
+        "sessions",
+        "conversion_rate",
+        "stockout_rate",
+        "return_rate",
+        "margin",
+        "target_attainment",
+    }
+    for metric_id in SYNTHETIC_METRIC_IDS:
+        metric = all_metrics().require(metric_id)
+        assert any("synthetic" in caveat.lower() for caveat in metric.caveats)
+        assert MetricRegistry.default().get(metric_id) is None
 
 
 @pytest.mark.parametrize(
@@ -34,6 +52,13 @@ def test_every_registry_metric_has_exactly_one_aggregation():
         ("review_score", "mean"),
         ("aov", "ratio"),
         ("cancellation_rate", "ratio"),
+        ("marketing_spend", "sum"),
+        ("sessions", "sum"),
+        ("conversion_rate", "ratio"),
+        ("stockout_rate", "ratio"),
+        ("return_rate", "ratio"),
+        ("margin", "ratio"),
+        ("target_attainment", "ratio"),
     ],
 )
 def test_aggregation_class(metric_id, expected):
@@ -41,8 +66,10 @@ def test_aggregation_class(metric_id, expected):
 
 
 def test_ratio_components_are_the_metrics_own_parts():
-    metrics = MetricRegistry.default()
-    for metric_id in ("aov", "cancellation_rate"):
+    metrics = all_metrics()
+    ratios = [m for m in AggregationRegistry().metric_ids() if AggregationRegistry().require(m).aggregation == "ratio"]
+    assert len(ratios) == 7
+    for metric_id in ratios:
         entry = AggregationRegistry().require(metric_id)
         formula = _squash(metrics.require(metric_id).formula)
         assert _squash(entry.numerator.formula) in formula

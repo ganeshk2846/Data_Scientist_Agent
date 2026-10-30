@@ -37,11 +37,20 @@ SYNTHETIC = {
     "delivery_sla",
 }
 
+ANALYTICAL = {
+    "kpi_daily",
+    "analytical_series",
+    "analytical_anomalies",
+    "analytical_forecasts",
+    "driver_contributions",
+}
+
 
 def test_registry_holds_19_tables_with_synthetic_flag():
     registry = TableRegistry.default()
 
-    assert len(registry) == 19
+    assert len(registry.base()) == 19
+    assert {t.name for t in registry.analytical()} == ANALYTICAL
     assert {t.name for t in registry.real()} == REAL
     assert {t.name for t in registry.synthetic()} == SYNTHETIC
     for table in registry.synthetic():
@@ -72,6 +81,15 @@ def test_tables_in_sql_ignores_ctes_and_aliases():
 )
 def test_data_layer_for(tables, layer, synthetic):
     assert data_layer_for(tables) == (layer, synthetic)
+
+
+def test_analytical_tables_need_a_row_level_label():
+    with pytest.raises(ValueError, match="per row"):
+        data_layer_for(["analytical_anomalies"])
+    assert data_layer_for(["analytical_anomalies"], analytical_rows_synthetic=False) == ("real", ())
+    assert data_layer_for(
+        ["orders", "analytical_anomalies"], analytical_rows_synthetic=True
+    ) == ("mixed", ("analytical_anomalies",))
 
 
 def test_unknown_table_fails_closed():
