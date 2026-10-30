@@ -1,0 +1,9 @@
+metric_id: revenue
+name: Net Sales Revenue
+unit: BRL
+test_year: "2017"
+known_good_value: 6108492.27
+tolerance: 1.00
+aggregation: sum
+base_table: order_items
+is_synthetic: false

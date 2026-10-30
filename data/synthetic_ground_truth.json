@@ -1,0 +1,102 @@
+{
+  "version": "2.0.0",
+  "seed": 42,
+  "effects": [
+    {
+      "effect_id": "E1",
+      "name": "Marketing Cut",
+      "window": "2018-03 to 2018-05",
+      "target_table": "marketing_spend",
+      "dimension": "channel='paid_search', customer_state in ('SP', 'RJ')",
+      "true_mechanism": "Paid-search marketing spend reduced by 40% in SP and RJ; traffic follows with a ~2-week lag.",
+      "expected_effect_size": "Spend -40.0%, Sessions -18.0%",
+      "confounder": "Category-mix shift in computers_accessories channel spend during the same period.",
+      "recovery_engine": "driver",
+      "parameters": {
+        "spend_reduction": 0.4,
+        "lag_days": 14,
+        "states": [
+          "SP",
+          "RJ"
+        ],
+        "channel": "paid_search"
+      }
+    },
+    {
+      "effect_id": "E2",
+      "name": "Top-Category Stockouts",
+      "window": "2017-11 to 2017-12",
+      "target_table": "inventory_daily",
+      "dimension": "product_category in ('bed_bath_table', 'health_beauty', 'sports_leisure')",
+      "true_mechanism": "25% of catalog items in top 3 categories marked out-of-stock (stockout_flag=1), suppressing item volume.",
+      "expected_effect_size": "Stockout rate 25.0% in peak window, ~12% item volume suppression",
+      "confounder": "Black-Friday seasonal demand surge in late November (2017-11-24 to 2017-11-27).",
+      "recovery_engine": "driver",
+      "parameters": {
+        "target_categories": [
+          "bed_bath_table",
+          "health_beauty",
+          "sports_leisure"
+        ],
+        "stockout_ratio": 0.25,
+        "window_start": "2017-11-15",
+        "window_end": "2017-12-15"
+      }
+    },
+    {
+      "effect_id": "E3",
+      "name": "Promo AOV Dilution",
+      "window": "2018-01 to 2018-02",
+      "target_table": "promotions",
+      "dimension": "discount_pct=0.20",
+      "true_mechanism": "20% discount across major categories lifts order count by ~15% while AOV drops by ~12%, GMV remains flat.",
+      "expected_effect_size": "Order Count +15.0%, AOV -12.0%, GMV ~0.0% change",
+      "confounder": "Payment method mix shift toward boleto payment options.",
+      "recovery_engine": "driver",
+      "parameters": {
+        "discount_pct": 0.2,
+        "order_lift": 0.15,
+        "aov_drop": -0.12,
+        "promo_id": "PROMO_2018_SUMMER_DEAL"
+      }
+    },
+    {
+      "effect_id": "E4",
+      "name": "Delivery Delay Spike",
+      "window": "2018-06",
+      "target_table": "delivery_sla",
+      "dimension": "carrier='carrier_sul', customer_state in ('RS', 'SC', 'PR')",
+      "true_mechanism": "Regional logistics congestion for carrier_sul increases transit days by +11, driving SLA breach to 35% with lagged review score drop.",
+      "expected_effect_size": "Actual delivery days +11, SLA breach rate 35.0%, Review score drop -0.80",
+      "confounder": "Simultaneous increase in average regional freight costs due to expedited rerouting.",
+      "recovery_engine": "anomaly",
+      "parameters": {
+        "carrier": "carrier_sul",
+        "states": [
+          "RS",
+          "SC",
+          "PR"
+        ],
+        "actual_days_increase": 11,
+        "target_month": "2018-06"
+      }
+    },
+    {
+      "effect_id": "E5",
+      "name": "Price Elasticity Shift",
+      "window": "2018-04 to 2018-06",
+      "target_table": "price_history",
+      "dimension": "product_category='telefonia'",
+      "true_mechanism": "+10% list price adjustment results in -15% demand reduction; empirical elasticity = -1.50.",
+      "expected_effect_size": "List price +10.0%, Unit volume -15.0%, Elasticity -1.50",
+      "confounder": "Competitor price movement (+8%) lagged by 1 week.",
+      "recovery_engine": "scenario",
+      "parameters": {
+        "category": "telefonia",
+        "price_delta_pct": 0.1,
+        "volume_delta_pct": -0.15,
+        "elasticity": -1.5
+      }
+    }
+  ]
+}

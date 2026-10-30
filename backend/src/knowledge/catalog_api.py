@@ -151,6 +151,14 @@ class CatalogAPI:
             if needle in str(v).casefold()
         ][:limit]
 
+    def semantics_prose(self, name: str) -> str | None:
+        """Read prose documentation from semantics/<name>.md if available."""
+        repo_root = Path(__file__).resolve().parents[3]
+        doc_path = repo_root / "semantics" / f"{name}.md"
+        if doc_path.exists():
+            return doc_path.read_text(encoding="utf-8")
+        return None
+
 
 def _edge_endpoints(value):
     if isinstance(value, (list, tuple, set)):

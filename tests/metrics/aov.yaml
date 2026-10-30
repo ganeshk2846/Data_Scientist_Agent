@@ -1,0 +1,11 @@
+metric_id: aov
+name: Average Order Value
+unit: BRL/order
+test_year: "2017"
+known_good_value: 137.66
+tolerance: 0.10
+aggregation: ratio
+numerator_metric: revenue
+denominator_metric: order_count
+base_table: order_items
+is_synthetic: false

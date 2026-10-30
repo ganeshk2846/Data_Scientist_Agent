@@ -28,7 +28,10 @@ from trace_logger import TraceLogger
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
 _DATABASE_PATH = (
-    Path(os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH))
+    Path(
+        os.environ.get("DS_AGENT_DB")
+        or os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
+    )
     .expanduser()
     .resolve()
 )

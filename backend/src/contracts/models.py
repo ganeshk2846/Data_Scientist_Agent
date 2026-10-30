@@ -213,7 +213,9 @@ class ValidationResult(ContractModel):
         if len(check_ids) != len(set(check_ids)):
             raise ValueError("validation check ids must be unique")
         if self.approved and any(check.status == "fail" for check in self.checks):
-            raise ValueError("an approved ValidationResult cannot contain a failed check")
+            raise ValueError(
+                "an approved ValidationResult cannot contain a failed check"
+            )
         return self
 
 
@@ -270,8 +272,7 @@ class SchemaAllowlist(ContractModel):
     @property
     def column_set(self) -> frozenset[tuple[str, str]]:
         return frozenset(
-            (column.table.lower(), column.column.lower())
-            for column in self.columns
+            (column.table.lower(), column.column.lower()) for column in self.columns
         )
 
     def permits_table(self, table: str) -> bool:
@@ -402,6 +403,11 @@ class MetricDefinition(ContractModel):
     version: int = Field(default=1, ge=1)
     approved_by: str = "seed"
     approved_at: str = "1970-01-01T00:00:00Z"
+    aggregation: Literal["sum", "count", "mean", "ratio"] = "sum"
+    numerator_metric: str | None = None
+    denominator_metric: str | None = None
+    completeness_rule: str | None = None
+    is_synthetic: bool = False
 
 
 class ResolvedDimension(ContractModel):
@@ -510,9 +516,7 @@ IntentLabel = Literal[
     "Prescriptive",
 ]
 AnalystColumnRole = Literal["dimension", "measure", "time", "key", "label"]
-AnomalyVerdict = Literal[
-    "unusual", "within_normal_range", "insufficient_evidence"
-]
+AnomalyVerdict = Literal["unusual", "within_normal_range", "insufficient_evidence"]
 AnomalyPersistence = Literal["one_off", "sustained", "drift", "unknown"]
 AnalystStatus = Literal["ok", "insufficient_evidence"]
 # The registered analyst engines. V1 shipped the first three; the V2 engines
@@ -1300,56 +1304,8 @@ class AnswerEnvelope(ContractModel):
 
 
 __all__ = [
+    "ActionOption",
     "AllowlistedColumn",
-    "ClarificationResult",
-    "IntendedColumn",
-    "ModelUsage",
-    "RepairAttempt",
-    "RepairError",
-    "RepairErrorKind",
-    "RepairOutcome",
-    "RepairRequest",
-    "SchemaAllowlist",
-    "SqlCandidate",
-    "SqlOrigin",
-    "AnswerabilityResult",
-    "ColumnRole",
-    "ContractModel",
-    "EstimatedCost",
-    "ExecutionColumn",
-    "ExecutionError",
-    "ExecutionErrorKind",
-    "ExecutionResult",
-    "ExecutionStatus",
-    "GatewayConfig",
-    "GuardReason",
-    "GuardResult",
-    "JoinCardinality",
-    "LinkedValue",
-    "MetricAllowedDimension",
-    "MetricCoverage",
-    "MetricDefinition",
-    "MetricFilter",
-    "MetricFilterOperator",
-    "MetricJoinPath",
-    "MetricReconciliation",
-    "MetricResolution",
-    "MetricTimeGrain",
-    "Period",
-    "ReconciliationCheck",
-    "ReconciliationCheckName",
-    "ReconciliationCheckStatus",
-    "ReconciliationComparison",
-    "ReconciliationResult",
-    "ReconciliationStatus",
-    "ResolvedDimension",
-    "PerceptionResult",
-    "PerceptorConfig",
-    "ValidationCheck",
-    "ValidationCheckName",
-    "ValidationCheckStatus",
-    "ValidationMode",
-    "ValidationResult",
     "AnalystArtifact",
     "AnalystColumn",
     "AnalystColumnRole",
@@ -1361,62 +1317,110 @@ __all__ = [
     "AnomalyPersistence",
     "AnomalyResult",
     "AnomalyVerdict",
-    "BudgetPolicy",
-    "BudgetUsage",
-    "ClassifierSignal",
-    "ChurnProcessMetadata",
-    "Confounder",
-    "DriverContribution",
-    "DriverResult",
-    "ExecutionBudget",
-    "GroundTruthManifest",
-    "GroundTruthSplit",
-    "InsufficientEvidenceCase",
-    "IntentLabel",
-    "ModelRouteSignal",
-    "NegativeControl",
-    "NegativeControlKind",
-    "OrchestrationResult",
-    "OrchestrationStatus",
-    "PlantedAnomaly",
-    "PlantedAnomalyKind",
-    "PlantedDriver",
-    "PlantedDriverCauseKind",
-    "PlanStep",
-    "PlanStepStatus",
-    "QueryRecord",
-    "RouteLabel",
-    "RouteSlots",
-    "RouterResult",
-    "RouterSignals",
-    "RulesSignal",
-    "SlotFilter",
-    "TableRef",
-    "TimeSlot",
-    "TrueRiskSegment",
-    "TruthUnit",
-    "ActionOption",
     "AnswerEnvelope",
+    "AnswerabilityResult",
     "AskRequest",
     "AskResponse",
     "BlockBlock",
+    "BudgetPolicy",
+    "BudgetUsage",
+    "ChurnProcessMetadata",
     "ClaimKind",
     "ClaimNumber",
     "ClaimSource",
+    "ClarificationResult",
+    "ClassifierSignal",
+    "ColumnRole",
+    "Confounder",
+    "ContractModel",
+    "DriverContribution",
+    "DriverResult",
     "DroppedClaim",
     "EnvelopeQueryRecord",
     "EnvelopeScope",
+    "EstimatedCost",
     "EvidenceBlock",
+    "ExecutionBudget",
+    "ExecutionColumn",
+    "ExecutionError",
+    "ExecutionErrorKind",
+    "ExecutionResult",
+    "ExecutionStatus",
     "FactCheckAction",
     "FactCheckResult",
     "FactCheckViolation",
     "FactCheckViolationKind",
+    "GatewayConfig",
+    "GroundTruthManifest",
+    "GroundTruthSplit",
+    "GuardReason",
+    "GuardResult",
+    "InsufficientEvidenceCase",
+    "IntendedColumn",
+    "IntentLabel",
+    "JoinCardinality",
     "Ledger",
     "LedgerClaim",
+    "LinkedValue",
     "MethodStep",
+    "MetricAllowedDimension",
+    "MetricCoverage",
+    "MetricDefinition",
+    "MetricFilter",
+    "MetricFilterOperator",
+    "MetricJoinPath",
+    "MetricReconciliation",
+    "MetricResolution",
+    "MetricTimeGrain",
+    "ModelRouteSignal",
+    "ModelUsage",
+    "NegativeControl",
+    "NegativeControlKind",
+    "OrchestrationResult",
+    "OrchestrationStatus",
+    "PerceptionResult",
+    "PerceptorConfig",
+    "Period",
+    "PlanStep",
+    "PlanStepStatus",
+    "PlantedAnomaly",
+    "PlantedAnomalyKind",
+    "PlantedDriver",
+    "PlantedDriverCauseKind",
     "Provenance",
+    "QueryRecord",
+    "ReconciliationCheck",
+    "ReconciliationCheckName",
+    "ReconciliationCheckStatus",
+    "ReconciliationComparison",
+    "ReconciliationResult",
+    "ReconciliationStatus",
     "RefusalBlock",
+    "RepairAttempt",
+    "RepairError",
+    "RepairErrorKind",
+    "RepairOutcome",
+    "RepairRequest",
+    "ResolvedDimension",
+    "RouteLabel",
+    "RouteSlots",
     "RouteSummary",
+    "RouterResult",
+    "RouterSignals",
+    "RulesSignal",
     "RunMetrics",
     "RunStatus",
+    "SchemaAllowlist",
+    "SlotFilter",
+    "SqlCandidate",
+    "SqlOrigin",
+    "TableRef",
+    "TimeSlot",
+    "TrueRiskSegment",
+    "TruthUnit",
+    "ValidationCheck",
+    "ValidationCheckName",
+    "ValidationCheckStatus",
+    "ValidationMode",
+    "ValidationResult",
 ]

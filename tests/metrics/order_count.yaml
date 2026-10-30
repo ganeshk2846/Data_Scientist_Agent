@@ -1,0 +1,9 @@
+metric_id: order_count
+name: Order Volume
+unit: orders
+test_year: "2017"
+known_good_value: 44375
+tolerance: 0
+aggregation: count
+base_table: orders
+is_synthetic: false
