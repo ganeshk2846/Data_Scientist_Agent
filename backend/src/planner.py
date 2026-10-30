@@ -93,8 +93,10 @@ class AnalyticalParams(ContractModel):
 
 
 class CatalogParams(ContractModel):
-    lookup: Literal["warehouse", "metric_definition", "action_library"]
+    lookup: Literal["warehouse", "metric_definition", "action_library", "table", "metrics"]
     metric_ids: tuple[str, ...] = ()
+    #: For lookup "table": a name from the closed table registry, never free text.
+    table: str | None = Field(default=None, pattern=r"^[a-z_][a-z0-9_]*$")
 
 
 ENGINE_PARAMS: dict[str, type[ContractModel]] = {
@@ -288,6 +290,17 @@ class Planner:
         }, produces="rows", purpose=f"Monthly {metric} series{' by ' + dimension if dimension else ''} through the last complete month.")
 
     def _plan_discovery(self, draft, resolved, entities, special, use_analytical, metric) -> None:
+        table = next((item.split(":", 1)[1] for item in special if item.startswith("table:")), None)
+        if table is not None:
+            draft.add("catalog:table", "catalog", {"lookup": "table", "table": table}, produces="catalog_facts",
+                      purpose=f"What the {table} table holds: layer, grain, rows, dates, columns and the metrics built on it.")
+            draft.covered.append("discovery")
+            return
+        if "metric_list" in special:
+            draft.add("catalog:metrics", "catalog", {"lookup": "metrics"}, produces="catalog_facts",
+                      purpose="Every governed metric with its layer, breakdowns and example questions.")
+            draft.covered.append("discovery")
+            return
         if metric and any(word in resolved.text.lower() for word in ("defined", "definition", "mean", "difference between", "dimensions", "break")):
             ids = [metric, *entities.secondary_metric_ids]
             draft.add("catalog:definition", "catalog", {"lookup": "metric_definition", "metric_ids": ids}, produces="catalog_facts",

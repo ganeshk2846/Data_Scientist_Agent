@@ -165,6 +165,26 @@ def create_app(
             return JSONResponse(status_code=202, content={"contract_version": "2.0.0", "run_id": run_id, "status": "running"})
         return JSONResponse(content=envelope.model_dump(mode="json"))
 
+    @app.get("/api/sessions/{session_id}/history")
+    def session_history(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """The session's ContextState (contracts.md §1): the caller's own turns only (OPS-4)."""
+        principal = authenticator.authenticate(authorization)
+        state = v2.contexts.history(principal, session_id, catalog_version=v2.catalog_version())
+        return JSONResponse(content=state.model_dump(mode="json"))
+
+    @app.post("/api/sessions/{session_id}/reset")
+    def session_reset(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """Forget the caller's context for this session; the next question is cold."""
+        principal = authenticator.authenticate(authorization)
+        cleared = v2.contexts.reset(principal, session_id)
+        return JSONResponse(content={"session_id": session_id, "cleared_turns": cleared})
+
     @app.get("/api/runs/{run_id}/events")
     def events(
         run_id: str,
