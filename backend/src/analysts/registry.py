@@ -14,17 +14,35 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal, Protocol
 
-from contracts.models import AnalystInput, AnalystOutput
+from contracts.models import AnalystInput, AnalystOutput, ContractModel
 
-from .anomaly import AnomalyAnalyst
-from .driver import DriverAnalyst
+from .anomaly import AnomalyAnalyst, AnomalyParams
+from .driver import DriverAnalyst, DriverParams
+from .forecast import ForecastAnalyst
+from .forecast import ForecastParams
+from .impact import ImpactAnalyst, ImpactParams
+from .scenario import ScenarioAnalyst, ScenarioParams
+from .segment import SegmentAnalyst, SegmentParams
 
-AnalystName = Literal["anomaly", "driver", "risk", "advisor"]
+AnalystName = Literal[
+    "anomaly",
+    "driver",
+    "risk",
+    "advisor",
+    "forecast",
+    "impact",
+    "scenario",
+    "segment",
+]
 AnalystModuleStatus = Literal["implemented", "planned"]
 
 APPROVED_MODULES: tuple[AnalystName, ...] = (
     "anomaly",
     "driver",
+    "forecast",
+    "impact",
+    "scenario",
+    "segment",
     "risk",
     "advisor",
 )
@@ -62,12 +80,17 @@ class AnalystMetadata:
     requirement_ids: tuple[str, ...]
     callable_available: bool
     unavailable_reason: str | None = None
+    params_schema: type[ContractModel] | None = None
 
 
 _IMPLEMENTED_ANALYSTS: Mapping[str, RegisteredAnalyst] = MappingProxyType(
     {
         "anomaly": AnomalyAnalyst(),
         "driver": DriverAnalyst(),
+        "forecast": ForecastAnalyst(),
+        "impact": ImpactAnalyst(),
+        "scenario": ScenarioAnalyst(),
+        "segment": SegmentAnalyst(),
     }
 )
 
@@ -78,12 +101,42 @@ _METADATA: Mapping[str, AnalystMetadata] = MappingProxyType(
             status="implemented",
             requirement_ids=_REGISTRY_REQUIREMENTS,
             callable_available=True,
+            params_schema=AnomalyParams,
         ),
         "driver": AnalystMetadata(
             module="driver",
             status="implemented",
             requirement_ids=_REGISTRY_REQUIREMENTS,
             callable_available=True,
+            params_schema=DriverParams,
+        ),
+        "forecast": AnalystMetadata(
+            module="forecast",
+            status="implemented",
+            requirement_ids=_REGISTRY_REQUIREMENTS,
+            callable_available=True,
+            params_schema=ForecastParams,
+        ),
+        "impact": AnalystMetadata(
+            module="impact",
+            status="implemented",
+            requirement_ids=_REGISTRY_REQUIREMENTS,
+            callable_available=True,
+            params_schema=ImpactParams,
+        ),
+        "scenario": AnalystMetadata(
+            module="scenario",
+            status="implemented",
+            requirement_ids=_REGISTRY_REQUIREMENTS,
+            callable_available=True,
+            params_schema=ScenarioParams,
+        ),
+        "segment": AnalystMetadata(
+            module="segment",
+            status="implemented",
+            requirement_ids=_REGISTRY_REQUIREMENTS,
+            callable_available=True,
+            params_schema=SegmentParams,
         ),
         "risk": AnalystMetadata(
             module="risk",

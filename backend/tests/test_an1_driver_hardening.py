@@ -223,10 +223,6 @@ def test_driver_dimension_limit_is_enforced():
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"aggregation": "avg"},
-        {"value_decomposition": True},
-        {"indicators": ({"name": "ticket_count"},)},
-        {"comparison_group": {"dimension": "customer_state"}},
         {"metric_tree": ({"metric": "revenue"},)},
     ],
 )

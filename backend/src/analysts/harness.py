@@ -15,15 +15,20 @@ from contracts.models import (
     AnalystColumn,
     AnalystColumnRole,
     AnalystInput,
-    AnalystOutput,
+    AnalystOutput as V1AnalystOutput,
     ExecutionColumn,
     ExecutionResult,
     MetricDefinition,
     TableRef,
 )
+from contracts.v2 import AnalystOutput
 
 from .anomaly import AnomalyAnalyst
 from .driver import DriverAnalyst
+from .forecast import ForecastAnalyst
+from .impact import ImpactAnalyst
+from .scenario import ScenarioAnalyst
+from .segment import SegmentAnalyst
 
 
 class UnsupportedAnalystError(ValueError):
@@ -31,7 +36,7 @@ class UnsupportedAnalystError(ValueError):
 
 
 class AnalystModule(Protocol):
-    def run(self, analyst_input: AnalystInput) -> AnalystOutput:
+    def run(self, analyst_input: AnalystInput) -> V1AnalystOutput | AnalystOutput:
         ...
 
 
@@ -46,6 +51,10 @@ class AnalystHarness:
             modules = {
                 "anomaly": AnomalyAnalyst(),
                 "driver": DriverAnalyst(),
+                "forecast": ForecastAnalyst(),
+                "impact": ImpactAnalyst(),
+                "scenario": ScenarioAnalyst(),
+                "segment": SegmentAnalyst(),
             }
         self._modules = dict(modules)
 
@@ -113,14 +122,14 @@ class AnalystHarness:
             seed=seed,
         )
 
-    def run(self, analyst_input: AnalystInput) -> AnalystOutput:
+    def run(self, analyst_input: AnalystInput) -> V1AnalystOutput | AnalystOutput:
         module = self._modules.get(analyst_input.module)
         if module is None:
             raise UnsupportedAnalystError(
                 f"unsupported analyst module: {analyst_input.module}"
             )
         output = module.run(analyst_input)
-        if not isinstance(output, AnalystOutput):
+        if not isinstance(output, V1AnalystOutput):
             raise TypeError("an analyst must return AnalystOutput")
         if output.module != analyst_input.module:
             raise ValueError("analyst output module does not match its input")
