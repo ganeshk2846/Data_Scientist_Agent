@@ -1,0 +1,202 @@
+# V2 question bank (spec/v2/scope.md sections 3-7). Track 3 acceptance.
+#
+# Every case states what the SPEC expects, not what the code happens to do:
+#   intents  - the final IntentResult intents (order-insensitive set; "first" pins the primary)
+#   outcome  - "answer" (a plan is built) or "clarify" (one question with options)
+#   entities - optional subset: metric, dimensions, filters {dim: [values]}, period "YYYY-MM..YYYY-MM",
+#              comparison, horizon, scenario [{target, kind, value}]
+#   plan     - optional tool sequence the plan must equal; deps pins depends_on by 1-based index
+#   must_answer - executed end to end on the seeded V2 build; must return status "answered"
+#   slot     - for clarifications, the slot asked about
+#
+# Follow-ups (U*) are asked COLD here: context is Track 4, so a follow-up with no
+# prior turn must clarify (scope.md 6.3 rule 1), except where it carries its own intent.
+
+cases:
+  # ----------------------------------------------------------------- discovery
+  - {id: D1, question: "What data do you have?", intents: [discovery], outcome: answer, plan: [catalog], must_answer: true}
+  - {id: D2, question: "Which metrics can you calculate?", intents: [discovery], outcome: answer, plan: [catalog]}
+  - {id: D3, question: "What time period does the data cover?", intents: [discovery], outcome: answer, plan: [catalog]}
+  - {id: D4, question: "Can I break revenue down by region?", intents: [discovery], outcome: answer, entities: {metric: revenue}, plan: [catalog]}
+  - {id: D5, question: "What dimensions are available for AOV?", intents: [discovery], outcome: answer, entities: {metric: aov}, plan: [catalog]}
+  - {id: D6, question: "How is revenue defined here?", intents: [discovery], outcome: answer, entities: {metric: revenue}, plan: [catalog]}
+  - {id: D7, question: "What's the difference between GMV and revenue?", intents: [discovery], outcome: answer, entities: {metric: gmv}, plan: [catalog]}
+  - {id: D8, question: "Do you have marketing or traffic data?", intents: [discovery], outcome: answer, plan: [catalog]}
+  - {id: D9, question: "How many customers are in the database?", intents: [discovery], outcome: answer, plan: [catalog]}
+  - {id: D10, question: "Do you have customer age or gender?", intents: [clarify], outcome: clarify, slot: intent, missing: [age, gender]}
+
+  # ------------------------------------------------------------------- clarify
+  - {id: C1, question: "Summarize revenue", intents: [clarify], outcome: clarify, slot: period, default_label: "Last 12 complete months"}
+  - {id: C2, question: "How are sales doing?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C3, question: "Show me the top states", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C4, question: "Why did it drop?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C5, question: "Compare the two biggest regions", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C6, question: "What about last month?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C7, question: "Revenue by category - recent", intents: [clarify], outcome: clarify, slot: period}
+  - {id: C8, question: "Is freight expensive?", intents: [clarify], outcome: clarify}
+  - {id: C9, question: "Give me the numbers for SP", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C10, question: "Show growth", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: C11, question: "What was gross revenue in 2018?", intents: [clarify], outcome: clarify, slot: metric}
+
+  # --------------------------------------------------------------- descriptive
+  - {id: S1, question: "How many orders were there in August 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: order_count, period: "2018-08..2018-08"}, plan: [sql]}
+  - {id: S2, question: "What was revenue in 2017?", intents: [descriptive], outcome: answer, entities: {metric: revenue, period: "2017-01..2017-12"}, plan: [sql]}
+  - {id: S3, question: "What was GMV by customer state in 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: gmv, dimensions: [customer_state], period: "2018-01..2018-08"}, plan: [sql]}
+  - {id: S4, question: "How did revenue in 2018 compare to 2017?", intents: [descriptive], outcome: answer,
+     entities: {metric: revenue, period: "2018-01..2018-08", comparison: "2017-01..2017-08"}, plan: [sql]}
+  - {id: S5, question: "What are the spikes across all months?", intents: [descriptive], outcome: answer, plan: [analytical_table], must_answer: true}
+  - {id: S6, question: "Which product categories had the highest GMV in 2017?", intents: [descriptive], outcome: answer,
+     entities: {metric: gmv, dimensions: [product_category], period: "2017-01..2017-12"}, plan: [sql]}
+  - {id: S7, question: "What was the cancellation rate by month in 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: cancellation_rate, period: "2018-01..2018-08"}, plan: [sql]}
+  - {id: S8, question: "How many unique customers ordered in Q2 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: customer_count, period: "2018-04..2018-06"}, plan: [sql]}
+  - {id: S9, question: "What was the average review score by state in 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: review_score, dimensions: [customer_state]}, plan: [sql]}
+  - {id: S10, question: "What was marketing spend by channel in 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: marketing_spend, dimensions: [channel]}, plan: [sql]}
+  - {id: S11, question: "Show revenue by payment type in 2018", intents: [descriptive], outcome: answer,
+     entities: {metric: revenue, dimensions: [payment_type]}, plan: [sql]}
+  - {id: S12, question: "What was revenue in SP in August 2018?", intents: [descriptive], outcome: answer,
+     entities: {metric: revenue, filters: {customer_state: [SP]}, period: "2018-08..2018-08"}, plan: [sql]}
+  - {id: S13, question: "reveune by state in 2017", intents: [descriptive], outcome: answer, entities: {metric: revenue, dimensions: [customer_state]}}
+
+  # ---------------------------------------------------------------- diagnostic
+  - {id: G1, question: "Why did revenue drop in the top category in April 2018?", intents: [diagnostic], outcome: answer,
+     entities: {metric: gmv, dimensions: [product_category], period: "2018-04..2018-04"},
+     plan: [analytical_table, python.anomaly, analytical_table, sql, python.driver], must_answer: true}
+  - {id: G2, question: "Was order count unusual in August 2018?", intents: [diagnostic], outcome: answer,
+     entities: {metric: order_count, period: "2018-08..2018-08"}}
+  - {id: G3, question: "Why did order count fall in December 2017?", intents: [diagnostic], outcome: answer,
+     entities: {metric: order_count, period: "2017-12..2017-12"}}
+  - {id: G4, question: "Why did AOV fall in January 2018?", intents: [diagnostic], outcome: answer, entities: {metric: aov, period: "2018-01..2018-01"}}
+  - {id: G5, question: "Why did review scores drop in June 2018?", intents: [diagnostic], outcome: answer,
+     entities: {metric: review_score, period: "2018-06..2018-06"}}
+  - {id: G6, question: "What drove the GMV change between Q1 and Q2 2018?", intents: [diagnostic], outcome: answer,
+     entities: {metric: gmv, period: "2018-04..2018-06", comparison: "2018-01..2018-03"}}
+  - {id: G7, question: "Why is AOV higher for boleto than credit card?", intents: [diagnostic], outcome: answer, entities: {metric: aov}}
+  - {id: G8, question: "Which states drove the revenue decline in May 2018?", intents: [diagnostic], outcome: answer,
+     entities: {metric: revenue, dimensions: [customer_state], period: "2018-05..2018-05"}}
+  - {id: G9, question: "Why did cancellations rise in 2018 versus 2017?", intents: [diagnostic], outcome: answer,
+     entities: {metric: cancellation_rate, period: "2018-01..2018-08", comparison: "2017-01..2017-08"}}
+  - {id: G10, question: "Did the carrier cause the delivery delays?", intents: [diagnostic], outcome: answer,
+     plan: [sql, python.driver, python.driver]}
+
+  # -------------------------------------------------------------------- impact
+  - {id: I1, question: "How much did the April 2018 drop cost us?", intents: [impact], outcome: answer,
+     entities: {metric: revenue, period: "2018-04..2018-04"}, plan: [analytical_table, python.anomaly, python.impact], must_answer: true}
+  - {id: I2, question: "What is SP worth to us?", intents: [impact], outcome: answer, entities: {filters: {customer_state: [SP]}}}
+  # I3: revenue is recorded per order and the governed registry cannot split it by category, so grounding
+  # uses GMV (item grain) for the category breakdown and states that assumption.
+  - {id: I3, question: "How much revenue is exposed to the top 3 categories?", intents: [impact], outcome: answer, entities: {metric: gmv}}
+  - {id: I4, question: "What would closing the cancellation gap be worth?", intents: [impact], outcome: answer, entities: {metric: cancellation_rate}}
+  - {id: I5, question: "What was the return on the marketing spend we cut?", intents: [impact], outcome: answer, entities: {metric: marketing_spend}}
+  - {id: I6, question: "Which state's revenue decline mattered most in 2018?", intents: [impact], outcome: answer, entities: {metric: revenue}}
+  - {id: I7, question: "How far are we off the regional targets?", intents: [impact], outcome: answer,
+     plan: [analytical_table, sql, python.impact]}
+  - {id: I8, question: "How much of 2018 GMV came from repeat customers?", intents: [impact], outcome: answer, entities: {metric: gmv}}
+  - {id: I9, question: "What are the stockouts costing us?", intents: [impact], outcome: answer, entities: {metric: stockout_rate}}
+  - {id: I10, question: "How big is the 2018 revenue shortfall versus 2017?", intents: [impact], outcome: answer,
+     entities: {metric: revenue, period: "2018-01..2018-08", comparison: "2017-01..2017-08"}}
+
+  # ------------------------------------------------------------------ forecast
+  - {id: F1, question: "Forecast revenue for the next 3 months", intents: [forecast], outcome: answer,
+     entities: {metric: revenue, horizon: 3}, plan: [analytical_table], must_answer: true}
+  - {id: F2, question: "Where is order count heading?", intents: [forecast], outcome: answer, entities: {metric: order_count, horizon: 3}}
+  - {id: F3, question: "Forecast GMV for the next quarter", intents: [forecast], outcome: answer, entities: {metric: gmv, horizon: 3}}
+  - {id: F4, question: "What is the expected AOV next month?", intents: [forecast], outcome: answer, entities: {metric: aov, horizon: 1}}
+  - {id: F5, question: "Project revenue for SP over the next 6 months", intents: [forecast], outcome: answer,
+     entities: {metric: revenue, horizon: 6, filters: {customer_state: [SP]}}, plan: [analytical_table, python.forecast]}
+  - {id: F6, question: "Will cancellations keep rising?", intents: [forecast], outcome: answer, entities: {metric: cancellation_rate}}
+  - {id: F7, question: "How many customers will we have next quarter?", intents: [forecast], outcome: answer,
+     entities: {metric: customer_count, horizon: 3}}
+  - {id: F8, question: "Forecast review scores for the next 3 months", intents: [forecast], outcome: answer,
+     entities: {metric: review_score, horizon: 3}}
+  - {id: F9, question: "What will revenue be in 2020?", intents: [forecast], outcome: answer, entities: {metric: revenue}}
+  - {id: F10, question: "Forecast revenue for the next 3 months by category", intents: [forecast], outcome: answer,
+     entities: {horizon: 3, dimensions: [product_category]}}
+
+  # ------------------------------------------------------------------ scenario
+  - {id: X1, question: "What if freight costs rise 10%?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: freight_value, kind: multiplicative, value: 1.1}]}}
+  - {id: X2, question: "What if we lose SP entirely?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: revenue, kind: remove}]}}
+  - {id: X3, question: "What if the cancellation rate halved?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: cancellation_rate, kind: multiplicative, value: 0.5}]}}
+  - {id: X4, question: "What if credit card share grew to 85%?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{kind: absolute, value: 0.85}]}}
+  - {id: X5, question: "What if AOV improved 5% next quarter?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: aov, kind: multiplicative, value: 1.05}]}}
+  - {id: X6, question: "What if we raise prices 5%?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: price, kind: multiplicative, value: 1.05}]},
+     plan: [analytical_table, python.impact, sql, python.scenario], deps: {4: [2, 3]}, must_answer: true}
+  - {id: X7, question: "What if we restored the marketing spend we cut?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: marketing_spend}]}}
+  - {id: X8, question: "What if order volume grew 10% but AOV fell 5%?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: order_count, kind: multiplicative, value: 1.1}, {target: aov, kind: multiplicative, value: 0.95}]}}
+  - {id: X9, question: "What if we eliminated the stockouts?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: stockout_rate, kind: absolute, value: 0.0}]}}
+  - {id: X10, question: "What if we launched in Argentina?", intents: [clarify], outcome: clarify, slot: intent, missing: [Argentinian]}
+
+  # -------------------------------------------------------------- prescriptive
+  - {id: P1, question: "Which customer segment should we target?", intents: [prescriptive], outcome: answer,
+     plan: [sql, python.segment], must_answer: true}
+  - {id: P2, question: "What should we do about the April revenue decline?", intents: [prescriptive], outcome: answer,
+     entities: {metric: revenue, period: "2018-04..2018-04"}}
+  - {id: P3, question: "Where should we focus to grow GMV next quarter?", intents: [prescriptive], outcome: answer, entities: {metric: gmv}}
+  - {id: P4, question: "Which states should we prioritise?", intents: [prescriptive], outcome: answer}
+  - {id: P5, question: "How do we reduce cancellations?", intents: [prescriptive], outcome: answer, entities: {metric: cancellation_rate}}
+  - {id: P6, question: "What should we do about the delivery delays?", intents: [prescriptive], outcome: answer}
+  - {id: P7, question: "Which categories deserve more inventory?", intents: [prescriptive], outcome: answer, plan: [sql, python.segment]}
+  - {id: P8, question: "Should we run the promotion again?", intents: [prescriptive], outcome: answer}
+  - {id: P9, question: "Should we match competitor prices?", intents: [prescriptive], outcome: answer}
+  - {id: P10, question: "What should I watch next month?", intents: [prescriptive], outcome: answer,
+     plan: [analytical_table, catalog, python.segment]}
+
+  # ------------------------------------------------------------------ compound
+  - {id: K1, question: "How does revenue trend look today and what will it be in 3 months?", intents: [descriptive, forecast], first: descriptive,
+     outcome: answer, entities: {metric: revenue, horizon: 3, period: "2017-09..2018-08"}, plan: [sql, python.forecast], deps: {2: [1]},
+     must_answer: true}
+  - {id: K2, question: "Was August unusual, and why?", intents: [diagnostic], outcome: answer, entities: {metric: revenue, period: "2018-08..2018-08"}}
+  - {id: K3, question: "Why did revenue fall and what should we do?", intents: [diagnostic, impact, prescriptive], outcome: answer, entities: {metric: revenue}}
+  - {id: K4, question: "What's our biggest state and what happens if we lose it?", intents: [descriptive, scenario], outcome: answer}
+  - {id: K5, question: "Show me revenue by category and forecast the top three", intents: [descriptive, forecast], outcome: answer}
+  - {id: K6, question: "Is the cancellation rate rising, why, and what is it costing us?", intents: [diagnostic, impact], outcome: answer,
+     entities: {metric: cancellation_rate}}
+  - {id: K7, question: "Compare 2017 and 2018 and tell me what to watch", intents: [descriptive, prescriptive], outcome: answer}
+  - {id: K8, question: "What data do you have on freight, and is it unusual this year?", intents: [discovery, diagnostic], outcome: answer}
+  - {id: K9, question: "Forecast revenue and tell me what happens if freight rises 10%", intents: [forecast, scenario], outcome: answer,
+     entities: {metric: revenue, horizon: 3}}
+  - {id: K10, question: "Why did August fall, what did it cost, and what should we do?", intents: [diagnostic, impact, prescriptive], outcome: answer,
+     entities: {period: "2018-08..2018-08"}}
+
+  # --------------------------------------------------------------------- vague
+  - {id: V1, question: "Summarize revenue", intents: [clarify], outcome: clarify, slot: period}
+  - {id: V2, question: "How's business?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V3, question: "Anything unusual?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V4, question: "Give me an overview", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V5, question: "What's wrong?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V6, question: "Tell me about SP", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V7, question: "Recent performance", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V8, question: "Best and worst", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V9, question: "Is growth good?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: V10, question: "Break it down", intents: [clarify], outcome: clarify, slot: metric}
+
+  # --------------------------------------------------------- follow-ups (cold)
+  - {id: U1, question: "What about SP?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: U2, question: "Why?", intents: [clarify], outcome: clarify}
+  - {id: U3, question: "Revenue fell in August 2018. Why?", intents: [diagnostic], outcome: answer, entities: {metric: revenue, period: "2018-08..2018-08"}}
+  - {id: U4, question: "Forecast that", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: U5, question: "Forecast revenue monthly", intents: [forecast], outcome: answer, entities: {metric: revenue, horizon: 3}}
+  - {id: U6, question: "And July?", intents: [clarify], outcome: clarify}
+  - {id: U7, question: "Just the top 5", intents: [clarify], outcome: clarify}
+  - {id: U8, question: "What did it add?", intents: [clarify], outcome: clarify, slot: metric}
+  - {id: U9, question: "What if freight rises 10%?", intents: [scenario], outcome: answer,
+     entities: {scenario: [{target: freight_value, kind: multiplicative, value: 1.1}]}}
+  - {id: U10, question: "Why is RJ lower?", intents: [clarify], outcome: clarify, slot: metric}
+
+  # ------------------------------------------------------ risk (decision 1A)
+  - {id: R1, question: "Which customers are likely to churn?", intents: [clarify], outcome: clarify, slot: intent}
+  - {id: R2, question: "Which customers are at risk?", intents: [clarify], outcome: clarify, slot: intent}
