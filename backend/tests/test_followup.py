@@ -408,3 +408,41 @@ def test_followup_and_context_modules_import_no_model_client_or_ledger():
         modules = {first or second for first, second in imports}
         for forbidden in ("models", "composer", "evidence", "requests", "httpx", "tools", "gateway", "engines"):
             assert not any(module == forbidden or module.startswith(forbidden + ".") for module in modules), (name, forbidden)
+
+
+def test_c29_u7_just_the_top_5_ranks_the_same_breakdown(pipeline):
+    chat = Conversation(pipeline)
+    chat.answer("GMV by category in 2018")
+    outcome = chat.ask("Just the top 5")
+    resolved = _followup(outcome, intent="descriptive", route="lookup",
+                         effective="What were the top 5 categories by gross merchandise value in 2018?",
+                         inherited={"metric_id", "dimensions", "period"})
+    assert outcome.rewrite.shape == "rank" and resolved.dimensions == ("product_category",)
+
+
+def test_c30_a_breakdown_by_the_filtered_dimension_replaces_that_filter(pipeline):
+    chat = Conversation(pipeline)
+    chat.answer("revenue in SP in July 2018")
+    resolved = _followup(chat.ask("What about the top states?"), intent="descriptive", route="lookup",
+                         effective="What were the top states by revenue in July 2018?", inherited={"metric_id", "period"})
+    assert resolved.filters == () and resolved.dimensions == ("customer_state",)
+    assert "filters" not in resolved.inherited_fields
+
+
+def test_c31_u8_what_did_it_add_routes_to_impact_on_the_prior_window(pipeline):
+    chat = Conversation(pipeline)
+    chat.answer("Why did revenue spike in Nov 2017?")
+    outcome = chat.ask("What did it add?")
+    assert outcome.rewrite.kind == "followup" and outcome.rewrite.shape == "escalate_impact"
+    envelope = outcome.envelope
+    assert envelope.intent.intent_names[0] == "impact" and envelope.route.labels[0] == "risk"
+    assert envelope.resolved_question.period == _month(2017, 11)
+    assert envelope.resolved_question.inherited_fields[:1] == ("metric_id",)
+
+
+def test_c32_u9_a_what_if_names_its_own_inputs_and_is_routed_as_a_scenario(pipeline):
+    chat = Conversation(pipeline)
+    chat.answer("Forecast revenue")
+    outcome = chat.ask("What if freight rises 10%?")
+    assert outcome.rewrite.kind == "cold"
+    assert outcome.envelope.intent.intent_names[0] == "scenario"

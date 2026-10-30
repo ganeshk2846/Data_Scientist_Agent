@@ -68,6 +68,8 @@ _PREVIOUS_PERIOD = re.compile(r"\b(?:previous|prior|last)\s+(?:month|period)\b|\
 _FORECAST = re.compile(r"\b(?:forecast|predict|project)\w*\b|\bwhat(?:'s| is| will)\b.*\bnext\b", re.IGNORECASE)
 _BREAKDOWN = re.compile(r"\bbreak\w*\s+(?:it|that|this|them)?\s*down\b|\bsplit\s+(?:it|that|this)\b|\bdrill\s+down\b",
                         re.IGNORECASE)
+_RANK = re.compile(r"\b(top|bottom|highest|lowest|biggest|largest|best|worst)(?:\s+(\d{1,2}))?\b", re.IGNORECASE)
+_PLURALS = {"category": "categories", "city": "cities"}
 _MONTHS = {name: index for index, name in enumerate(
     ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"),
     start=1)}
@@ -163,7 +165,7 @@ def _scope_text(filters: tuple[ResolvedFilter, ...]) -> str:
 
 def render(*, intent: IntentName, metric: str, filters: tuple[ResolvedFilter, ...], dimensions: tuple[str, ...],
            period: Period | None, comparison: Period | None, grain: str | None, anchor: str = DEFAULT_ANCHOR,
-           horizon: int = 3) -> str:
+           horizon: int = 3, rank: str | None = None) -> str:
     scope = _scope_text(filters)
     window = f" in {period_text(period, anchor=anchor)}" if period is not None else ""
     split = "".join(f" by {_DIMENSION_WORDS.get(name, name.replace('_', ' '))}" for name in dimensions)
@@ -175,6 +177,9 @@ def render(*, intent: IntentName, metric: str, filters: tuple[ResolvedFilter, ..
         return f"Forecast {grain_word}{metric}{scope}{split} for the next {horizon} months"
     if intent == "impact":
         return f"How much did the change in {metric}{scope}{window} cost us?"
+    if rank and dimensions:
+        word = _DIMENSION_WORDS.get(dimensions[0], dimensions[0].replace("_", " "))
+        return f"What were the {rank} {_PLURALS.get(word, word + 's')} by {metric}{scope}{window}?"
     if comparison is not None and period is not None:
         return (f"Compare {grain_word}{metric}{scope} in {period_text(period, anchor=anchor)} with "
                 f"{period_text(comparison, anchor=anchor)}{split}")
@@ -285,7 +290,8 @@ def rewrite(message: str, context: ContextState | None, *, extractor, registry=N
         special.discard("vague")  # "break it down" is vague only without a prior turn (V10)
     if extraction.absent or {"vague", "risk", "spike_scan"} & special or _COLD_INTENTS & set(names):
         return Rewrite(kind="cold", text=message)
-    has_slot = bool(entities.filters or entities.period or entities.dimensions or entities.grain or entities.comparison_period
+    rank_match = _RANK.search(message) if (prior.dimensions or entities.dimensions) else None
+    has_slot = bool(rank_match or entities.filters or entities.period or entities.dimensions or entities.grain or entities.comparison_period
                     or _BARE_MONTH.search(message) or _LAST_YEAR.search(message) or _BREAKDOWN.search(message))
     escalation = bool({"diagnostic", "forecast", "impact"} & set(names)) or bool(_FORECAST.search(message))
     if entities.metric_id is not None and not marker:
@@ -322,6 +328,10 @@ def rewrite(message: str, context: ContextState | None, *, extractor, registry=N
     if entities.dimensions:
         dimensions = list(dict.fromkeys([*dimensions, *entities.dimensions]))
         shape = shape or "drill_down"
+        # Breaking down by a dimension replaces a filter on that same dimension ("SP" -> "by state").
+        filters = [item for item in filters if item.dimension not in entities.dimensions]
+        if "filters" in inherited and not any(item in prior.filters for item in filters):
+            inherited.remove("filters")
         if prior.dimensions:
             inherited.append("dimensions")
     elif dimensions:
@@ -455,11 +465,16 @@ def rewrite(message: str, context: ContextState | None, *, extractor, registry=N
                                     choices=choices, rationale=f"{allowed[0]} is the first governed breakdown of this metric.")
             return Rewrite(kind="clarify", text=message, shape="drill_down", clarification=request, intent="descriptive", **common)
 
+    rank = None
+    if rank_match is not None and intent == "descriptive":
+        # U7 "just the top 5": the same breakdown, ranked.
+        rank = " ".join(part for part in (rank_match.group(1).lower(), rank_match.group(2)) if part)
+        shape = shape or "rank"
     ordered = tuple(name for name in SLOTS if name in inherited and _present(slots[name]))
     if not ordered:
         return Rewrite(kind="cold", text=message)
     effective = render(intent=intent, metric=metric_label, filters=slots["filters"], dimensions=slots["dimensions"],
-                       period=slots["period"], comparison=slots["comparison_period"], grain=slots["grain"], anchor=anchor)
+                       period=slots["period"], comparison=slots["comparison_period"], grain=slots["grain"], anchor=anchor, rank=rank)
     return Rewrite(kind="followup", text=effective, shape=shape or "restate", effective_text=effective,
                    patch=_minimal_patch(extractor, effective, slots),
                    inherited_fields=ordered, intent=intent, **common)
