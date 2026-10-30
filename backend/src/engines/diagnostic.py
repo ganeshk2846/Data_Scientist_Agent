@@ -644,13 +644,18 @@ def _rank(
         rows.append((item.value, "feature_importance", item.effect_size, item.interval[0], item.interval[1], None, None,
                      grade, "association in a fitted model (not causal)", 0, None,
                      "association in a fitted model" if grade == 2 else "demoted with its correlation evidence"))
-    for item in primary.drivers[: params.top_k]:
+    for item in _largest(primary.drivers, params.top_k):
         rows.append((f"{item.dimension}={item.value}", "contribution", item.contribution, item.interval[0], item.interval[1],
                      None, None, 1, EVIDENCE_LABELS[1], 0, None,
                      "ratio component (shares are not additive for a ratio)" if "(" in item.dimension else f"share {item.share:.3f} of the change"))
     method_order = {"difference_in_differences": 0, "correlation": 1, "feature_importance": 2, "contribution": 3}
     rows.sort(key=lambda row: (-row[7], method_order[row[1]], row[6] if row[6] is not None else (row[5] if row[5] is not None else 1.0), -abs(row[2]), row[0]))
     return rows
+
+
+def _largest(drivers: tuple[DriverContribution, ...], count: int) -> list[DriverContribution]:
+    """The largest contributions first (ratio components arrive in key order)."""
+    return sorted(drivers, key=lambda item: (-abs(item.contribution), item.dimension, item.value))[:count]
 
 
 def _pvm_contributions(pvm: dict[str, Any]) -> list[DriverContribution]:
@@ -673,7 +678,7 @@ def _report(
 ) -> EngineReport:
     drill_rows = []
     for level in levels:
-        for driver in level["result"].drivers[: params.top_k]:
+        for driver in _largest(level["result"].drivers, params.top_k):
             drill_rows.append((" / ".join(level["dimensions"]), driver.value, driver.contribution, driver.share,
                                driver.interval[0], driver.interval[1], level["concentration"]))
     tables = [
