@@ -1,8 +1,8 @@
 # V2 Contracts — Agent Hand-offs
 
 **Location in repo:** `spec/v2/contracts.md`
-**Status:** proposal for review. Implemented as frozen Pydantic v2 models in
-`backend/src/contracts/v2.py` **after approval**. Nothing here changes V1.
+**Status:** **implemented** in `backend/src/contracts/v2.py`, 101 tests.
+Deviations found during implementation are recorded in §11.
 **Companions:** [`scope.md`](scope.md), [`build-plan-v2.md`](build-plan-v2.md)
 **Inherits conventions from:** [`Interfaces.md`](../Interfaces.md) §1
 
@@ -42,7 +42,8 @@ names below deliberately reuse two of those words with different shapes:
 1. `contracts/v2.py` **re-exports** `Period`, `MetricDefinition`,
    `AnalystOutput`, `ExecutionResult` and `LedgerClaim` from
    `contracts.models` — they are correct as they stand and must not be
-   duplicated.
+   duplicated. (`AnalystOutput` needed one additive widening to name the new
+   engines; see §11.1.)
 2. `contracts/v2.py` defines `PlanStep` and `Plan` as **new** types. The module
    must never be star-imported alongside `contracts.models`; a test asserts
    `contracts.v2.PlanStep is not contracts.models.PlanStep` so the shadowing is
@@ -688,7 +689,7 @@ interface ToolProvenance {
         "dimensions": ["product_category"],
         "filters": []
       },
-      "depends_on": ["P2"],
+      "depends_on": [],
       "produces": "rows",
       "optional": false,
       "purpose": "Revenue by category for July and August 2018, for attribution."
@@ -745,7 +746,7 @@ interface ToolProvenance {
       "purpose": "Rank actions by quantified impact, evidence grade and feasibility."
     }
   ],
-  "depth": 5,
+  "depth": 4,
   "source": "model_drafted_code_validated",
   "intents_covered": ["diagnostic", "impact", "prescriptive"],
   "intents_dropped": [],
@@ -753,9 +754,19 @@ interface ToolProvenance {
 }
 ```
 
-Note that this plan needs **4** SQL queries, over V1's default `max_queries: 3`
+Note that this plan needs more queries than V1's default `max_queries: 3`
 (`models.py:984`). Per-intent budgets are a V2 deliverable, not an oversight
 (`OPS-2`, `OPS-6`).
+
+**P3 deliberately depends on nothing.** An earlier draft of this example had
+it wait on the anomaly step (`depends_on: ["P2"]`), which pushed the longest
+dependency chain to 6 and over the depth cap of 5 — the depth validator in
+`contracts/v2.py` rejected it. The dependency was never real: the
+by-category query does not need the anomaly verdict to be issued, only the
+window, which is known at planning time. Removing it brings the plan to depth
+4 **and** lets the two queries run in parallel (`OPS-5`). A false dependency
+costs latency and depth for nothing, which is exactly what the declared-depth
+check is there to surface.
 
 ---
 
@@ -1215,4 +1226,61 @@ interface FollowUpSuggestion {
    every invariant's violation being **rejected**; the namespace assertion of
    §0.1; and an architecture test that `contracts/v2.py` imports no model
    client (`SAFE-8`).
-4. Zero changes to `contracts/models.py` and zero changes to any existing test.
+4. Zero changes to any existing test. One **additive** change to
+   `contracts/models.py` was unavoidable — see §11.1.
+
+---
+
+## 11. Implementation notes and deviations
+
+Recorded during implementation so the spec and the code do not drift.
+
+### 11.1 `AnalystOutput.module` had to be widened (additive)
+
+§0.1 said `contracts/v2.py` would re-export `AnalystOutput` unchanged. That is
+not possible as written: V1 declares
+
+```python
+module: Literal["anomaly", "driver", "risk"]
+```
+
+so an `AnalystOutput` **cannot name** `forecast`, `impact`, `scenario` or
+`segment`. Since `ToolResult.analyst_output` is the only channel an engine
+result travels through, a literal that cannot name an engine cannot carry its
+result, and the contract would have been unimplementable.
+
+Resolution: a shared `AnalystModuleName` literal in `contracts/models.py`,
+used by `AnalystInput`, `AnalystOutput` and `EvidenceBlock`. **Widening a
+literal is additive** — every existing value stays valid, and all 440
+pre-existing tests pass untouched.
+
+### 11.2 Per-engine result payloads are deferred to Track 2
+
+`AnalystOutput` requires a typed `result` when its status is `ok`, and the
+union is currently `AnomalyResult | DriverResult`. The result shapes for the
+four new engines (`ForecastResult` and friends) are **Track 2 deliverables**,
+to be defined alongside the engines that produce them together with their
+params schemas and planted-truth scoring. Pinning their shape here would be
+speculative, so `contracts/v2.py` does not define them and the contract tests
+exercise the `ToolResult` envelope using an existing typed result. The
+`AnalystOutput.result` union widens in Track 2.
+
+### 11.3 One invariant added beyond the spec
+
+**TR-9.** An engine step's `ToolResult` must carry *that* engine's output:
+`tool = "python.driver"` with a `forecast` output is rejected. Mislabelling one
+engine's result as another's would misattribute every figure in it, and the
+check is free.
+
+### 11.4 The K10 example was wrong, and the validator caught it
+
+The flagship plan in §5 originally had `P3` (the by-category query) depend on
+`P2` (the anomaly step), giving a longest dependency chain of **6** against a
+cap of 5 — so the plan the spec held up as the V2 target could not have been
+built. The dependency was never real: that query needs only the window, known
+at planning time. Removing it brings the plan to depth 4 and lets the two
+queries run in parallel (`OPS-5`). The example and `"depth"` are corrected
+above.
+
+This is the declared-depth check (PL-2) doing its job: it exists precisely so
+a plan cannot understate its own shape.

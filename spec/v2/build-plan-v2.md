@@ -348,7 +348,7 @@ single easiest way to produce a confident wrong answer.
 
 | # | Criterion | Verification |
 | --- | --- | --- |
-| 3.1 | `contracts/v2.py`: every type in `contracts.md`, frozen and `extra="forbid"`, re-exporting V1 types rather than redefining them; the §0.1 namespace assertion holds | UT |
+| 3.1 | ✅ **done.** `contracts/v2.py`: every type in `contracts.md`, frozen and `extra="forbid"`, re-exporting V1 types rather than redefining them; the §0.1 namespace assertion holds. 101 tests. Deviations in `contracts.md` §11 | UT |
 | 3.2 | Every checkable invariant in `contracts.md` §10.2 has a validator, and a test that its violation is **rejected** | UT |
 | 3.3 | Intent accuracy over the 80 `scope.md` examples, reported as a confusion matrix including `discovery` and `clarify` | EV (`RTE-7`) |
 | 3.4 | Every compound question in `scope.md` §4 produces a plan covering all its intents, or drops one with a stated reason; `intents_covered + intents_dropped` always equals the accepted intents | UT, EV |
@@ -539,8 +539,21 @@ review checklist, so the rationale survives.
 
 ### Implementation order from here
 
-1. ✅ Specs updated (this commit).
-2. `backend/src/contracts/v2.py` + tests.
-3. V2-PRE-1 — driver `TypeError` fix + regression test, own commit.
-4. V2-PRE-2 — per-intent budgets, own commit.
-5. Full suite, then stop for review before Track 1.
+1. ✅ Specs updated.
+2. ✅ V2-PRE-1 — driver `TypeError` fixed, 2 regression tests, own commit
+   (`db1c4d1`). Verified end to end against the real snapshot.
+3. ✅ V2-PRE-2 — per-route budgets via `BudgetPolicy`, 6 tests, own commit
+   (`f965c07`).
+4. ✅ `backend/src/contracts/v2.py` + 101 tests. Suite at 541 green.
+5. **← stopped here for review before Track 1.**
+
+Track 1 is next and is the critical path: the synthetic generator, the
+completeness rule, the precomputed analytical tables and the discovery
+surface. Five of the nine must-answer questions depend on it.
+
+One thing to settle before Track 1 starts: `.gitignore` currently ignores
+`*.sqlite`, so `data/brazil_ecommerce_v2.sqlite` will not be committed. That
+is almost certainly right — it is a build artefact of a seeded generator and
+should be rebuilt, not stored — but it means `SYNTHETIC_GROUND_TRUTH.md` and
+the generator must be committed and the database must not, and CI has to run
+the generator before the eval suite.

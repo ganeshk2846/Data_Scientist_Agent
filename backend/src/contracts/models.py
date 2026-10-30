@@ -515,6 +515,20 @@ AnomalyVerdict = Literal[
 ]
 AnomalyPersistence = Literal["one_off", "sustained", "drift", "unknown"]
 AnalystStatus = Literal["ok", "insufficient_evidence"]
+# The registered analyst engines. V1 shipped the first three; the V2 engines
+# (spec/v2/build-plan-v2.md, track 2) are added here because AnalystOutput is
+# the type every engine returns, and a literal that cannot name an engine
+# cannot carry its result. Widening a Literal is additive: every existing
+# value stays valid.
+AnalystModuleName = Literal[
+    "anomaly",
+    "driver",
+    "risk",
+    "forecast",
+    "impact",
+    "scenario",
+    "segment",
+]
 OrchestrationStatus = Literal[
     "ok",
     "clarification",
@@ -627,7 +641,7 @@ class TableRef(ContractModel):
 
 
 class AnalystInput(ContractModel):
-    module: Literal["anomaly", "driver", "risk"]
+    module: AnalystModuleName
     params: dict[str, Any] = Field(default_factory=dict)
     tables: dict[str, TableRef] = Field(default_factory=dict)
     metric: MetricDefinition | None = None
@@ -960,7 +974,7 @@ class AnalystArtifact(ContractModel):
 
 
 class AnalystOutput(ContractModel):
-    module: Literal["anomaly", "driver", "risk"]
+    module: AnalystModuleName
     status: AnalystStatus
     reason: str | None = None
     result: AnomalyResult | DriverResult | None = None
@@ -1209,7 +1223,7 @@ class EnvelopeQueryRecord(ContractModel):
 
 
 class EvidenceBlock(ContractModel):
-    module: Literal["lookup", "anomaly", "driver", "risk"]
+    module: Literal["lookup"] | AnalystModuleName
     output: Any
     source_claims: tuple[str, ...] = ()
 
@@ -1340,6 +1354,7 @@ __all__ = [
     "AnalystColumn",
     "AnalystColumnRole",
     "AnalystInput",
+    "AnalystModuleName",
     "AnalystOutput",
     "AnalystStatus",
     "AnomalyParams",
