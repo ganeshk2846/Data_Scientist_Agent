@@ -275,3 +275,104 @@ def test_route_result_can_be_reused_to_avoid_routing_twice():
     assert outcome.router == route
     assert outcome.status == "ok"
     assert len(executor.sqls) == 1
+
+
+class DriverExecutor:
+    """Returns dimensioned contribution rows for the driver path (DRV-2)."""
+
+    def __init__(self, current_rows, comparison_rows):
+        self.current_rows = current_rows
+        self.comparison_rows = comparison_rows
+        self.sqls: list[str] = []
+        self.query_ids: list[str] = []
+
+    def execute(self, sql: str, *, query_id: str) -> ExecutionResult:
+        self.sqls.append(sql)
+        self.query_ids.append(query_id)
+        # The orchestrator compiles the current period first, then the
+        # comparison period, so the call order identifies the window.
+        rows = self.current_rows if len(self.sqls) == 1 else self.comparison_rows
+        return ExecutionResult(
+            query_id=query_id,
+            status="ok",
+            columns=(
+                ExecutionColumn(name="customer_state", type="TEXT"),
+                ExecutionColumn(name="order_count", type="INTEGER"),
+            ),
+            row_count=len(rows),
+            rows=tuple(rows),
+            duration_ms=2,
+        )
+
+
+def test_driver_route_completes_and_attributes_the_change():
+    """V2-PRE-1: the driver path raised TypeError on every call.
+
+    ``_contribution_table`` takes ``current_period``/``comparison_period``,
+    but the call site passed ``current``/``comparison``, so ``current`` was
+    supplied both positionally and by keyword. Every driver question returned
+    ``status: "error"``, which is why only "what" questions ever worked.
+    """
+
+    executor = DriverExecutor(
+        current_rows=(("SP", 60), ("RJ", 20), ("MG", 20)),
+        comparison_rows=(("SP", 100), ("RJ", 20), ("MG", 20)),
+    )
+    outcome = _orchestrator(executor).run(
+        "What drove the order count change by state in August 2018?"
+    )
+
+    assert outcome.status == "ok", outcome.reason
+    assert outcome.route_labels == ("driver",)
+    assert outcome.intent_label == "Diagnostic"
+
+    # Two contribution queries, one per window.
+    assert len(outcome.queries) == 2
+    assert [query.purpose for query in outcome.queries] == [
+        "current_contribution",
+        "comparison_contribution",
+    ]
+
+    # The analyst ran and attributed the change rather than erroring.
+    assert len(outcome.analyst_outputs) == 1
+    output = outcome.analyst_outputs[0]
+    assert output.module == "driver"
+    assert output.status == "ok", output.reason
+    result = output.result
+    assert result is not None
+
+    # SP is the only state that moved: -40 of a -40 total change.
+    assert result.total_change == -40.0
+    top = result.drivers[0]
+    assert top.dimension == "customer_state"
+    assert top.value == "SP"
+    assert top.contribution == -40.0
+    assert top.share == 1.0
+    # DRV-2: contributions must reconcile to the total change exactly.
+    assert result.reconciliation_error == 0.0
+
+    assert [step.module for step in outcome.plan] == ["router", "driver"]
+    assert all(step.status == "completed" for step in outcome.plan)
+
+
+def test_driver_route_passes_distinct_periods_to_the_contribution_table():
+    """The two windows must stay distinguishable, not collapse into one.
+
+    The original defect passed one period twice. A fix that merely renamed the
+    argument while sending the same window to both would still bin every row
+    into one period and report a zero change, so assert the periods differ.
+    """
+
+    executor = DriverExecutor(
+        current_rows=(("SP", 60),),
+        comparison_rows=(("SP", 100),),
+    )
+    outcome = _orchestrator(executor).run(
+        "What drove the order count change by state in August 2018?"
+    )
+
+    assert outcome.status == "ok", outcome.reason
+    parameters = outcome.analyst_outputs[0].parameters
+    assert parameters["current_period"] != parameters["comparison_period"]
+    assert parameters["current_period"] == "2018-08-01/2018-09-01"
+    assert parameters["comparison_period"] == "2018-07-01/2018-08-01"

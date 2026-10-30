@@ -519,8 +519,8 @@ class Orchestrator:
             current_execution,
             comparison_execution,
             dimensions=dimensions,
-            current=current,
-            comparison=comparison,
+            current_period=current,
+            comparison_period=comparison,
         )
         params = {
             "metric": definition.metric_id,
