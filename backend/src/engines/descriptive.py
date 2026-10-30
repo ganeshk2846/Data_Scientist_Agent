@@ -346,6 +346,7 @@ def _empty(
         status="empty",
         produces="rows",
         rows=payload,
+        reason="No rows matched the requested window and filters.",
         provenance=ToolProvenance(
             source="sql",
             query_ids=(payload.query_id, table.query_id),
