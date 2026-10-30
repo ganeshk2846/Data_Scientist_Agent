@@ -24,6 +24,7 @@ from service import (
     build_runtime,
     format_sse_event,
 )
+from service_v2 import AskV2Request, V2Runner
 from trace_logger import TraceLogger
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
@@ -80,11 +81,14 @@ def create_app(
         else ApiTokenAuthenticator(api_tokens)
     )
 
+    v2 = V2Runner(service)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            v2.close()
             service.close()
 
     app = FastAPI(
@@ -94,6 +98,7 @@ def create_app(
     )
     app.state.run_service = service
     app.state.api_authenticator = authenticator
+    app.state.v2_runner = v2
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> HTMLResponse:
@@ -128,6 +133,37 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return AskResponse(run_id=run_id)
+
+    @app.post("/api/v2/ask", response_model=AskResponse)
+    def ask_v2(
+        payload: AskV2Request,
+        authorization: str | None = Header(default=None),
+    ) -> AskResponse:
+        """The V2 pipeline: intent, grounding, clarification, plan, steps (additive; /api/ask is unchanged)."""
+        principal = authenticator.authenticate(authorization)
+        try:
+            run_id = v2.submit(payload, owner_id=principal)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return AskResponse(run_id=run_id)
+
+    @app.get("/api/v2/runs/{run_id}")
+    def get_run_v2(
+        run_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        principal = authenticator.authenticate(authorization)
+        try:
+            if service.store.owner_id(run_id) != principal:
+                raise RunNotFoundError(run_id)
+            envelope = service.store.wait_for_envelope(run_id, timeout=15.0)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        if envelope is None:
+            return JSONResponse(status_code=202, content={"contract_version": "2.0.0", "run_id": run_id, "status": "running"})
+        return JSONResponse(content=envelope.model_dump(mode="json"))
 
     @app.get("/api/runs/{run_id}/events")
     def events(
