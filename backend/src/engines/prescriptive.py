@@ -83,12 +83,12 @@ def cluster_members(table: TableRef, profiles: Mapping[int, Mapping[str, float]]
         and column.name.lower() not in {"id", "customer_unique_id", "customer_id"}
     ]
     frame = frame_from_table(table)
+    # One plain dict per row (iterrows built a Series per row: ~15 s at 96k customers); same rules per value.
     records = []
-    for _, row in frame.iterrows():
+    for row in frame[usable].to_dict("records"):
         record: dict[str, Any] = {}
-        for name in usable:
-            value = row[name]
-            if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, bool):
+        for name, value in row.items():
+            if isinstance(value, (int, float, np.integer, np.floating)) and not isinstance(value, (bool, np.bool_)):
                 if math.isfinite(float(value)):
                     record[name] = float(value)
             elif isinstance(value, str) and value.strip():
@@ -103,7 +103,8 @@ def cluster_members(table: TableRef, profiles: Mapping[int, Mapping[str, float]]
     centroids = scaler.transform(np.asarray([[profiles[label].get(name, 0.0) for name in names] for label in labels]))
     distances = ((scaled[:, None, :] - centroids[None, :, :]) ** 2).sum(axis=2)
     nearest = distances.argmin(axis=1)
-    return {str(frame[key].iloc[index]): labels[int(choice)] for index, choice in enumerate(nearest)}
+    keys = [str(value) for value in frame[key].tolist()]  # the key column read once, not once per row
+    return {keys[index]: labels[int(choice)] for index, choice in enumerate(nearest)}
 
 
 def _segments(params: PrescriptiveParams, data: EngineData, timer: Timer) -> EngineRun:
