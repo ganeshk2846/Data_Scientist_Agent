@@ -86,3 +86,29 @@ def test_accepting_the_default_answers_instead_of_asking_about_a_window_that_was
     assert second.status == "answered"
     assert second.resolved_question.metric_id == "revenue"
     assert any("default was used" in item for item in second.assumptions)  # never silent (CL-4)
+
+
+@pytest.mark.parametrize(("question", "sql", "expected_text"), [
+    ("What was revenue in 2017?",
+     "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id "
+     "WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' "
+     "AND o.order_purchase_timestamp < '2018-01-01'", "Revenue for 2017-01 to 2017-12 was"),
+    ("How many unique customers ordered in Q2 2018?",
+     "SELECT COUNT(DISTINCT c.customer_unique_id) FROM orders o JOIN customers c ON c.customer_id = o.customer_id "
+     "WHERE o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-07-01'", "for 2018-04 to 2018-06 was"),
+])
+def test_a_window_question_states_the_governed_total_for_the_window(pipeline, v2_build, question, sql, expected_text):
+    import sqlite3
+
+    with sqlite3.connect(f"file:{v2_build['db']}?mode=ro", uri=True) as conn:
+        expected = conn.execute(sql).fetchone()[0]
+    envelope = pipeline.run(question, run_id="fx-total").envelope
+    assert envelope.status == "answered"
+    assert expected_text in envelope.conclusion
+    assert any(abs(value - expected) < 0.01 for value in _numbers(envelope))  # measured, not summed from months
+
+
+def test_a_single_month_states_its_value_without_a_zero_change_trend(pipeline):
+    envelope = pipeline.run("How many orders were there in August 2018?", run_id="fx-month").envelope
+    assert envelope.conclusion.startswith("Order count for 2018-08 was")
+    assert "moved from" not in envelope.conclusion

@@ -113,6 +113,11 @@ def _period_text(period) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _window_numbers(text: str) -> list[float]:
+    """Figures a window label such as 'January 2017 to August 2017' or '2018' puts into a sentence."""
+    return [float(token) for token in re.findall(r"\d+", text)]
+
+
 def _month_numbers(*labels: str) -> list[float]:
     """The year and month figures a 'YYYY-MM' label puts into a sentence (for the fact checker)."""
     numbers: list[float] = []
@@ -245,10 +250,19 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         return out, ids  # a supporting series feeds an engine; its rows are evidence, not narrative
     if result.tool == "sql":
         if method == "sql.trend":
-            say(f"{label.capitalize()} moved from {{}} to {{}} over the window, a change of {{}}.",
-                [(_number(report, "first_value"), unit, 2), (_number(report, "last_value"), unit, 2), (_number(report, "change_pct"), "%", 1)])
-            say("The average per period was {}, ranging from {} to {}.",
-                [(_number(report, "mean_value"), unit, 2), (_number(report, "min_value"), unit, 2), (_number(report, "max_value"), unit, 2)])
+            total = _number(report, "window_total")
+            if total is not None and resolved is not None and resolved.period is not None:
+                window = _period_text(resolved.period)
+                where = "".join(f" in {', '.join(item.values)}" for item in resolved.filters)
+                text, value = _fmt(total, unit)
+                sentence = f"{label[:1].upper()}{label[1:]}{where} for {window} was {text}."
+                ids.append(claims.add(sentence, [v for v in (value, *_window_numbers(window + where)) if v is not None], source))
+                out.append(sentence)
+            if total is None or (_number(report, "periods") or 0) > 1:
+                say(f"{label.capitalize()} moved from {{}} to {{}} over the window, a change of {{}}.",
+                    [(_number(report, "first_value"), unit, 2), (_number(report, "last_value"), unit, 2), (_number(report, "change_pct"), "%", 1)])
+                say("The average per period was {}, ranging from {} to {}.",
+                    [(_number(report, "mean_value"), unit, 2), (_number(report, "min_value"), unit, 2), (_number(report, "max_value"), unit, 2)])
         elif method == "sql.rank":
             rows = report.tables[0].rows if report.tables else ()
             columns = report.tables[0].columns if report.tables else ()

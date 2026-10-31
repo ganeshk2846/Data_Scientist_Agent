@@ -233,10 +233,33 @@ def _sql(step: PlanStep, ctx: StepContext) -> EngineRun:
     if summary != "none" and not frame.empty:
         result = _summarise(step, ctx, frame, metric.metric_id, execution.query_id, tables, summary, timer)
         if result is not None:
+            if summary == "trend" and period is not None and not params.get("dimensions"):
+                result = _with_window_total(result, warehouse, metric, filters, period)
             return result
     result = _rows_result(step, frame, (execution.query_id,), tables, timer, truncated=execution.status == "truncated")
     report = _rows_report(metric.metric_id, frame, step)
     return EngineRun(result, report)
+
+
+def _with_window_total(run: EngineRun, warehouse, metric, filters, period: Period) -> EngineRun:
+    """Add the governed metric over the whole window (one more compiled query, no time grain).
+
+    "What was revenue in 2017?" asks for this figure, and for distinct counts and ratios it cannot be
+    formed from the monthly rows, so it is measured, never summed from them (SAFE-8).
+    """
+    compiled = warehouse.compiler.compile(metric, filters=tuple(filters), period=period, time_grain=None)
+    if not compiled.validation.approved:
+        return run
+    execution = warehouse.run(compiled.candidate.sql.strip(), purpose=f"{metric.metric_id} window total",
+                              tables=tuple(warehouse.tables))
+    frame = _frame(execution)
+    if frame.empty or frame.iloc[0, -1] is None or pd.isna(frame.iloc[0, -1]):
+        return run
+    total = KeyNumber(name="window_total", value=float(frame.iloc[0, -1]), label=f"{metric.metric_id} over the window")
+    provenance = run.result.provenance.model_copy(
+        update={"query_ids": tuple(dict.fromkeys((*run.result.provenance.query_ids, execution.query_id)))})
+    return EngineRun(run.result.model_copy(update={"provenance": provenance}),
+                     run.report.model_copy(update={"key_numbers": (*run.report.key_numbers, total)}))
 
 
 def _summarise(step, ctx, frame, metric_id, query_id, tables, summary, timer) -> EngineRun | None:
