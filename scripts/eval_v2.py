@@ -190,7 +190,7 @@ def check_plant_tokens(plants_cfg: dict[str, Any], truth: dict[str, list[dict[st
 # -------------------------------------------------------------- reference SQL
 class Reference:
     def __init__(self, db: Path) -> None:
-        self.conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        self.conn = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True)  # a URI that also survives Windows paths
 
     def scalar(self, sql: str) -> float | None:
         row = self.conn.execute(sql).fetchone()
@@ -510,7 +510,7 @@ def ollama_available() -> bool:
 
 
 def database_facts(db: Path) -> dict[str, Any]:
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True)
     orders = conn.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
     sidecar = db.parent / "synthetic_ground_truth.json"
     snapshot = json.loads(sidecar.read_text())["snapshot_id"] if sidecar.exists() else None
