@@ -155,3 +155,14 @@ def test_a_stated_multiplier_is_applied_to_the_measured_baseline_and_labelled_me
     assert any(abs(value - round(revenue * 1.10 * 0.95, 2)) < 0.01 for value in numbers)
     unsupported = pipeline.run("What if we eliminated the stockouts?", run_id="fx-x9").envelope
     assert unsupported.status == "insufficient_evidence"  # an absolute target has no measured multiplier to apply
+
+
+def test_a_two_window_comparison_names_both_windows_and_keeps_acronyms(pipeline):
+    """'Revenue for total was ... against the comparison window' read as a template; the windows are the answer."""
+    compare = pipeline.run("How did revenue in 2018 compare to 2017?", run_id="fx-cmp").envelope
+    assert compare.status == "answered"
+    assert compare.conclusion.startswith("Revenue for 2018-01 to 2018-08 was")
+    assert "against 2017-01 to 2017-08" in compare.conclusion and "for total" not in compare.conclusion
+    why = pipeline.run("Why did revenue drop in the top category in April 2018?", run_id="fx-gmv").envelope
+    assert why.conclusion.startswith("GMV was") and "Gmv" not in why.conclusion
+    assert "co-moved significantly" not in why.conclusion  # says which test found nothing (the full-history correlation)

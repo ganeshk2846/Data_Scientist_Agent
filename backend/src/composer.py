@@ -113,6 +113,11 @@ def _period_text(period) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _cap(label: str) -> str:
+    """Sentence-case a metric label without lowering an acronym ('AOV', not 'Aov')."""
+    return label[:1].upper() + label[1:]
+
+
 def _segment_traits(columns: tuple[str, ...], row: tuple[Any, ...]) -> list[str]:
     return [name.split("=", 1)[1] for name, value in zip(columns[4:], row[4:], strict=False)
             if "=" in str(name) and isinstance(value, (int, float)) and value >= 0.5]
@@ -128,8 +133,8 @@ def _segment_actions(report: EngineReport) -> tuple[ActionOption, ...]:
         options.append(ActionOption(
             action_id=f"segment-{rank}", rank=rank, kind="intervention",
             title=f"Target {name}" + (" first" if rank == 1 else ""),
-            assumptions=("Segments are ranked by measured revenue per customer; past revenue is assumed to indicate the value of "
-                         "reaching them.", "Segment labels come from synthetic data generated for demonstration."),
+            assumptions=(("Segments are ranked by measured revenue per customer; past revenue is assumed to indicate the value of "
+                          "reaching them."), "Segment labels come from synthetic data generated for demonstration."),
             trade_offs=("A higher-value segment is usually smaller, so total reach is lower." if rank == 1 else
                         "Lower revenue per customer than the first-ranked segment, traded for a different audience.",),
             sensitivity="The ranking moves if campaign response differs by segment; no response data is held, so it is not modelled.",
@@ -285,7 +290,7 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
                 ids.append(claims.add(sentence, [v for v in (value, *_window_numbers(window + where)) if v is not None], source))
                 out.append(sentence)
             if total is None or (_number(report, "periods") or 0) > 1:
-                say(f"{label.capitalize()} moved from {{}} to {{}} over the window, a change of {{}}.",
+                say(f"{_cap(label)} moved from {{}} to {{}} over the window, a change of {{}}.",
                     [(_number(report, "first_value"), unit, 2), (_number(report, "last_value"), unit, 2), (_number(report, "change_pct"), "%", 1)])
                 say("The average per period was {}, ranging from {} to {}.",
                     [(_number(report, "mean_value"), unit, 2), (_number(report, "min_value"), unit, 2), (_number(report, "max_value"), unit, 2)])
@@ -308,17 +313,27 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
             for item in report.key_numbers[:6]:
                 if item.name.startswith("value:"):
                     pct = next((other.value for other in report.key_numbers if other.name == f"change_pct:{item.label}"), None)
-                    if pct is not None:
-                        say(f"{label.capitalize()} for {item.label} was {{}} in the current window, a change of {{}} against the comparison window.",
+                    windows = (resolved.period, resolved.comparison_period) if resolved is not None else (None, None)
+                    if pct is not None and item.label == "total" and all(windows):
+                        # One total, no breakdown: name both windows instead of "for total ... the comparison window".
+                        current, comparison = _period_text(windows[0]), _period_text(windows[1])
+                        text, value = _fmt(item.value, unit)
+                        change, change_value = _fmt(pct, "%", 1)
+                        sentence = f"{_cap(label)} for {current} was {text}, a change of {change} against {comparison}."
+                        ids.append(claims.add(sentence, [v for v in (value, change_value, *_window_numbers(current + " " + comparison))
+                                                         if v is not None], source))
+                        out.append(sentence)
+                    elif pct is not None:
+                        say(f"{_cap(label)} for {item.label} was {{}} in the current window, a change of {{}} against the comparison window.",
                             [(item.value, unit, 2), (pct, "%", 1)])
                     else:
-                        say(f"{label.capitalize()} for {item.label} was {{}}.", [(item.value, unit, 2)])
+                        say(f"{_cap(label)} for {item.label} was {{}}.", [(item.value, unit, 2)])
         else:
             for item in report.key_numbers[:5]:
                 if item.name == "value":
-                    say(f"{label.capitalize()} for {_period_text(resolved.period if resolved else None)} was {{}}.", [(item.value, unit, 2)])
+                    say(f"{_cap(label)} for {_period_text(resolved.period if resolved else None)} was {{}}.", [(item.value, unit, 2)])
                 elif item.name.startswith("value:"):
-                    say(f"{label.capitalize()} for {item.label}: {{}}.", [(item.value, unit, 2)])
+                    say(f"{_cap(label)} for {item.label}: {{}}.", [(item.value, unit, 2)])
         return out, ids
 
     # Engine outputs
@@ -344,7 +359,7 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         if arima is not None:
             say("An ARIMA challenger scored {} on the same held-out months; it is shown for comparison only.", [(arima * 100, "%", 1)], grade=2)
     elif engine == "impact" and "anomaly" in method:
-        say(f"{label.capitalize()} was {{}} against an expected {{}}, a deviation of {{}}.",
+        say(f"{_cap(label)} was {{}} against an expected {{}}, a deviation of {{}}.",
             [(_number(report, "actual"), unit, 2), (_number(report, "expected"), unit, 2), (_number(report, "deviation_pct"), "%", 1)], grade=2)
         flagged = _number(report, "flagged_periods")
         tested = _number(report, "tested_periods")
@@ -382,7 +397,8 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
                 [(row[2], "", 2), (float(row[9]), "", 0), (float(row[7]), "", 0)], grade=2, kind="co_movement")
         tested = [row for row in ranked if row[1] == "correlation"]
         if tested and not significant:
-            out.append("No candidate driver co-moved significantly once the multiple-testing correction was applied.")
+            out.append(f"No candidate driver correlated with {label} across its full history once the multiple-testing "
+                       f"correction was applied.")
         moved = [row for row in ranked if row[1] == "window_change" and "in the direction expected" in str(row[11])]
         for row in moved[:2]:
             name = str(row[0]).replace("_", " ")
