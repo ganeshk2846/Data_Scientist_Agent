@@ -422,9 +422,12 @@ class Planner:
         elif draft.keys.get(f"anomaly:{metric}") or (period.end.year - period.start.year) * 12 + period.end.month - period.start.month == 1:
             anomaly = draft.keys.get(f"anomaly:{metric}") or draft.add(
                 f"anomaly:{metric}", "python.anomaly", {"metric": metric, "grain": "month", "test_window": period},
-                produces="analyst_output", purpose=f"Expected {metric} for {_label(period)} from its own history.", depends_on=(series,))
+                produces="analyst_output", purpose=f"Expected {metric} for {_label(period)} from its own history.", depends_on=(series,),
+                optional=True)
+            # Without an expected value (short history) the gap is sized against the previous window (V2-ANS-1).
             draft.add(f"impact:{metric}", "python.impact", {
-                "metric": metric, "unit": unit, "basis": "anomaly_gap", "bind": {"anomaly_from": anomaly}},
+                "metric": metric, "unit": unit, "basis": "anomaly_gap",
+                "bind": {"anomaly_from": anomaly, "current": period, "baseline": comparison}},
                 produces="analyst_output", purpose=f"Size the gap between actual and expected {metric}, in {unit}.",
                 depends_on=(series, anomaly))
         else:

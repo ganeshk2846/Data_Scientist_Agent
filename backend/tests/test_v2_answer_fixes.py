@@ -39,3 +39,39 @@ def test_a_bounded_horizon_names_the_limit_instead_of_shrinking_silently(pipelin
     assert envelope.status == "answered"
     assert "periods were asked for; the history supports" in envelope.conclusion  # scope.md F9
     assert "Anchored on 2018-08" in envelope.conclusion
+
+
+@pytest.fixture(scope="module")
+def runner(v2_build):
+    from context import ContextStore
+    from service import RunService, build_runtime
+    from service_v2 import V2Runner
+
+    service = RunService(lambda: build_runtime(v2_build["db"], reasoning_client=False))
+    v2 = V2Runner(service, contexts=ContextStore())
+    yield v2
+    v2.close()
+    service.close()
+
+
+def test_impact_after_a_spike_sizes_against_the_previous_month_when_no_expected_value_fits(runner):
+    """scope.md 6.2 U8: too little history for an expected value is a reason to use the plainer baseline."""
+    runner.run_sync("Why did revenue spike in Nov 2017?", session_id="fx-u8")
+    _, envelope = runner.run_sync("What did it add?", session_id="fx-u8")
+    assert envelope.status == "answered"
+    assert envelope.intent.intents[0].intent == "impact"
+    assert "against the baseline" in envelope.conclusion
+    assert any("sized against the previous window instead" in item for item in envelope.assumptions)
+
+
+def test_a_judgement_about_the_prior_figure_is_answered_against_the_year_before(runner):
+    """scope.md 6.1 reference shape; a bare 'Why?' after a single total still clarifies (U2)."""
+    runner.run_sync("What was the average review score in 2018?", session_id="fx-ref")
+    _, envelope = runner.run_sync("Why is that number so low?", session_id="fx-ref")
+    assert envelope.status == "answered"
+    assert envelope.intent.intents[0].intent == "diagnostic"
+    assert envelope.resolved_question.comparison_period.start.year == 2017
+    assert envelope.resolved_question.inherited_fields
+    runner.run_sync("What was the average review score in 2018?", session_id="fx-u2")
+    _, bare = runner.run_sync("Why?", session_id="fx-u2")
+    assert bare.status == "clarify"

@@ -765,14 +765,22 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
         return run
 
     if tool == "python.impact":
+        fallback_note = None
         if "anomaly_from" in bind:
             anomaly = ctx.results.get(bind["anomaly_from"])
             result = anomaly.analyst_output.result if anomaly is not None and anomaly.analyst_output is not None else None
-            if result is None:
+            if result is not None:
+                measurements = pd.DataFrame({"baseline": [float(result.expected)], "current": [float(result.actual)]})
+                data = _engine_data(ctx, step, {"measurements": measurements})
+                return engines.run_step(step.model_copy(update={"params": params}), data)
+            if "current" not in bind or "baseline" not in bind:
                 return fail("The anomaly step produced no expected baseline to size against.")
-            measurements = pd.DataFrame({"baseline": [float(result.expected)], "current": [float(result.actual)]})
-            data = _engine_data(ctx, step, {"measurements": measurements})
-            return engines.run_step(step.model_copy(update={"params": params}), data)
+            # V2-ANS-1: no expected value (too little history) is a reason to use the plainer baseline, not to refuse.
+            reason = anomaly.reason if anomaly is not None and anomaly.reason else "the anomaly baseline was unavailable"
+            fallback_note = (f"No expected value could be fitted ({reason.rstrip('.')}), so the change is sized against the "
+                             f"previous window instead.")
+            params = {key: value for key, value in params.items() if key != "basis"}
+            params.update(current_period="current", baseline_period="baseline")
         if frame is None or frame.empty:
             return fail("The upstream series step returned no rows.")
         series = _series_frame(frame, metric)
@@ -792,7 +800,10 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
             if isinstance(targets, pd.DataFrame) and not targets.empty:
                 tables["targets"] = targets[["revenue_target"]]
         data = _engine_data(ctx, step, tables)
-        return engines.run_step(step.model_copy(update={"params": params}), data)
+        run = engines.run_step(step.model_copy(update={"params": params}), data)
+        if fallback_note:
+            return EngineRun(run.result, run.report.model_copy(update={"assumptions": (fallback_note, *run.report.assumptions)}))
+        return run
 
     if tool == "python.scenario":
         if bind.get("unsupported") is not None and "panel_from" not in bind:
