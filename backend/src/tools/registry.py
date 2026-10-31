@@ -233,8 +233,11 @@ def _sql(step: PlanStep, ctx: StepContext) -> EngineRun:
     if summary != "none" and not frame.empty:
         result = _summarise(step, ctx, frame, metric.metric_id, execution.query_id, tables, summary, timer)
         if result is not None:
-            if summary == "trend" and period is not None and not params.get("dimensions"):
-                result = _with_window_total(result, warehouse, metric, filters, period)
+            # The total is for the window the user asked about: when the query reaches back further so a forecast
+            # can fit on it, that window is summary_period, not the extended period.
+            window = Period.model_validate(params["summary_period"]) if params.get("summary_period") else period
+            if summary == "trend" and window is not None and not params.get("dimensions"):
+                result = _with_window_total(result, warehouse, metric, filters, window)
             return result
     result = _rows_result(step, frame, (execution.query_id,), tables, timer, truncated=execution.status == "truncated")
     report = _rows_report(metric.metric_id, frame, step)

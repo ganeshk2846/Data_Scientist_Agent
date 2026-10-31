@@ -166,3 +166,20 @@ def test_a_two_window_comparison_names_both_windows_and_keeps_acronyms(pipeline)
     why = pipeline.run("Why did revenue drop in the top category in April 2018?", run_id="fx-gmv").envelope
     assert why.conclusion.startswith("GMV was") and "Gmv" not in why.conclusion
     assert "co-moved significantly" not in why.conclusion  # says which test found nothing (the full-history correlation)
+
+
+def test_a_compound_trend_total_is_for_the_asked_window_not_the_extended_fit_history(pipeline, v2_build):
+    """K1 extends the trend query back to the start of history so the forecast can fit; the stated total must
+    still be the 12 months the answer names (it read R$ 615k, the whole history, instead of the window's R$ 472k)."""
+    import sqlite3
+
+    with sqlite3.connect(f"file:{v2_build['db']}?mode=ro", uri=True) as conn:
+        window = conn.execute(
+            "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id "
+            "WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-09-01' "
+            "AND o.order_purchase_timestamp < '2018-09-01'").fetchone()[0]
+    envelope = pipeline.run("How does revenue trend look today and what will it be in 3 months?", run_id="fx-k1").envelope
+    assert envelope.status == "answered"
+    total = re.search(r"Revenue for 2017-09 to 2018-08 was R\$ ([\d,]+(?:\.\d+)?)", envelope.conclusion)
+    assert total is not None
+    assert abs(float(total.group(1).replace(",", "")) - window) < 0.01
