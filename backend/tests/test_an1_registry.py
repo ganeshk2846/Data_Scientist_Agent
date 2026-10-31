@@ -7,8 +7,10 @@ import inspect
 import pytest
 
 from analysts import registry
-from analysts.anomaly import AnomalyAnalyst
-from analysts.driver import DriverAnalyst
+from analysts.anomaly import AnomalyAnalyst, AnomalyParams
+from analysts.driver import DriverAnalyst, DriverParams
+from analysts.forecast import ForecastAnalyst, ForecastParams
+from analysts.impact import ImpactAnalyst, ImpactParams
 from analysts.registry import (
     APPROVED_MODULES,
     AnalystMetadata,
@@ -16,11 +18,25 @@ from analysts.registry import (
     AnalystUnavailableError,
     UnknownAnalystError,
 )
+from analysts.scenario import ScenarioAnalyst, ScenarioParams
+from analysts.segment import SegmentAnalyst, SegmentParams
 
 
 IMPLEMENTED_TYPES = {
     "anomaly": AnomalyAnalyst,
     "driver": DriverAnalyst,
+    "forecast": ForecastAnalyst,
+    "impact": ImpactAnalyst,
+    "scenario": ScenarioAnalyst,
+    "segment": SegmentAnalyst,
+}
+PARAMETER_SCHEMAS = {
+    "anomaly": AnomalyParams,
+    "driver": DriverParams,
+    "forecast": ForecastParams,
+    "impact": ImpactParams,
+    "scenario": ScenarioParams,
+    "segment": SegmentParams,
 }
 
 
@@ -34,6 +50,8 @@ def test_implemented_module_is_registered(module):
     assert metadata.callable_available is True
     assert metadata.unavailable_reason is None
     assert metadata.requirement_ids == ("ANA-1", "ANA-2", "SAFE-8")
+    assert metadata.params_schema is PARAMETER_SCHEMAS[module]
+    assert metadata.params_schema.model_json_schema()["properties"]
 
     analyst = registry.resolve(module)
 
@@ -121,12 +139,20 @@ def test_approved_modules_are_the_only_registered_modules():
     assert tuple(item.module for item in registry.list_modules()) == (
         "anomaly",
         "driver",
+        "forecast",
+        "impact",
+        "scenario",
+        "segment",
         "risk",
         "advisor",
     )
     assert registry.approved_module_names() == (
         "anomaly",
         "driver",
+        "forecast",
+        "impact",
+        "scenario",
+        "segment",
         "risk",
         "advisor",
     )

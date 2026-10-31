@@ -100,8 +100,11 @@ function isPending(body: unknown): body is RunPending {
  */
 export async function getRun(
   runId: string,
-  options: { signal?: AbortSignal; deadlineMs?: number } = {},
+  options: { signal?: AbortSignal; deadlineMs?: number; base?: string } = {},
 ): Promise<AnswerEnvelope> {
+  // `/api/runs/{id}` is typed to the V1 envelope and drops the V2 fields, so
+  // a V2 run is collected from `/api/v2/runs/{id}`, which serves it whole.
+  const base = options.base ?? '/api/runs';
   const deadline = Date.now() + (options.deadlineMs ?? 60_000);
   let delay = 400;
   let lastStatus = 0;
@@ -116,7 +119,7 @@ export async function getRun(
     const timer = window.setTimeout(() => attempt.abort(), 10_000);
 
     try {
-      const response = await fetch(`/api/runs/${encodeURIComponent(runId)}`, {
+      const response = await fetch(`${base}/${encodeURIComponent(runId)}`, {
         headers: authHeaders(),
         signal: attempt.signal,
       });
@@ -156,6 +159,91 @@ export async function getRun(
     'The run did not produce an answer in time.',
     lastStatus || 504,
   );
+}
+
+/** Thrown when the backend has no V2 route, so the caller can fall back to V1. */
+export class NoV2Error extends Error {
+  constructor() {
+    super('The backend has no /api/v2/ask route.');
+    this.name = 'NoV2Error';
+  }
+}
+
+/**
+ * `POST /api/v2/ask` (additive; `/api/ask` is unchanged). `optionId` answers a
+ * clarification with one of its offered options; `resetContext` starts a new
+ * topic, so the question is answered cold.
+ */
+export async function askV2(params: {
+  question: string;
+  sessionId: string;
+  clarificationOf?: string | null;
+  optionId?: string | null;
+  resetContext?: boolean;
+}): Promise<AskResponse> {
+  let response: Response;
+  try {
+    response = await fetch('/api/v2/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({
+        question: params.question,
+        session_id: params.sessionId,
+        clarification_of: params.clarificationOf ?? null,
+        option_id: params.optionId ?? null,
+        reset_context: params.resetContext ?? false,
+      }),
+    });
+  } catch {
+    throw new OfflineError();
+  }
+  if (response.status === 404 || response.status === 405) throw new NoV2Error();
+  if (!response.ok) {
+    throw new ApiError(
+      `POST /api/v2/ask failed with ${response.status}`,
+      response.status,
+      await readDetail(response),
+    );
+  }
+  return (await response.json()) as AskResponse;
+}
+
+/** `POST /api/sessions/{id}/feedback`: thumbs up / down on one of our own runs. */
+export async function postFeedback(params: {
+  sessionId: string;
+  runId: string;
+  rating: 'up' | 'down';
+  reason: string | null;
+}): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch(`/api/sessions/${encodeURIComponent(params.sessionId)}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ run_id: params.runId, rating: params.rating, reason: params.reason }),
+    });
+  } catch {
+    throw new OfflineError();
+  }
+  if (!response.ok) {
+    throw new ApiError(
+      `POST feedback failed with ${response.status}`,
+      response.status,
+      await readDetail(response),
+    );
+  }
+}
+
+/** `POST /api/sessions/{id}/reset`: forget the server-side context for a new topic. */
+export async function resetSession(sessionId: string): Promise<void> {
+  try {
+    await fetch(`/api/sessions/${encodeURIComponent(sessionId)}/reset`, {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+  } catch {
+    // The next ask also carries reset_context, so a failed reset is harmless.
+  }
 }
 
 /**

@@ -1,61 +1,70 @@
-"""Tests for catalog-backed discovery service answers (SAFE-8, scope.md section 3.1)."""
+"""'What data do you have?' from the catalog (D1, acceptance 1.13, 1.16)."""
 
-from semantic.discovery import DiscoveryService
+from __future__ import annotations
 
+import re
+import sqlite3
 
-def test_d1_lists_all_19_tables_with_synthetic_labels():
-    service = DiscoveryService()
-    ans = service.answer_discovery("What tables do you have?")
-    assert ans["status"] == "ok"
-    assert "19 tables" in ans["narrative"]
-    assert ans["tables_count"] == 19
-
-    facts = {f.key: f.value for f in ans["facts_payload"].facts}
-    assert "orders" in facts
-    assert facts["orders"]["is_synthetic"] is False
-    assert "marketing_spend" in facts
-    assert facts["marketing_spend"]["is_synthetic"] is True
+from semantic.discovery import catalog_facts, describe_warehouse, render_answer
+from sqlalchemy import create_engine
 
 
-def test_d2_date_range_declares_truncation():
-    service = DiscoveryService()
-    ans = service.answer_discovery("What date range is covered?")
-    assert ans["status"] == "ok"
-    assert "2018-08" in ans["narrative"]
-    assert "2016-09-04" in ans["narrative"]
+def _describe(db):
+    engine = create_engine(f"sqlite:///file:{db.as_posix()}?mode=ro&uri=true")
+    with engine.connect() as connection:
+        return describe_warehouse(connection)
 
 
-def test_d3_metrics_returns_aggregations():
-    service = DiscoveryService()
-    ans = service.answer_discovery("What metrics are available?")
-    assert ans["status"] == "ok"
-    facts = {f.key: f.value for f in ans["facts_payload"].facts}
-    assert "revenue" in facts
-    assert facts["revenue"]["aggregation"] == "sum"
-    assert "aov" in facts
-    assert facts["aov"]["aggregation"] == "ratio"
+def test_lists_all_19_tables_with_counts_dates_and_labels(v2_build):
+    description = _describe(v2_build["db"])
+    base = [t for t in description.tables if t.layer != "analytical"]
+
+    assert len(base) == 19 and all(t.present for t in base)
+    assert len(description.synthetic_tables) == 10
+    counts = v2_build["generation"].row_counts
+    for table in base:
+        assert table.row_count == counts[table.name]
+    orders = next(t for t in base if t.name == "orders")
+    assert orders.date_min.startswith("2016-09") and orders.date_max.startswith("2018-10")
 
 
-def test_d6_customer_count():
-    service = DiscoveryService()
-    ans = service.answer_discovery("How many customers are in the dataset?")
-    assert ans["status"] == "ok"
-    assert "99,441" in ans["narrative"]
-    assert "96,096" in ans["narrative"]
+def test_answer_names_every_synthetic_table_and_metric(v2_build):
+    description = _describe(v2_build["db"])
+    answer = render_answer(description)
+
+    assert "19 tables" in answer
+    assert "not measurements of the real business" in answer
+    for name in description.synthetic_tables:
+        assert f"`{name}`" in answer
+    assert "16 metrics" in answer
+    assert re.search(r"`marketing_spend` \(Marketing Spend\) \| sum \| \*\*synthetic\*\*", answer)
+    assert "last complete month" in answer
 
 
-def test_d7_customer_segments_primary_key():
-    service = DiscoveryService()
-    ans = service.answer_discovery("What is the primary key of customer_segments?")
-    assert ans["status"] == "ok"
-    assert "customer_unique_id" in ans["narrative"]
+def test_every_figure_in_the_answer_is_a_catalog_or_sql_fact(v2_build):
+    """SAFE-8: numbers in the answer are row counts, dates or catalog counts only."""
+    description = _describe(v2_build["db"])
+    answer = render_answer(description)
+    allowed = {f"{t.row_count:,}" for t in description.tables if t.present}
+    allowed |= {str(len(description.metrics)), "19", "10", "9"}
+    allowed |= {part for t in description.tables if t.date_min for part in (*t.date_min.split("-"), *t.date_max.split("-"))}
+    allowed |= {"2016", "2018", "09", "10", "08"}  # the completeness note
+    text = re.sub(r"`[^`]*`", "", answer)  # identifiers like idx names / versions
+    for number in re.findall(r"\d+(?:,\d{3})*", text):
+        assert number in allowed, number
 
 
-def test_d10_safe_refusal_for_credit_score():
-    service = DiscoveryService()
-    ans = service.answer_discovery(
-        "Do you have customer demographic survey or credit score data?"
-    )
-    assert ans["status"] == "refused"
-    assert "credit score" in ans["narrative"]
-    assert "income" in ans["narrative"]
+def test_catalog_facts_payload_carries_sources(v2_build):
+    payload = catalog_facts(_describe(v2_build["db"]))
+    sources = {fact.source for fact in payload.facts}
+    assert sources == {"catalog", "sql"}
+    assert any(f.key == "table.marketing_spend.layer" and f.value == "synthetic" for f in payload.facts)
+
+
+def test_real_only_database_marks_synthetic_tables_missing(v2_build):
+    description = _describe(v2_build["source"])
+    missing = {t.name for t in description.tables if not t.present and t.layer == "synthetic"}
+    assert len(missing) == 10
+    assert "Registered but not loaded" in render_answer(description)
+    with sqlite3.connect(v2_build["source"]) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM sqlite_master WHERE name = 'marketing_spend'").fetchone() == (0,)

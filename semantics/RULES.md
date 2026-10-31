@@ -1,57 +1,29 @@
-# Analysis Rules for Brazil E-Commerce Warehouse (V2-DATA-1..3, SAFE-8)
+# Reasoning rules
 
-This document specifies the normative analytical and reasoning rules of this warehouse.
-These rules are retrieved into agent context for reasoning discipline, never as a source of figures.
+Retrieved into prompts for **reasoning only**. Nothing in this file is a
+source of figures: every number in an answer comes from SQL or a registered
+engine and is linked to evidence (`SAFE-8`).
 
----
-
-## 1. The Truncation Trap (V2-DATA-1, V2-DATA-2, V2-DATA-3)
-
-- **The last complete month is 2018-08.**
-- The Olist collection window officially ended in October 2018, but the volume collapsed abruptly:
-  - `2018-08`: 6,512 orders (Complete)
-  - `2018-09`: **16 orders** (Truncated collection artefact)
-  - `2018-10`: **4 orders** (Truncated collection artefact)
-  - `2016-09`: Inception ramp (Incomplete)
-- **Normative Rules:**
-  - Any model fitting (forecasts, scenarios, trends) MUST anchor on **2018-08** and refuse to fit across 2018-09/2018-10.
-  - Descriptive queries spanning September or October 2018 MUST include an explicit caveat declaring the period truncated.
-
----
-
-## 2. Customer Identity Rule (customer_id vs customer_unique_id)
-
-- In the Olist schema:
-  - `customer_id` is an **order-level instance key** (one generated per order placed).
-  - `customer_unique_id` is the **true individual customer identifier**.
-- **Normative Rules:**
-  - Customer retention, repeat purchase rate, churn, and LTV analyses MUST group or join on `customer_unique_id`.
-  - Never join `customer_segments` on `customer_id`; always join on `customer_unique_id`.
-
----
-
-## 3. Order Status & Completed Business Filtering
-
-- Delivered, valid business transactions are filtered by:
-  ```sql
-  WHERE orders.order_status NOT IN ('canceled', 'unavailable')
-  ```
-- Unapproved cancellations must not be included in gross revenue calculations.
-
----
-
-## 4. Synthetic Data Disclaimers (V2-SYN-4)
-
-- The synthetic layer consists of 10 tables:
-  `marketing_spend`, `promotions`, `inventory_daily`, `web_traffic`, `price_history`,
-  `competitor_prices`, `customer_segments`, `regional_targets`, `returns`, `delivery_sla`.
-- All figures derived from these tables MUST carry the `synthetic` data layer flag and be presented with explicit synthetic disclosure to avoid misrepresenting generated indicators as real-world audited financial data.
-
----
-
-## 5. Non-Additive Metrics & Ratio Decomposition
-
-- Ratio metrics (`aov`, `cancellation_rate`, `conversion_rate`, `stockout_rate`, `margin`) are **non-additive**:
-  - You cannot sum AOV across states or months.
-  - Decompositions must analyze the numerator (`revenue`) and denominator (`order_count`) independently.
-
+1. **Never compute a number.** Choose, plan and explain; let SQL or an engine
+   produce every figure. Do not add, divide, round or restate a figure.
+2. **Use complete periods.** "Now", "latest" and "this year" mean up to the
+   last complete month (2018-08 on the real data). Say so as an assumption.
+   Never report 2018-09, 2018-10 or 2016-09 as findings.
+3. **Label synthetic data.** If any synthetic table is read, the answer says
+   so and names the tables. A synthetic figure is never presented as a
+   measurement of the real business.
+4. **People are `customer_unique_id`.** `customer_id` is one per order.
+5. **Mind the grain.** GMV is item grain, revenue is order grain; do not sum
+   payments across an item join.
+6. **Ratios and means are not summed.** Re-aggregate numerator and
+   denominator; decompose a ratio's change into its parts.
+7. **Joins need approval.** Use only governed or approved join edges; an
+   ingested table's proposed edges are not approved until a person says so.
+8. **Correlation is not cause.** A driver answer states its evidence grade
+   and the causal-boundary note. Feature importance is association only.
+9. **Answer with stated assumptions.** Prefer a bounded answer with its
+   assumptions to a refusal. Refuse only when an input does not exist in
+   either layer — for example customer age or gender — and name what *is*
+   held instead.
+10. **Never read the answer key.** `data/SYNTHETIC_GROUND_TRUTH.md` is for
+    scoring code only.

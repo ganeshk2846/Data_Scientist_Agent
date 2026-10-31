@@ -2,8 +2,9 @@
 
 Every model here is frozen and rejects unknown fields, so a step cannot
 quietly widen a contract its consumers depend on. V1 types that are already
-correct are **re-exported** rather than redefined, so there is one definition
-of ``Period``, ``AnalystOutput`` and the rest.
+correct are **re-exported** rather than redefined. Track 2 result types live
+here, and the V2 ``AnalystOutput`` extends the V1 envelope with their typed
+result union while leaving the V1 contract unchanged.
 
 Two safety properties are held at the type level rather than by review:
 
@@ -29,10 +30,13 @@ from pydantic import Field, field_validator, model_validator
 
 from contracts.models import (
     ActionOption,
-    AnalystOutput,
+    AnalystOutput as V1AnalystOutput,
+    AnomalyResult,
     AnswerEnvelope,
     ColumnRole,
     ContractModel,
+    DriverContribution,
+    DriverResult,
     ExecutionResult,
     IntentLabel,
     LedgerClaim,
@@ -61,6 +65,192 @@ MAX_PLAN_STEPS = 8
 
 #: Routing confidence floor, matching V1's ``RouterResult`` (RQ-4, IR-3).
 CONFIDENCE_FLOOR = 0.70
+
+
+# --------------------------------------------------------------------------- #
+# Track 2 analyst results
+# --------------------------------------------------------------------------- #
+
+class DiagnosticEvidence(ContractModel):
+    dimension: str = Field(min_length=1)
+    value: str = Field(min_length=1)
+    method: Literal[
+        "correlation",
+        "difference_in_differences",
+        "feature_importance",
+    ]
+    effect_size: float = Field(allow_inf_nan=False)
+    interval: tuple[float, float]
+    p_value: float | None = Field(default=None, ge=0.0, le=1.0)
+    q_value: float | None = Field(default=None, ge=0.0, le=1.0)
+    sample_size: int = Field(ge=0)
+    grade: int = Field(ge=0, le=4)
+    lag_periods: int = Field(default=0, ge=0)
+
+
+class DiagnosticResult(DriverResult):
+    indicator_drivers: tuple[DiagnosticEvidence, ...] = ()
+    feature_importance: tuple[DiagnosticEvidence, ...] = ()
+    value_decomposition: tuple[DriverContribution, ...] = ()
+
+
+class ForecastPoint(ContractModel):
+    ds: str = Field(min_length=1)
+    yhat: float = Field(allow_inf_nan=False)
+    yhat_lower: float = Field(allow_inf_nan=False)
+    yhat_upper: float = Field(allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _interval_contains_prediction(self) -> ForecastPoint:
+        if not self.yhat_lower <= self.yhat <= self.yhat_upper:
+            raise ValueError("forecast interval must contain its prediction")
+        return self
+
+
+class ForecastComponent(ContractModel):
+    ds: str = Field(min_length=1)
+    trend: float = Field(allow_inf_nan=False)
+    seasonality: float | None = Field(default=None, allow_inf_nan=False)
+
+
+class ForecastSeries(ContractModel):
+    name: str = Field(min_length=1)
+    points: tuple[ForecastPoint, ...] = Field(min_length=1)
+    components: tuple[ForecastComponent, ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _series_periods_align(self) -> ForecastSeries:
+        if tuple(point.ds for point in self.points) != tuple(
+            component.ds for component in self.components
+        ):
+            raise ValueError("forecast component periods must match points")
+        return self
+
+
+class ForecastResult(ContractModel):
+    anchor_period: str = Field(min_length=1)
+    points: tuple[ForecastPoint, ...] = Field(min_length=1)
+    components: tuple[ForecastComponent, ...] = Field(min_length=1)
+    trend_per_period: float = Field(allow_inf_nan=False)
+    trend_interval: tuple[float, float]
+    trend_detectable: bool
+    method: Literal["prophet", "ets"]
+    method_fallback_reason: str | None = None
+    mape: float | None = Field(default=None, ge=0.0, allow_inf_nan=False)
+    history_periods: int = Field(ge=1)
+    backtest_periods: int = Field(ge=0)
+    series: tuple[ForecastSeries, ...] = ()
+    remainder_series_count: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _forecast_result_is_coherent(self) -> ForecastResult:
+        if self.trend_interval[0] > self.trend_interval[1]:
+            raise ValueError("trend_interval must be ordered")
+        if len(self.points) != len(self.components):
+            raise ValueError("forecast points and components must align")
+        if tuple(point.ds for point in self.points) != tuple(
+            component.ds for component in self.components
+        ):
+            raise ValueError("forecast component periods must match points")
+        if self.method == "ets" and not self.method_fallback_reason:
+            raise ValueError("an ETS forecast must explain its fallback")
+        return self
+
+
+class ImpactResult(ContractModel):
+    metric: str = Field(min_length=1)
+    baseline: float = Field(allow_inf_nan=False)
+    current: float = Field(allow_inf_nan=False)
+    delta: float = Field(allow_inf_nan=False)
+    delta_pct: float | None = Field(default=None, allow_inf_nan=False)
+    interval: tuple[float, float]
+    unit: str = Field(min_length=1)
+    p_value: float | None = Field(default=None, ge=0.0, le=1.0)
+    significant: bool | None = None
+    effect_size: float | None = Field(default=None, allow_inf_nan=False)
+    target: float | None = Field(default=None, allow_inf_nan=False)
+    peer: float | None = Field(default=None, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def _impact_result_is_coherent(self) -> ImpactResult:
+        if self.delta != self.current - self.baseline:
+            raise ValueError("impact delta must equal current minus baseline")
+        if self.interval[0] > self.interval[1]:
+            raise ValueError("impact interval must be ordered")
+        if self.significant is not None and self.p_value is None:
+            raise ValueError("significance requires a test p-value")
+        return self
+
+
+class ScenarioSensitivity(ContractModel):
+    shock_pct: float = Field(allow_inf_nan=False)
+    revenue_delta_pct: float = Field(allow_inf_nan=False)
+
+
+class ScenarioResult(ContractModel):
+    scenario: str = Field(min_length=1)
+    price_change_pct: float = Field(allow_inf_nan=False)
+    elasticity: float = Field(allow_inf_nan=False)
+    elasticity_interval: tuple[float, float]
+    r_squared: float = Field(ge=0.0, le=1.0)
+    controls: tuple[str, ...] = Field(min_length=1)
+    demand_delta_pct: float = Field(allow_inf_nan=False)
+    revenue_delta_pct: float = Field(allow_inf_nan=False)
+    revenue_delta_interval: tuple[float, float]
+    sensitivity: tuple[ScenarioSensitivity, ...] = Field(min_length=2)
+    observations: int = Field(ge=3)
+    synthetic_data: bool
+    disclosures: tuple[str, ...] = Field(min_length=5)
+
+    @model_validator(mode="after")
+    def _scenario_disclosures_are_mandatory(self) -> ScenarioResult:
+        if not self.synthetic_data:
+            raise ValueError("price elasticity must be labelled synthetic")
+        if self.elasticity_interval[0] > self.elasticity_interval[1]:
+            raise ValueError("elasticity interval must be ordered")
+        if self.revenue_delta_interval[0] > self.revenue_delta_interval[1]:
+            raise ValueError("scenario interval must be ordered")
+        return self
+
+
+class SegmentCluster(ContractModel):
+    cluster: int = Field(ge=0)
+    size: int = Field(ge=1)
+    profile: dict[str, float] = Field(min_length=1)
+    score: float = Field(allow_inf_nan=False)
+
+
+class SegmentResult(ContractModel):
+    mode: Literal["rank_segments", "rank_actions"]
+    clusters: tuple[SegmentCluster, ...] = ()
+    actions: tuple[ActionOption, ...] = ()
+    action_impacts: tuple[tuple[str, float], ...] = ()
+    budget_allocation: tuple[tuple[str, float], ...] = ()
+
+    @model_validator(mode="after")
+    def _payload_matches_mode(self) -> SegmentResult:
+        if self.mode == "rank_segments" and (not self.clusters or self.actions):
+            raise ValueError("rank_segments requires clusters only")
+        if self.mode == "rank_actions" and (not self.actions or self.clusters):
+            raise ValueError("rank_actions requires actions only")
+        if self.mode == "rank_actions" and not 2 <= len(self.actions) <= 3:
+            raise ValueError("rank_actions must return two or three options")
+        return self
+
+
+class AnalystOutput(V1AnalystOutput):
+    """V2 analyst envelope with typed results for the Track 2 engines."""
+
+    result: (
+        AnomalyResult
+        | DiagnosticResult
+        | DriverResult
+        | ForecastResult
+        | ImpactResult
+        | ScenarioResult
+        | SegmentResult
+        | None
+    ) = None
 
 
 # --------------------------------------------------------------------------- #
@@ -1176,7 +1366,7 @@ class ToolResult(ContractModel):
     produces: StepOutputKind
     rows: RowsPayload | None = None
     catalog_facts: CatalogFactsPayload | None = None
-    analyst_output: AnalystOutput | None = None
+    analyst_output: V1AnalystOutput | AnalystOutput | None = None
     ranked_options: tuple[ActionOption, ...] | None = None
     provenance: ToolProvenance
     caveats: tuple[str, ...] = ()
@@ -1639,6 +1829,17 @@ __all__ = [
     # Re-exported V1 contracts (one definition, not two)
     "ActionOption",
     "AnalystOutput",
+    "DiagnosticEvidence",
+    "DiagnosticResult",
+    "ForecastComponent",
+    "ForecastPoint",
+    "ForecastResult",
+    "ForecastSeries",
+    "ImpactResult",
+    "ScenarioResult",
+    "ScenarioSensitivity",
+    "SegmentCluster",
+    "SegmentResult",
     "ColumnRole",
     "ContractModel",
     "ExecutionResult",

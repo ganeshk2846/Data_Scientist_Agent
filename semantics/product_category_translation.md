@@ -1,14 +1,22 @@
-# Table: product_category_translation
+# `product_category_translation`
 
-- **Data Layer:** Real
-- **Grain:** category
-- **Primary / Composite Key:** product_category_name
-- **Synthetic Flag:** False
+**Layer:** real — Olist Brazilian e-commerce snapshot, read-only, never modified (`V2-SYN-1`).
 
-## Description
-Mapping table translating Portuguese category names to standard English names.
+Portuguese to English category names.
 
-## Caveats & Usage Rules
-- Governed joins must match approved keys (product_category_name).
-- For customer analytics, group by customer_unique_id.
-- Period completeness applies (2018-08 last complete month).
+**Grain:** category.
+
+## Columns
+
+| Column | Meaning | Unit |
+| --- | --- | --- |
+| `product_category_name` | Portuguese name. | text |
+| `product_category_name_english` | English name. | text |
+
+## Join keys
+
+- `product_category_name = products.product_category_name` (1:N)
+
+## Caveats
+
+- A couple of categories have no translation.

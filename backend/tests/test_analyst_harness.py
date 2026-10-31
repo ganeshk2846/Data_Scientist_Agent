@@ -256,3 +256,22 @@ def test_unknown_analyst_module_is_rejected():
     harness = AnalystHarness()
     with pytest.raises(UnsupportedAnalystError):
         harness.build_input("freeform_python", {}, {}, run_id="RUN-UNKNOWN")
+
+
+def test_harness_dispatches_every_track2_engine_through_the_closed_mapping():
+    harness = AnalystHarness()
+    modules = ("forecast", "impact", "scenario", "segment")
+
+    assert set(modules) <= set(harness.modules)
+    for module in modules:
+        output = harness.run(
+            AnalystInput(
+                module=module,
+                params={"mode": "rank_segments"} if module == "segment" else {},
+                run_id=f"RUN-{module.upper()}-MISSING",
+                seed=5,
+            )
+        )
+        assert output.module == module
+        assert output.status == "insufficient_evidence"
+        assert output.reason

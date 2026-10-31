@@ -16,6 +16,7 @@ from pathlib import Path
 
 from auth import ApiTokenAuthenticator
 from contracts.models import AnswerEnvelope, AskRequest, AskResponse
+from feedback import FeedbackRequest, FeedbackStore
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from service import (
@@ -24,13 +25,18 @@ from service import (
     build_runtime,
     format_sse_event,
 )
+from service_v2 import AskV2Request, V2Runner
 from trace_logger import TraceLogger
 
 _DEFAULT_DATABASE_PATH = Path(__file__).resolve().parents[2] / "brazil_ecommerce.sqlite"
+# DS_AGENT_DB points the backend at another database, e.g. the V2 build
+# data/brazil_ecommerce_v2.sqlite; DS_AGENT_DATABASE is the older name and
+# still works. With neither set, the real snapshot stays the default.
 _DATABASE_PATH = (
     Path(
         os.environ.get("DS_AGENT_DB")
-        or os.environ.get("DS_AGENT_DATABASE", _DEFAULT_DATABASE_PATH)
+        or os.environ.get("DS_AGENT_DATABASE")
+        or _DEFAULT_DATABASE_PATH
     )
     .expanduser()
     .resolve()
@@ -58,7 +64,7 @@ def create_app(
             try:
                 from models.client import OllamaClient
 
-                client = OllamaClient(model="deepseek-r1:7b")
+                client = OllamaClient(model=os.environ.get("LLM_MODEL", "gemini-3.5-flash-lite"), base_url=os.environ.get("LLM_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai"), api_key=os.environ.get("LLM_API_KEY"))
             except Exception:
                 client = None
         service = RunService(
@@ -76,11 +82,15 @@ def create_app(
         else ApiTokenAuthenticator(api_tokens)
     )
 
+    v2 = V2Runner(service)
+    feedback = FeedbackStore.from_environment()
+
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            v2.close()
             service.close()
 
     app = FastAPI(
@@ -90,6 +100,7 @@ def create_app(
     )
     app.state.run_service = service
     app.state.api_authenticator = authenticator
+    app.state.v2_runner = v2
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> HTMLResponse:
@@ -124,6 +135,85 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return AskResponse(run_id=run_id)
+
+    @app.post("/api/v2/ask", response_model=AskResponse)
+    def ask_v2(
+        payload: AskV2Request,
+        authorization: str | None = Header(default=None),
+    ) -> AskResponse:
+        """The V2 pipeline: intent, grounding, clarification, plan, steps (additive; /api/ask is unchanged)."""
+        principal = authenticator.authenticate(authorization)
+        try:
+            run_id = v2.submit(payload, owner_id=principal)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return AskResponse(run_id=run_id)
+
+    @app.get("/api/v2/runs/{run_id}")
+    def get_run_v2(
+        run_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        principal = authenticator.authenticate(authorization)
+        try:
+            if service.store.owner_id(run_id) != principal:
+                raise RunNotFoundError(run_id)
+            envelope = service.store.wait_for_envelope(run_id, timeout=15.0)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        if envelope is None:
+            return JSONResponse(status_code=202, content={"contract_version": "2.0.0", "run_id": run_id, "status": "running"})
+        return JSONResponse(content=envelope.model_dump(mode="json"))
+
+    @app.get("/api/sessions/{session_id}/history")
+    def session_history(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """The session's ContextState (contracts.md §1): the caller's own turns only (OPS-4)."""
+        principal = authenticator.authenticate(authorization)
+        state = v2.contexts.history(principal, session_id, catalog_version=v2.catalog_version())
+        return JSONResponse(content=state.model_dump(mode="json"))
+
+    @app.post("/api/sessions/{session_id}/reset")
+    def session_reset(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """Forget the caller's context for this session; the next question is cold."""
+        principal = authenticator.authenticate(authorization)
+        cleared = v2.contexts.reset(principal, session_id)
+        return JSONResponse(content={"session_id": session_id, "cleared_turns": cleared})
+
+    @app.post("/api/sessions/{session_id}/feedback")
+    def session_feedback(
+        session_id: str,
+        payload: FeedbackRequest,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """Thumbs up / down on one of the caller's own runs, with an optional reason (Track 5)."""
+        principal = authenticator.authenticate(authorization)
+        try:
+            if service.store.owner_id(payload.run_id) != principal:
+                raise RunNotFoundError(payload.run_id)
+            record = feedback.record(principal, session_id, payload)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return JSONResponse(content=record.model_dump(mode="json"))
+
+    @app.get("/api/sessions/{session_id}/feedback")
+    def session_feedback_list(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """The caller's own ratings in this session, one per run (Track 5)."""
+        principal = authenticator.authenticate(authorization)
+        records = feedback.list(principal, session_id)
+        return JSONResponse(content={"session_id": session_id, "feedback": [r.model_dump(mode="json") for r in records]})
 
     @app.get("/api/runs/{run_id}/events")
     def events(

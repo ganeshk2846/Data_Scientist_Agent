@@ -1,14 +1,26 @@
-# Table: customers
+# `customers`
 
-- **Data Layer:** Real
-- **Grain:** customer_instance
-- **Primary / Composite Key:** customer_id
-- **Synthetic Flag:** False
+**Layer:** real — Olist Brazilian e-commerce snapshot, read-only, never modified (`V2-SYN-1`).
 
-## Description
-Customer order-level keys mapped to customer_unique_id individual entities and state/city.
+One row per order-customer.
 
-## Caveats & Usage Rules
-- Governed joins must match approved keys (customer_id).
-- For customer analytics, group by customer_unique_id.
-- Period completeness applies (2018-08 last complete month).
+**Grain:** customer per order.
+
+## Columns
+
+| Column | Meaning | Unit |
+| --- | --- | --- |
+| `customer_id` | Per-order key; 99,441 rows, one per order. | text |
+| `customer_unique_id` | **The person.** Use it for unique-customer counts and for `customer_segments`. | text |
+| `customer_zip_code_prefix` | First five digits of the zip code. | integer |
+| `customer_city` | City. | text |
+| `customer_state` | Two-letter state code (27 values). | text |
+
+## Join keys
+
+- `customers.customer_id = orders.customer_id` (1:N)
+- `customers.customer_unique_id = customer_segments.customer_unique_id` (N:1, synthetic)
+
+## Caveats
+
+- Counting `customer_id` counts orders, not people. Age, gender and income are **not held** in any layer.

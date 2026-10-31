@@ -1,14 +1,25 @@
-# Table: geolocation
+# `geolocation`
 
-- **Data Layer:** Real
-- **Grain:** zip_prefix
-- **Primary / Composite Key:** geolocation_zip_code_prefix
-- **Synthetic Flag:** False
+**Layer:** real — Olist Brazilian e-commerce snapshot, read-only, never modified (`V2-SYN-1`).
 
-## Description
-Geographic coordinates (latitude, longitude) for Brazilian postal codes.
+Latitude and longitude points per zip prefix.
 
-## Caveats & Usage Rules
-- Governed joins must match approved keys (geolocation_zip_code_prefix).
-- For customer analytics, group by customer_unique_id.
-- Period completeness applies (2018-08 last complete month).
+**Grain:** zip prefix point.
+
+## Columns
+
+| Column | Meaning | Unit |
+| --- | --- | --- |
+| `geolocation_zip_code_prefix` | Zip prefix. | integer |
+| `geolocation_lat` | Latitude. | degrees |
+| `geolocation_lng` | Longitude. | degrees |
+| `geolocation_city` | City. | text |
+| `geolocation_state` | State code. | text |
+
+## Join keys
+
+- `geolocation_zip_code_prefix = customers.customer_zip_code_prefix` (N:N — aggregate first)
+
+## Caveats
+
+- About a million rows with many points per prefix: joining without aggregating multiplies rows.

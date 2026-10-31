@@ -1,14 +1,24 @@
-# Table: sellers
+# `sellers`
 
-- **Data Layer:** Real
-- **Grain:** seller
-- **Primary / Composite Key:** seller_id
-- **Synthetic Flag:** False
+**Layer:** real — Olist Brazilian e-commerce snapshot, read-only, never modified (`V2-SYN-1`).
 
-## Description
-Marketplace merchants fulfilled orders from regional state locations.
+Seller location.
 
-## Caveats & Usage Rules
-- Governed joins must match approved keys (seller_id).
-- For customer analytics, group by customer_unique_id.
-- Period completeness applies (2018-08 last complete month).
+**Grain:** seller.
+
+## Columns
+
+| Column | Meaning | Unit |
+| --- | --- | --- |
+| `seller_id` | Seller key. | text |
+| `seller_zip_code_prefix` | Zip prefix. | integer |
+| `seller_city` | City. | text |
+| `seller_state` | State code. | text |
+
+## Join keys
+
+- `sellers.seller_id = order_items.seller_id` (1:N)
+
+## Caveats
+
+- `seller_state` is where the seller is, not the customer.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+import os
 """Minimal OpenAI-compatible client for a local Ollama model (SQL-15).
 
 The client talks to Ollama's OpenAI-compatible endpoint using only the standard
@@ -5,7 +7,6 @@ library. It is deliberately model-agnostic; the default configuration targets
 ``deepseek-r1:7b`` at ``http://localhost:11434/v1``.
 """
 
-from __future__ import annotations
 
 import json
 import urllib.error
@@ -15,8 +16,8 @@ from typing import Any, Callable, Mapping, Sequence
 
 from contracts.models import ModelUsage
 
-DEFAULT_BASE_URL = "http://localhost:11434/v1"
-DEFAULT_MODEL = "deepseek-r1:7b"
+DEFAULT_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:11434/v1")
+DEFAULT_MODEL = os.environ.get("LLM_MODEL", "deepseek-r1:7b")
 DEFAULT_TIMEOUT_S = 60.0
 
 Transport = Callable[[str, Mapping[str, str], bytes, float], bytes]
@@ -103,7 +104,7 @@ class OllamaClient:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._timeout_s = timeout_s
-        self._api_key = api_key
+        self._api_key = api_key or os.environ.get("LLM_API_KEY")
         self._temperature = temperature
         self._transport = transport or _default_transport
 

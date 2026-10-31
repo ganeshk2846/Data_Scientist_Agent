@@ -1,0 +1,11 @@
+# Known-good value for `revenue`, checked by tests/test_metric_values.py.
+# fixture: scripts/synth/fixture.py (seed 7) -> scripts/synth/generate.py (seed 20261030)
+#          -> scripts/build_analytical_tables.py. Regenerate deliberately if a definition changes.
+metric_id: revenue
+layer: real
+checks:
+  - source: fixture
+    period: "2018-03"
+    dimension: null
+    value: 44249.08
+    tolerance: 0.01

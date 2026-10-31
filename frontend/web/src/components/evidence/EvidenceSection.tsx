@@ -241,7 +241,11 @@ function EvidenceCard({
         {/* An analyst that produced no result still explains itself. */}
         {analyst && !anomaly && !driver ? (
           <p className="text-small leading-relaxed text-ink-muted">
-            {analyst.reason ?? 'This module produced no result.'}
+            {analyst.status === 'ok' && analyst.result !== null
+              ? // A V2 engine (forecast, impact, scenario, segment) is drawn by
+                // its VisualizationSpec in the Charts section, not here.
+                'This result is drawn in the charts above, each with its own table.'
+              : (analyst.reason ?? 'This module produced no result.')}
           </p>
         ) : null}
         {!analyst && !lookup ? (

@@ -1,0 +1,3894 @@
+{
+ "meta": {
+  "label": "after fixes (incl. X6 scale fix and demo wording)",
+  "started": "2026-10-31 05:33",
+  "commit": "afa3e04",
+  "duration_s": 22.388196632000017,
+  "base_url": "spawned by --serve",
+  "database": {
+   "path": "data/brazil_ecommerce_v2.sqlite",
+   "orders": 4975,
+   "real_olist": false,
+   "snapshot_id": "v2-20261030",
+   "sha256": "9eb8579c853953a71bccaa24e9eee8f14af6ca9acbcf68bec6ca808948dc74d2"
+  },
+  "ollama": false
+ },
+ "rows": [
+  {
+   "id": "D1",
+   "question": "What data do you have?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": true,
+   "latency_ms": 48,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 41,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The warehouse holds 24 tables: 9 real Olist tables (order_items, order_payments, order_reviews, orders, customers, product_category_translation, products, sellers, geolocation) and 10 synthetic tables (customer_segments, marketing_spend, promotions, web_traffic, competitor_prices, price_history, del",
+   "category": "correct"
+  },
+  {
+   "id": "D2",
+   "question": "Which metrics can you calculate?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 14,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 7,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "You can ask about 16 governed metrics: 9 on the real Olist data (gmv, revenue, order_count, aov, review_score, freight_value, item_count, customer_count, cancellation_rate) and 7 on synthetic tables (marketing_spend, sessions, conversion_rate, stockout_rate, return_rate, margin, target_attainment), ",
+   "category": "correct"
+  },
+  {
+   "id": "D3",
+   "question": "What time period does the data cover?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 36,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 31,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The warehouse holds 24 tables: 9 real Olist tables (order_items, order_payments, order_reviews, orders, customers, product_category_translation, products, sellers, geolocation) and 10 synthetic tables (customer_segments, marketing_spend, promotions, web_traffic, competitor_prices, price_history, del",
+   "category": "correct"
+  },
+  {
+   "id": "D4",
+   "question": "Can I break revenue down by region?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 11,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue (revenue) is computed from order_payments; it can be broken down by customer_state, customer_city, order_status, payment_type, month, year.",
+   "category": "correct"
+  },
+  {
+   "id": "D5",
+   "question": "What dimensions are available for AOV?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Average Order Value (aov) is computed from order_payments; it can be broken down by customer_state, customer_city, order_status, payment_type, month, year.",
+   "category": "correct"
+  },
+  {
+   "id": "D6",
+   "question": "How is revenue defined here?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue (revenue) is computed from order_payments; it can be broken down by customer_state, customer_city, order_status, payment_type, month, year.",
+   "category": "correct"
+  },
+  {
+   "id": "D7",
+   "question": "What's the difference between GMV and revenue?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Gross Merchandise Value (gmv) is computed from order_items; it can be broken down by customer_state, customer_city, order_status, product_category, seller_state, month, year. Revenue (revenue) is computed from order_payments; it can be broken down by customer_state, customer_city, order_status, paym",
+   "category": "correct"
+  },
+  {
+   "id": "D8",
+   "question": "Do you have marketing or traffic data?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 36,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 30,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The warehouse holds 24 tables: 9 real Olist tables (order_items, order_payments, order_reviews, orders, customers, product_category_translation, products, sellers, geolocation) and 10 synthetic tables (customer_segments, marketing_spend, promotions, web_traffic, competitor_prices, price_history, del",
+   "category": "correct"
+  },
+  {
+   "id": "D9",
+   "question": "How many customers are in the database?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 37,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 30,
+   "steps": [
+    "catalog:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The warehouse holds 24 tables: 9 real Olist tables (order_items, order_payments, order_reviews, orders, customers, product_category_translation, products, sellers, geolocation) and 10 synthetic tables (customer_segments, marketing_spend, promotions, web_traffic, competitor_prices, price_history, del",
+   "key_numbers": [
+    4975.0,
+    4838.0
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "D10",
+   "question": "Do you have customer age or gender?",
+   "section": "discovery",
+   "expected_intent": "discovery",
+   "expected_outcome": "refuse",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [
+    "expected refuse, got clarify (asked: \"I don't hold customer age, customer gender. Would one of these help instead?\")"
+   ],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "routing_failure"
+  },
+  {
+   "id": "C1",
+   "question": "Summarize revenue",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 17,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 13,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C2",
+   "question": "How are sales doing?",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 10,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C3",
+   "question": "Show me the top states",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 8,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 1,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C4",
+   "question": "Why did it drop?",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C5",
+   "question": "Compare the two biggest regions",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C6",
+   "question": "What about last month?",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 12,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C7",
+   "question": "Revenue by category - recent",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 12,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C8",
+   "question": "Is freight expensive?",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 12,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C9",
+   "question": "Give me the numbers for SP",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 10,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "C10",
+   "question": "Show growth",
+   "section": "clarify",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 13,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "S1",
+   "question": "How many orders were there in August 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 29,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 23,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Order count for 2018-08 was 326.",
+   "key_numbers": [
+    326.0
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S2",
+   "question": "What was revenue in 2017?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 32,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 26,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue for 2017-01 to 2017-12 was R$ 278,162.96. Revenue moved from R$ 4,634.23 to R$ 33,513.21 over the window, a change of 623.2%. The average per period was R$ 23,180.25, ranging from R$ 4,634.23 to R$ 47,059.03.",
+   "key_numbers": [
+    278162.96
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S3",
+   "question": "What was GMV by customer state in 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 33,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 26,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "GMV for SP was R$ 140,436.08. GMV for RJ was R$ 43,500.06. GMV for MG was R$ 41,226.66. GMV for RS was R$ 18,166.34. GMV for PR was R$ 16,184.32.",
+   "key_numbers": [
+    140436.08,
+    140436.08
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S4",
+   "question": "How did revenue in 2018 compare to 2017?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 27,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 21,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue for 2018-01 to 2018-08 was R$ 335,452.41, a change of 136.7% against 2017-01 to 2017-08.",
+   "key_numbers": [
+    335452.41,
+    335727.7
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S5",
+   "question": "What are the spikes across all months?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": true,
+   "latency_ms": 24,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 16,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The precomputed anomaly scan flags 86 movements across every metric and month (FDR-corrected); the 5 largest by score are listed. conversion rate, 2018-01: a spike of 14.7% against expected. conversion rate in BA, 2018-01: a spike of 12.4% against expected. stockout rate, 2017-11: a spike of 3,858.6",
+   "category": "correct"
+  },
+  {
+   "id": "S6",
+   "question": "Which product categories had the highest GMV in 2017?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 24,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 18,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "cama_mesa_banho ranks 1 with R$ 35,164.94 (12.6% of the total). moveis_decoracao ranks 2 with R$ 27,331.77 (9.8% of the total). esporte_lazer ranks 3 with R$ 26,757.33 (9.6% of the total). All remaining values total R$ 40,527.73.",
+   "key_numbers": [
+    35164.94
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S7",
+   "question": "What was the cancellation rate by month in 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 25,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 19,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Cancellation rate for 2018-01 to 2018-08 was 0.007. Cancellation rate moved from 0.0055 to 0.0153 over the window, a change of 178.4%. The average per period was 0.0071, ranging from 0.0028 to 0.0153.",
+   "category": "correct"
+  },
+  {
+   "id": "S8",
+   "question": "How many unique customers ordered in Q2 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 32,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 26,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Customer count for 2018-04 to 2018-06 was 993. Customer count moved from 346 to 308 over the window, a change of -11%. The average per period was 332, ranging from 308 to 346.",
+   "key_numbers": [
+    993.0
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "S9",
+   "question": "What was the average review score by state in 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 28,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 22,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Review score for RO was 5. Review score for RR was 5. Review score for AL was 4.79. Review score for PI was 4.74. Review score for AP was 4.67.",
+   "category": "correct"
+  },
+  {
+   "id": "S10",
+   "question": "What was marketing spend by channel in 2018?",
+   "section": "descriptive",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 27,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 21,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Marketing spend for paid_search was R$ 1,997,921. Marketing spend for social was R$ 1,466,762.51. Marketing spend for display was R$ 879,968.45. Marketing spend for email was R$ 587,322.78. Marketing spend for affiliate was R$ 587,127.07.",
+   "key_numbers": [
+    2609925.47,
+    1997921.0
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "G1",
+   "question": "Why did revenue drop in the top category in April 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": true,
+   "latency_ms": 321,
+   "reasons": [],
+   "plant_expected": "E1",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 312,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "GMV was R$ 40,696.14 against an expected R$ 27,932.58, a deviation of 45.7%. The total change in GMV was R$ -3,552.94. product_category=beleza_saude accounts for R$ -1,447.27 of the change (concentration). product_category=brinquedos accounts for R$ -1,006.08 of the change (concentration). product_c",
+   "plant": {
+    "plant": "E1",
+    "recovered": true,
+    "cause_tokens": [
+     "paid_search"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": -504.4899999999998,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "G2",
+   "question": "Was order count unusual in August 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 278,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 270,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Order count was 326 against an expected 325.5, a deviation of 0.2%. The total change in order count was 11. customer_state=GO accounts for -7 of the change (concentration). customer_state=RJ accounts for 6 of the change (concentration). customer_state=MG accounts for 5 of the change (concentration).",
+   "category": "correct"
+  },
+  {
+   "id": "G3",
+   "question": "Why did order count fall in December 2017?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 469,
+   "reasons": [],
+   "plant_expected": "E2",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 460,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:insufficient_evidence",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The total change in order count was -93. customer_state=SP accounts for -35 of the change (concentration). customer_state=RJ accounts for -17 of the change (concentration). customer_state=MG accounts for -13 of the change (concentration). No candidate driver correlated with order count across its fu",
+   "plant": {
+    "plant": "E2",
+    "recovered": true,
+    "cause_tokens": [
+     "stockout"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": -93.0,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "G4",
+   "question": "Why did AOV fall in January 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 456,
+   "reasons": [
+    "premise false on this database (measured change +1.39); E3 not scored"
+   ],
+   "plant_expected": "E3",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 447,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "AOV was R$ 122.82 against an expected R$ 124, a deviation of -1%. The total change in AOV was R$ 1.39. customer_state (numerator)=SP accounts for R$ 19.37 of the change (ratio component (shares are not additive for a ratio)). customer_state (denominator)=SP accounts for R$ -16.08 of the change (rati",
+   "plant": {
+    "plant": "E3",
+    "recovered": false,
+    "cause_tokens": [],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": 1.3903540199174103,
+    "premise_holds": false
+   },
+   "category": "correct"
+  },
+  {
+   "id": "G5",
+   "question": "Why did review scores drop in June 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 227,
+   "reasons": [
+    "premise false on this database (measured change +0.1477); E4 not scored"
+   ],
+   "plant_expected": "E4",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 218,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Review score was 4.15 against an expected 4.12, a deviation of 0.8%. The total change in review score was 0.15. customer_state (denominator)=SP accounts for 0.21 of the change (ratio component (shares are not additive for a ratio)). customer_state (numerator)=SP accounts for -0.17 of the change (rat",
+   "plant": {
+    "plant": "E4",
+    "recovered": false,
+    "cause_tokens": [],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": 0.14765100671140896,
+    "premise_holds": false
+   },
+   "category": "correct"
+  },
+  {
+   "id": "G6",
+   "question": "What drove the GMV change between Q1 and Q2 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 518,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 510,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "GMV was R$ 124,176.26 against an expected R$ 27,932.58, a deviation of 344.6%. The total change in GMV was R$ -7,178.82. product_category=perfumaria accounts for R$ -2,056.58 of the change (concentration). product_category=cama_mesa_banho accounts for R$ -2,028.37 of the change (concentration). prod",
+   "category": "correct"
+  },
+  {
+   "id": "G7",
+   "question": "Why is AOV higher for boleto than credit card?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 290,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 264,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "AOV was R$ 250.17 against an expected R$ 250.95, a deviation of -0.3%. The total change in AOV was R$ 0.22. customer_state (numerator)=RJ accounts for R$ 3.72 of the change (ratio component (shares are not additive for a ratio)). customer_state (denominator)=GO accounts for R$ 3.22 of the change (ra",
+   "category": "correct"
+  },
+  {
+   "id": "G8",
+   "question": "Which states drove the revenue decline in May 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 339,
+   "reasons": [
+    "premise false on this database (measured change +4,173); E1 not scored"
+   ],
+   "plant_expected": "E1",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 331,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 44,868.96 against an expected R$ 30,723.32, a deviation of 46%. The total change in revenue was R$ 4,172.82. customer_state=RJ accounts for R$ -2,032.67 of the change (concentration). customer_state=SP accounts for R$ 1,927.75 of the change (concentration). customer_state=MG accounts ",
+   "plant": {
+    "plant": "E1",
+    "recovered": false,
+    "cause_tokens": [],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": 4172.82,
+    "premise_holds": false
+   },
+   "category": "correct"
+  },
+  {
+   "id": "G9",
+   "question": "Why did cancellations rise in 2018 versus 2017?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 482,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 473,
+   "steps": [
+    "analytical_table:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The total change in cancellation rate was -0.0008. customer_state (denominator)=SP accounts for -0.003 of the change (ratio component (shares are not additive for a ratio)). customer_state (numerator)=RJ accounts for 0.0025 of the change (ratio component (shares are not additive for a ratio)). custo",
+   "category": "correct"
+  },
+  {
+   "id": "G10",
+   "question": "Did the carrier cause the delivery delays?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 1320,
+   "reasons": [],
+   "plant_expected": "E4",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 1305,
+   "steps": [
+    "sql:ok",
+    "python.driver:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The total change in SLA breach rate was 0.0304. carrier (numerator)=jadlog accounts for 0.0249 of the change (ratio component (shares are not additive for a ratio)). carrier (numerator)=loggi accounts for 0.0052 of the change (ratio component (shares are not additive for a ratio)). carrier (numerato",
+   "plant": {
+    "plant": "E4",
+    "recovered": true,
+    "cause_tokens": [
+     "jadlog",
+     "sla_breach"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [
+     "freight"
+    ],
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "E-G1s",
+   "question": "Why did web sessions drop in April 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 275,
+   "reasons": [],
+   "plant_expected": "E1",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 267,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Sessions was 1,512,194 against an expected 1,529,206.5, a deviation of -1.1%. The total change in sessions was -114,497. customer_state=SP accounts for -76,090 of the change (concentration). customer_state=RJ accounts for -30,560 of the change (concentration). customer_state=SC accounts for -5,369 o",
+   "plant": {
+    "plant": "E1",
+    "recovered": true,
+    "cause_tokens": [
+     "paid_search"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": -114497.0,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "E-G3s",
+   "question": "Why did the stockout rate spike in December 2017?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 403,
+   "reasons": [],
+   "plant_expected": "E2",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 393,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Stockout rate was 0.11 against an expected 0.0039, a deviation of 2,798.7%. The total change in stockout rate was 0.009. product_category (numerator)=beleza_saude accounts for 0.0076 of the change (ratio component (shares are not additive for a ratio)). product_category (numerator)=cama_mesa_banho a",
+   "plant": {
+    "plant": "E2",
+    "recovered": true,
+    "cause_tokens": [
+     "cama_mesa_banho",
+     "beleza_saude",
+     "esporte_lazer"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": 0.009015715467328364,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "E-G4s",
+   "question": "Why did conversion rate rise in January 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 410,
+   "reasons": [],
+   "plant_expected": "E3",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 398,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Conversion rate was 0.0241 against an expected 0.021, a deviation of 14.7%. The total change in conversion rate was 0.0033. customer_state (numerator)=SP accounts for 0.0018 of the change (ratio component (shares are not additive for a ratio)). customer_state (numerator)=RJ accounts for 0.0006 of th",
+   "plant": {
+    "plant": "E3",
+    "recovered": true,
+    "cause_tokens": [
+     "discount"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [
+     "boleto"
+    ],
+    "premise_change": 0.0032805144789131296,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "E-G5s",
+   "question": "Why did the return rate rise in June 2018?",
+   "section": "diagnostic",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 244,
+   "reasons": [],
+   "plant_expected": "E4",
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 235,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Return rate was 0.0408 against an expected 0.0359, a deviation of 13.7%. The total change in return rate was 0.0144. product_category (numerator)=moveis_decoracao accounts for 0.0083 of the change (ratio component (shares are not additive for a ratio)). product_category (numerator)=informatica_acess",
+   "plant": {
+    "plant": "E4",
+    "recovered": true,
+    "cause_tokens": [
+     "sla_breach"
+    ],
+    "misattributed": false,
+    "confounder_tokens": [],
+    "premise_change": 0.014361300075585788,
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "I1",
+   "question": "How much did the April 2018 drop cost us?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": true,
+   "latency_ms": 25,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 15,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,696.14 against an expected R$ 27,932.58, a deviation of 45.7%. The change in revenue was R$ 12,763.56 (45.7%) against the baseline of R$ 27,932.58.",
+   "category": "correct"
+  },
+  {
+   "id": "I2",
+   "question": "What is SP worth to us?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 25,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 17,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in revenue was R$ 136,825.64 (231.5%) against the baseline of R$ 59,105.65. The change is statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "I3",
+   "question": "How much revenue is exposed to the top 3 categories?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 27,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 18,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in GMV was R$ 328,719.5 (229.6%) against the baseline of R$ 143,170.3. The change is statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "I4",
+   "question": "What would closing the cancellation gap be worth?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 26,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 15,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in cancellation rate was -0.0054 (-35.2%) against the baseline of 0.0154. The change is not statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "I5",
+   "question": "What was the return on the marketing spend we cut?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 23,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 13,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Marketing spend was R$ 771,128.77 against an expected R$ 658,459.81, a deviation of 17.1%. The change in marketing spend was R$ 112,668.96 (17.1%) against the baseline of R$ 658,459.81.",
+   "category": "correct"
+  },
+  {
+   "id": "I6",
+   "question": "Which state's revenue decline mattered most in 2018?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 25,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 18,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in revenue was R$ 104,136.24 (45%) against the baseline of R$ 231,316.17. The change is statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "I7",
+   "question": "How far are we off the regional targets?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 25,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 19,
+   "steps": [
+    "analytical_table:ok",
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in revenue was R$ 1,084.03 (2.8%) against the baseline of R$ 39,418.52. The gap to target is R$ -2,598.3 (94% attainment).",
+   "category": "correct"
+  },
+  {
+   "id": "I8",
+   "question": "How much of 2018 GMV came from repeat customers?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 23,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 17,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in GMV was R$ 104,136.24 (45%) against the baseline of R$ 231,316.17. The change is statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "I9",
+   "question": "What are the stockouts costing us?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 20,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 14,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Stockout rate was 0.0149 against an expected 0.0144, a deviation of 3.1%. The change in stockout rate was 0.0004 (3.1%) against the baseline of 0.0144.",
+   "category": "correct"
+  },
+  {
+   "id": "I10",
+   "question": "How big is the 2018 revenue shortfall versus 2017?",
+   "section": "impact",
+   "expected_intent": "impact",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 23,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 16,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The change in revenue was R$ 193,726.84 (136.7%) against the baseline of R$ 141,725.57. The change is statistically significant.",
+   "category": "correct"
+  },
+  {
+   "id": "F1",
+   "question": "Forecast revenue for the next 3 months",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": true,
+   "latency_ms": 16,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 8,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the revenue forecast for 2018-09 to 2018-11 ends at R$ 46,314.51 in 2018-11, with an interval of R$ 33,931.25 to R$ 58,697.77 (ets model). Month by month: 2018-09 R$ 43,960.45; 2018-10 R$ 45,153.1; 2018-11 R$ 46,314.51. Its backtest MAPE on held-out mont",
+   "category": "correct"
+  },
+  {
+   "id": "F2",
+   "question": "Where is order count heading?",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 14,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 8,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the order count forecast for 2018-09 to 2018-11 ends at 363.41 in 2018-11, with an interval of 295.91 to 430.91 (ets model). Month by month: 2018-09 356.73; 2018-10 360.27; 2018-11 363.41. Its backtest MAPE on held-out months is 24.5%.",
+   "category": "correct"
+  },
+  {
+   "id": "F3",
+   "question": "Forecast GMV for the next quarter",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 21,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 15,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the GMV forecast for 2018-09 to 2018-11 ends at R$ 46,314.51 in 2018-11, with an interval of R$ 33,931.25 to R$ 58,697.77 (ets model). Month by month: 2018-09 R$ 43,960.45; 2018-10 R$ 45,153.1; 2018-11 R$ 46,314.51. Its backtest MAPE on held-out months i",
+   "category": "correct"
+  },
+  {
+   "id": "F4",
+   "question": "What is the expected AOV next month?",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 15,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 10,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the AOV forecast for 2018-09 to 2018-11 ends at R$ 126.09 in 2018-11, with an interval of R$ 115.28 to R$ 136.91 (ets model). Month by month: 2018-09 R$ 126.08; 2018-10 R$ 126.09; 2018-11 R$ 126.09. Its backtest MAPE on held-out months is 0.5%.",
+   "category": "correct"
+  },
+  {
+   "id": "F5",
+   "question": "Project revenue for SP over the next 6 months",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 757,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 751,
+   "steps": [
+    "analytical_table:ok",
+    "python.forecast:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the revenue forecast for 5 periods ahead ends at R$ 19,778.99, with a prediction interval of R$ 9,917.69 to R$ 29,640.3. 6 periods were asked for; the history supports 5 defensible periods, and beyond that the interval is wider than the signal. The ets b",
+   "category": "correct"
+  },
+  {
+   "id": "F6",
+   "question": "Will cancellations keep rising?",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 15,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 9,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the cancellation rate forecast for 2018-09 to 2018-11 ends at 0.0079 in 2018-11, with an interval of 0 to 0.0227 (ets model). Month by month: 2018-09 0.0079; 2018-10 0.0079; 2018-11 0.0079. Its backtest MAPE on held-out months is 72%.",
+   "category": "correct"
+  },
+  {
+   "id": "F7",
+   "question": "How many customers will we have next quarter?",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 13,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 9,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the customer count forecast for 2018-09 to 2018-11 ends at 362.91 in 2018-11, with an interval of 295.66 to 430.17 (ets model). Month by month: 2018-09 356.23; 2018-10 359.77; 2018-11 362.91. Its backtest MAPE on held-out months is 24%.",
+   "category": "correct"
+  },
+  {
+   "id": "F8",
+   "question": "Forecast review scores for the next 3 months",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 13,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 7,
+   "steps": [
+    "analytical_table:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the review score forecast for 2018-09 to 2018-11 ends at 4.11 in 2018-11, with an interval of 3.92 to 4.3 (ets model). Month by month: 2018-09 4.11; 2018-10 4.11; 2018-11 4.11. Its backtest MAPE on held-out months is 2%.",
+   "category": "correct"
+  },
+  {
+   "id": "F9",
+   "question": "What will revenue be in 2020?",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 537,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 531,
+   "steps": [
+    "analytical_table:ok",
+    "python.forecast:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the revenue forecast for 5 periods ahead ends at R$ 48,481.61, with a prediction interval of R$ 27,629.64 to R$ 69,333.57. 28 periods were asked for; the history supports 5 defensible periods, and beyond that the interval is wider than the signal. The et",
+   "category": "correct"
+  },
+  {
+   "id": "F10",
+   "question": "Forecast revenue for the next 3 months by category",
+   "section": "forecast",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 528,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 522,
+   "steps": [
+    "analytical_table:ok",
+    "python.forecast:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the GMV forecast for 3 periods ahead ends at R$ 47,222.58, with a prediction interval of R$ 31,070.72 to R$ 63,374.44. The ets backtest MAPE is 23%. An ARIMA challenger scored 13.9% on the same held-out months; it is shown for comparison only.",
+   "category": "correct"
+  },
+  {
+   "id": "X1",
+   "question": "What if freight costs rise 10%?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 29,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 23,
+   "steps": [
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Applied to the last 3 complete months, the stated change moves freight value from R$ 19,420.81 to R$ 21,362.89, a change of R$ 1,942.08 (10%). This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.",
+   "category": "correct"
+  },
+  {
+   "id": "X2",
+   "question": "What if we lose SP entirely?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 40,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 34,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok",
+    "sql:ok",
+    "python.scenario:insufficient_evidence"
+   ],
+   "stream_ok": true,
+   "conclusion": "Baseline revenue over the last 3 complete months was R$ 118,532.23. SP ranks 1 with R$ 195,931.29 (41.5% of the total). RJ ranks 2 with R$ 60,835.17 (12.9% of the total). MG ranks 3 with R$ 57,550.47 (12.2% of the total). All remaining values total R$ 109,062.65.",
+   "category": "correct"
+  },
+  {
+   "id": "X3",
+   "question": "What if the cancellation rate halved?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 57,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 51,
+   "steps": [
+    "sql:ok",
+    "sql:ok",
+    "sql:ok",
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Applied to the last 3 complete months, the stated change moves revenue from R$ 118,532.23 to R$ 119,038.24, a change of R$ 506.01 (0.4%). This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.",
+   "category": "correct"
+  },
+  {
+   "id": "X4",
+   "question": "What if credit card share grew to 85%?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 24,
+   "reasons": [
+    "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'grew to 85%' has no fitted relationship to perturb, so no figure is invented."
+   ],
+   "plant_expected": null,
+   "status": "insufficient_evidence",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 17,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok",
+    "python.scenario:insufficient_evidence"
+   ],
+   "stream_ok": true,
+   "conclusion": "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'grew to 85%' has no fitted relationship to perturb, so no figure is invented.",
+   "category": "insufficient_evidence"
+  },
+  {
+   "id": "X5",
+   "question": "What if AOV improved 5% next quarter?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 27,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 21,
+   "steps": [
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Applied to the last 3 complete months, the stated change moves revenue from R$ 118,532.23 to R$ 124,458.84, a change of R$ 5,926.61 (5%). This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.",
+   "category": "correct"
+  },
+  {
+   "id": "X6",
+   "question": "What if we raise prices 5%?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": true,
+   "latency_ms": 542,
+   "reasons": [],
+   "plant_expected": "E5",
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 534,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok",
+    "sql:ok",
+    "python.scenario:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "For a price change of 5%, the fitted elasticity is -1.61 (interval -2.25 to -0.97). Demand changes by -7.6% and revenue by -2.9% (Monte Carlo interval -5.9% to 0.1%). Against the measured baseline revenue of R$ 118,532.23, that is R$ -3,478.38. This is an observational estimate on synthetic data, no",
+   "plant": {
+    "plant": "E5",
+    "recovered": true,
+    "misattributed": false,
+    "cause_tokens": [
+     "elasticity -1.61 (-2.25 to -0.97) vs planted -1.5"
+    ],
+    "confounder_tokens": [],
+    "premise_holds": true
+   },
+   "category": "correct"
+  },
+  {
+   "id": "X7",
+   "question": "What if we restored the marketing spend we cut?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 23,
+   "reasons": [
+    "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'restored the marketing spend we cut' has no fitted relationship to perturb, so no figur"
+   ],
+   "plant_expected": null,
+   "status": "insufficient_evidence",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 17,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok",
+    "python.scenario:insufficient_evidence"
+   ],
+   "stream_ok": true,
+   "conclusion": "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'restored the marketing spend we cut' has no fitted relationship to perturb, so no figure is invented.",
+   "category": "insufficient_evidence"
+  },
+  {
+   "id": "X8",
+   "question": "What if order volume grew 10% but AOV fell 5%?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 24,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 19,
+   "steps": [
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Applied to the last 3 complete months, the stated change moves revenue from R$ 118,532.23 to R$ 123,866.18, a change of R$ 5,333.95 (4.5%). This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.",
+   "category": "correct"
+  },
+  {
+   "id": "X9",
+   "question": "What if we eliminated the stockouts?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 26,
+   "reasons": [
+    "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'eliminated the stockouts' has no fitted relationship to perturb, so no figure is invent"
+   ],
+   "plant_expected": null,
+   "status": "insufficient_evidence",
+   "intents": [
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 17,
+   "steps": [
+    "analytical_table:ok",
+    "python.impact:ok",
+    "python.scenario:insufficient_evidence"
+   ],
+   "stream_ok": true,
+   "conclusion": "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'eliminated the stockouts' has no fitted relationship to perturb, so no figure is invented.",
+   "category": "insufficient_evidence"
+  },
+  {
+   "id": "X10",
+   "question": "What if we launched in Argentina?",
+   "section": "scenario",
+   "expected_intent": "scenario",
+   "expected_outcome": "refuse",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 8,
+   "reasons": [
+    "expected refuse, got clarify (asked: \"I don't hold an Argentinian market. Would one of these help instead?\")"
+   ],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "routing_failure"
+  },
+  {
+   "id": "P1",
+   "question": "Which customer segment should we target?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": true,
+   "latency_ms": 340,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 333,
+   "steps": [
+    "sql:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Customers fall into 4 segments, ranked by measured revenue per customer. Segment rank 1 (high, high_value) holds 547 customers averaging R$ 301.89 revenue each. Segment rank 2 (high, one_time) holds 1,077 customers averaging R$ 172.96 revenue each. Segment rank 3 (mid, one_time) holds 1,602 customer",
+   "category": "correct"
+  },
+  {
+   "id": "P2",
+   "question": "What should we do about the April revenue decline?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 287,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 279,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,696.14 against an expected R$ 27,932.58, a deviation of 45.7%. The total change in revenue was R$ -3,552.94. customer_state=MG accounts for R$ -1,663.95 of the change (concentration). customer_state=RJ accounts for R$ 1,656.88 of the change (concentration). customer_state=PR accoun",
+   "category": "correct"
+  },
+  {
+   "id": "P3",
+   "question": "Where should we focus to grow GMV next quarter?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 248,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 241,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "GMV was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in GMV was R$ 1,084.03. product_category=cool_stuff accounts for R$ 1,571.69 of the change (concentration). product_category=utilidades_domesticas accounts for R$ -1,522.43 of the change (concentration). pro",
+   "category": "correct"
+  },
+  {
+   "id": "P4",
+   "question": "Which states should we prioritise?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 295,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 286,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "P5",
+   "question": "How do we reduce cancellations?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 279,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 271,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Cancellation rate was 0.0153 against an expected 0.0062, a deviation of 149.4%. The total change in cancellation rate was 0.009. customer_state (numerator)=ES accounts for -0.0031 of the change (ratio component (shares are not additive for a ratio)). customer_state (numerator)=GO accounts for 0.0031",
+   "category": "correct"
+  },
+  {
+   "id": "P6",
+   "question": "What should we do about the delivery delays?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 1095,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 1081,
+   "steps": [
+    "sql:ok",
+    "python.driver:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The total change in SLA breach rate was 0.0304. carrier (numerator)=jadlog accounts for 0.0249 of the change (ratio component (shares are not additive for a ratio)). carrier (numerator)=loggi accounts for 0.0052 of the change (ratio component (shares are not additive for a ratio)). carrier (numerato",
+   "category": "correct"
+  },
+  {
+   "id": "P7",
+   "question": "Which categories deserve more inventory?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 44,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 38,
+   "steps": [
+    "sql:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The optimised reorder spends R$ 1,157.8 of a R$ 1,157.8 budget and covers 90.1% of forecast demand. Reorder 11 units of informatica_acessorios for R$ 705.46. Reorder 4.8 units of cama_mesa_banho for R$ 272.78. Reorder 2.5 units of perfumaria for R$ 166.48.",
+   "category": "correct"
+  },
+  {
+   "id": "P8",
+   "question": "Should we run the promotion again?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 245,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 235,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "P9",
+   "question": "Should we match competitor prices?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 249,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 241,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "P10",
+   "question": "What should I watch next month?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 22,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 13,
+   "steps": [
+    "analytical_table:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The precomputed anomaly scan flags 86 movements across every metric and month (FDR-corrected); the 5 largest by score are listed. conversion rate, 2018-01: a spike of 14.7% against expected. conversion rate in BA, 2018-01: a spike of 12.4% against expected. stockout rate, 2017-11: a spike of 3,858.6",
+   "category": "correct"
+  },
+  {
+   "id": "K1",
+   "question": "How does revenue trend look today and what will it be in 3 months?",
+   "section": "compound",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": true,
+   "latency_ms": 710,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive",
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 704,
+   "steps": [
+    "sql:ok",
+    "python.forecast:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue for 2017-09 to 2018-08 was R$ 471,889.8. Revenue moved from R$ 27,931.72 to R$ 40,502.55 over the window, a change of 45%. The average per period was R$ 39,324.15, ranging from R$ 27,931.72 to R$ 47,059.03. Anchored on 2018-08, the last complete month, the revenue forecast for 3 periods ahea",
+   "category": "correct"
+  },
+  {
+   "id": "K2",
+   "question": "Was August unusual, and why?",
+   "section": "compound",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 296,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 288,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "K3",
+   "question": "Why did revenue fall and what should we do?",
+   "section": "compound",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 298,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic",
+    "impact",
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 272,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "python.impact:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "K4",
+   "question": "What's our biggest state and what happens if we lose it?",
+   "section": "compound",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 51,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive",
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 43,
+   "steps": [
+    "analytical_table:ok",
+    "analytical_table:ok",
+    "python.impact:ok",
+    "sql:ok",
+    "python.scenario:insufficient_evidence"
+   ],
+   "stream_ok": true,
+   "conclusion": "The precomputed anomaly scan flags 86 movements across every metric and month (FDR-corrected); the 5 largest by score are listed. conversion rate, 2018-01: a spike of 14.7% against expected. conversion rate in BA, 2018-01: a spike of 12.4% against expected. stockout rate, 2017-11: a spike of 3,858.6",
+   "category": "correct"
+  },
+  {
+   "id": "K5",
+   "question": "Show me revenue by category and forecast the top three",
+   "section": "compound",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 581,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive",
+    "forecast"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 575,
+   "steps": [
+    "sql:ok",
+    "analytical_table:ok",
+    "python.forecast:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "cama_mesa_banho ranks 1 with R$ 53,769.82 (11.4% of the total). moveis_decoracao ranks 2 with R$ 51,510.05 (10.9% of the total). beleza_saude ranks 3 with R$ 47,045.48 (10% of the total). All remaining values total R$ 67,398.53. Anchored on 2018-08, the last complete month, the GMV forecast for 3 pe",
+   "category": "correct"
+  },
+  {
+   "id": "K6",
+   "question": "Is the cancellation rate rising, why, and what is it costing us?",
+   "section": "compound",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 245,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic",
+    "impact"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 236,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Cancellation rate was 0.0153 against an expected 0.0062, a deviation of 149.4%. The total change in cancellation rate was 0.009. customer_state (numerator)=ES accounts for -0.0031 of the change (ratio component (shares are not additive for a ratio)). customer_state (numerator)=GO accounts for 0.0031",
+   "category": "correct"
+  },
+  {
+   "id": "K7",
+   "question": "Compare 2017 and 2018 and tell me what to watch",
+   "section": "compound",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 35,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive",
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 26,
+   "steps": [
+    "sql:ok",
+    "analytical_table:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue for 2018-01 to 2018-08 was R$ 335,452.41, a change of 136.7% against 2017-01 to 2017-08. The precomputed anomaly scan flags 86 movements across every metric and month (FDR-corrected); the 5 largest by score are listed. conversion rate, 2018-01: a spike of 14.7% against expected. conversion r",
+   "category": "correct"
+  },
+  {
+   "id": "K8",
+   "question": "What data do you have on freight, and is it unusual this year?",
+   "section": "compound",
+   "expected_intent": "discovery",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 479,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "discovery",
+    "diagnostic"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 471,
+   "steps": [
+    "catalog:ok",
+    "analytical_table:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "The warehouse holds 24 tables: 9 real Olist tables (order_items, order_payments, order_reviews, orders, customers, product_category_translation, products, sellers, geolocation) and 10 synthetic tables (customer_segments, marketing_spend, promotions, web_traffic, competitor_prices, price_history, del",
+   "category": "correct"
+  },
+  {
+   "id": "K9",
+   "question": "Forecast revenue and tell me what happens if freight rises 10%",
+   "section": "compound",
+   "expected_intent": "forecast",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 33,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "forecast",
+    "scenario"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 26,
+   "steps": [
+    "analytical_table:ok",
+    "sql:ok",
+    "python.impact:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Anchored on 2018-08, the last complete month, the revenue forecast for 2018-09 to 2018-11 ends at R$ 46,314.51 in 2018-11, with an interval of R$ 33,931.25 to R$ 58,697.77 (ets model). Month by month: 2018-09 R$ 43,960.45; 2018-10 R$ 45,153.1; 2018-11 R$ 46,314.51. Its backtest MAPE on held-out mont",
+   "category": "correct"
+  },
+  {
+   "id": "K10",
+   "question": "Why did August fall, what did it cost, and what should we do?",
+   "section": "compound",
+   "expected_intent": "diagnostic",
+   "expected_outcome": "answer",
+   "layer": "R+S",
+   "must_answer": false,
+   "latency_ms": 267,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "diagnostic",
+    "impact",
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 259,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "python.impact:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "V1",
+   "question": "Summarize revenue",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 10,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V2",
+   "question": "How's business?",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V3",
+   "question": "Anything unusual?",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 10,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V4",
+   "question": "Give me an overview",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 8,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V5",
+   "question": "What's wrong?",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 8,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V6",
+   "question": "Tell me about SP",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 3,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V7",
+   "question": "Recent performance",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 10,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V8",
+   "question": "Best and worst",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V9",
+   "question": "Is growth good?",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 4,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "V10",
+   "question": "Break it down",
+   "section": "vague",
+   "expected_intent": "clarify",
+   "expected_outcome": "clarify",
+   "layer": "-",
+   "must_answer": false,
+   "latency_ms": 9,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "clarify",
+   "intents": [
+    "clarify"
+   ],
+   "has_chart": false,
+   "server_latency_ms": 2,
+   "steps": [],
+   "stream_ok": true,
+   "conclusion": "",
+   "category": "correct"
+  },
+  {
+   "id": "R-1",
+   "question": "What was revenue in May 2018?",
+   "section": "v1_regression",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 30,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 24,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue for 2018-05 was R$ 44,868.96.",
+   "key_numbers": [
+    44868.96
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "R-2",
+   "question": "What was the average order value in 2018?",
+   "section": "v1_regression",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 38,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 32,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "AOV for 2018-01 to 2018-08 was R$ 125.78. AOV moved from R$ 122.82 to R$ 126.97 over the window, a change of 3.4%. The average per period was R$ 125.86, ranging from R$ 118.65 to R$ 132.75.",
+   "key_numbers": [
+    125.77893138357705,
+    125.8349700149925
+   ],
+   "category": "correct"
+  },
+  {
+   "id": "R-3",
+   "question": "What was total freight value in 2017?",
+   "section": "v1_regression",
+   "expected_intent": "descriptive",
+   "expected_outcome": "answer",
+   "layer": "R",
+   "must_answer": false,
+   "latency_ms": 34,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "descriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 27,
+   "steps": [
+    "sql:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Freight value for 2017-01 to 2017-12 was R$ 46,131.75. Freight value moved from R$ 827.6 to R$ 5,778.25 over the window, a change of 598.2%. The average per period was R$ 3,844.31, ranging from R$ 827.6 to R$ 7,508.67.",
+   "key_numbers": [
+    46131.75
+   ],
+   "category": "correct"
+  }
+ ],
+ "scripts": [
+  {
+   "id": "U1",
+   "ref": "6.2 U1 / must-answer 4",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was revenue in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 27,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "What about SP?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 38,
+     "has_chart": true,
+     "must_answer": true,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U2",
+   "ref": "6.2 U2 - 'why' after a single total must clarify",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was revenue in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 25,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Why?",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 18,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "U3",
+   "ref": "6.2 U3",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Revenue fell in August 2018.",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 25,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Why?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 246,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U4",
+   "ref": "6.2 U4 - forecast of 27 series clarifies down or forecasts the aggregate",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What's revenue by state?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 32,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Forecast that",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 15,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "U5",
+   "ref": "6.2 U5",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Revenue monthly in 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 26,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Forecast that",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "forecast"
+     ],
+     "latency_ms": 23,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U6",
+   "ref": "6.2 U6",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Order count in August 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 22,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "And July?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 26,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U7",
+   "ref": "6.2 U7",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "GMV by category in 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 29,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Just the top 5",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 29,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "dimensions",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U8",
+   "ref": "6.2 U8",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Why did revenue spike in Nov 2017?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 490,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "What did it add?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "impact"
+     ],
+     "latency_ms": 30,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "U9",
+   "ref": "6.2 U9",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Forecast revenue",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "forecast"
+     ],
+     "latency_ms": 16,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "What if freight rises 10%?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "scenario"
+     ],
+     "latency_ms": 30,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "U10",
+   "ref": "6.2 U10 - the third turn inherits from the second; the fourth escalates and keeps RJ",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Revenue in 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 25,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "What about SP?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 37,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    },
+    {
+     "turn": 3,
+     "q": "And RJ?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 32,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    },
+    {
+     "turn": 4,
+     "q": "Why is RJ lower?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 504,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-window",
+   "ref": "6.1 window shift",
+   "passed": false,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was GMV in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 29,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "And last year?",
+     "category": "incorrect_answer",
+     "reasons": [
+      "period 2017-01..2017-08 != 2017-01..2017-12"
+     ],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 33,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-why",
+   "ref": "6.1 intent escalation 'Why?' after a change",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "How did revenue in August 2018 compare to July 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 18,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Why?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 247,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "comparison_period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-drill",
+   "ref": "6.1 drill-down",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was GMV in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 27,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Break that down by category",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 30,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-grain",
+   "ref": "6.1 grain change",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Revenue monthly in 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 26,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Weekly instead",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 31,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-metric",
+   "ref": "6.1 metric swap",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was revenue by state in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 30,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Same for GMV",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 44,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "dimensions",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-ref",
+   "ref": "6.1 reference",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was the average review score in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 43,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Why is that number so low?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 702,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-forecast-filter",
+   "ref": "6.1 intent escalation 'Forecast that' with an inherited filter",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was revenue in SP in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 33,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Forecast that",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "forecast"
+     ],
+     "latency_ms": 818,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "filters",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "M-why-impact",
+   "ref": "6.1 escalation chain: why -> so what",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Why did revenue drop in April 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "diagnostic"
+     ],
+     "latency_ms": 285,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "How much did that cost us?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "impact"
+     ],
+     "latency_ms": 26,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "CL-option",
+   "ref": "3.2 C1 - choosing an offered option answers the original question",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Summarize revenue",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 11,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Last 12 complete months",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 26,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "CL-default",
+   "ref": "3.2 - accepting the stated default answers the question",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "How are sales doing?",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 11,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Use the default",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 28,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "CL-text",
+   "ref": "3.2 C3 - a free-text reply resolves the asked slot",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Show me the top states",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 10,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "by revenue in 2018",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 29,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "CL-then-follow",
+   "ref": "3.2 + 6.1 - a clarified answer is context for the next follow-up",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "Summarize revenue",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 12,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "Last 12 complete months",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 25,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 3,
+     "q": "What about RJ?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 62,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": [
+      "metric_id",
+      "period",
+      "grain"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "RESET",
+   "ref": "6.3 rule 1 - after a new topic there is no context to inherit",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "What was revenue in 2018?",
+     "category": "correct",
+     "reasons": [],
+     "status": "answered",
+     "intents": [
+      "descriptive"
+     ],
+     "latency_ms": 43,
+     "has_chart": true,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 2,
+     "q": "New topic",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 7,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    },
+    {
+     "turn": 3,
+     "q": "What about SP?",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 11,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  },
+  {
+   "id": "COLD",
+   "ref": "6.3 rule 1 / C6 - a follow-up with no prior turn clarifies",
+   "passed": true,
+   "turns": [
+    {
+     "turn": 1,
+     "q": "And last year?",
+     "category": "correct",
+     "reasons": [],
+     "status": "clarify",
+     "intents": [
+      "clarify"
+     ],
+     "latency_ms": 10,
+     "has_chart": false,
+     "must_answer": false,
+     "inherited": []
+    }
+   ]
+  }
+ ],
+ "v1": [
+  {
+   "question": "How many orders were there in August 2018?",
+   "ok": true,
+   "status": "answered",
+   "events": [
+    "answer",
+    "step_finished",
+    "step_started"
+   ],
+   "latency_ms": 26,
+   "keys_match": true
+  },
+  {
+   "question": "How did revenue in 2018 compare to 2017?",
+   "ok": true,
+   "status": "answered",
+   "events": [
+    "answer",
+    "step_finished",
+    "step_started"
+   ],
+   "latency_ms": 35,
+   "keys_match": true
+  },
+  {
+   "question": "Was order count unusual in August 2018?",
+   "ok": true,
+   "status": "answered",
+   "events": [
+    "answer",
+    "step_finished",
+    "step_started"
+   ],
+   "latency_ms": 23,
+   "keys_match": true
+  }
+ ]
+}

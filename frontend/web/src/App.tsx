@@ -7,6 +7,12 @@ import { MockBar } from '@/components/MockBar';
 import { PresentationMode } from '@/components/PresentationMode';
 import { AskBox } from '@/components/ask/AskBox';
 import { AskHero } from '@/components/ask/AskHero';
+import { FeedbackBar } from '@/components/briefing/FeedbackBar';
+import { InterpretedAs } from '@/components/briefing/InterpretedAs';
+import { PlanView } from '@/components/briefing/PlanView';
+import { ConversationList, groupConversations } from '@/components/thread/ConversationList';
+import { ConversationThread, interpretedText } from '@/components/thread/ConversationThread';
+import { ReplayBar } from '@/components/thread/ReplayBar';
 import { CompareView } from '@/components/compare/CompareView';
 import { ShortcutsSheet } from '@/components/help/ShortcutsSheet';
 import { RunInspector } from '@/components/inspector/RunInspector';
@@ -23,15 +29,19 @@ import { useToast } from '@/components/ui/Toast';
 import { useDocumentStatus } from '@/hooks/useDocumentStatus';
 import { useAskHotkey, useHotkey } from '@/hooks/useHotkeys';
 import { usePins } from '@/hooks/usePins';
-import { liveTransport, useRun } from '@/hooks/useRun';
+import { useFeedback } from '@/hooks/useFeedback';
+import { liveTransport, useRun, type AskOptions } from '@/hooks/useRun';
 import { useSession } from '@/hooks/useSession';
 import { useSettings } from '@/hooks/useSettings';
 import { useTheme } from '@/hooks/useTheme';
-import { probeBackend } from '@/lib/api';
+import { probeBackend, resetSession } from '@/lib/api';
 import { readHeadline } from '@/lib/headline';
 import { mockTransport } from '@/lib/mock/transport';
 import { isRunInFlight } from '@/lib/runState';
 import { hasSeenTour, markTourSeen } from '@/lib/tour';
+import { asV2, planFromEnvelope } from '@/lib/v2';
+
+const newThreadId = () => `t-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** `?mock=1` previews every designed state without a backend. */
 function readMockFlag(): boolean {
@@ -63,15 +73,30 @@ export default function App() {
   const [trackExpanded, setTrackExpanded] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const askRef = useRef<HTMLTextAreaElement>(null);
+  /** The current conversation; "New topic" starts another. */
+  const [threadId, setThreadId] = useState(newThreadId);
+  const threadRef = useRef(threadId);
+  threadRef.current = threadId;
+  /** The next ask after "New topic" is answered without session context. */
+  const resetNext = useRef(false);
+  const [replay, setReplay] = useState<{ threadId: string; index: number } | null>(null);
 
   const transport = useMemo(
     () => (mock ? mockTransport() : liveTransport(session.sessionId)),
     [mock, session.sessionId],
   );
 
+  const openHistory = useCallback(
+    (question: string, clarificationOf: string | null) =>
+      session.open(question, clarificationOf, threadRef.current),
+    [session],
+  );
+
+  const feedback = useFeedback(session.sessionId, mock);
+
   const run = useRun({
     transport,
-    openHistory: session.open,
+    openHistory,
     onRunId: session.attachRunId,
     onEnvelope: session.settle,
   });
@@ -106,9 +131,12 @@ export default function App() {
 
   /* ── The one submit path. Every surface funnels through here. ─────────── */
   const submit = useCallback(
-    (question: string, clarificationOf: string | null = null) => {
+    (question: string, clarificationOf: string | null = null, options: AskOptions = {}) => {
       setView('ask');
-      run.submit(question, clarificationOf);
+      setReplay(null);
+      const resetContext = resetNext.current;
+      resetNext.current = false;
+      run.submit(question, clarificationOf, { ...options, ...(resetContext ? { resetContext } : {}) });
       setDraft('');
       setRailOpen(false);
       setTrackExpanded(false);
@@ -143,6 +171,49 @@ export default function App() {
     setPresenting(false);
     window.requestAnimationFrame(focusAsk);
   }, [focusAsk, run]);
+
+  /** New topic: a fresh conversation, answered without the earlier context. */
+  const onNewTopic = useCallback(() => {
+    setThreadId(newThreadId());
+    resetNext.current = true;
+    setReplay(null);
+    if (!mock) void resetSession(session.sessionId);
+    onNewQuestion();
+  }, [mock, onNewQuestion, session.sessionId]);
+
+  const conversations = useMemo(() => groupConversations(session.history), [session.history]);
+
+  const startReplay = useCallback(
+    (replayThread: string) => {
+      const conversation = conversations.find((item) => item.threadId === replayThread);
+      const first = conversation?.turns.findIndex((turn) => turn.envelope) ?? -1;
+      const turn = first >= 0 ? conversation?.turns[first] : undefined;
+      if (!conversation || !turn?.envelope) return;
+      setView('ask');
+      setReplay({ threadId: replayThread, index: first });
+      run.restore(turn.envelope, turn.question, turn.localId);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [conversations, run],
+  );
+
+  const stepReplay = useCallback(
+    (delta: number) => {
+      if (!replay) return;
+      const conversation = conversations.find((item) => item.threadId === replay.threadId);
+      if (!conversation) return;
+      let index = replay.index + delta;
+      // Turns with no stored answer (in flight when stored) are stepped over.
+      while (index >= 0 && index < conversation.turns.length && !conversation.turns[index]?.envelope) {
+        index += delta;
+      }
+      const turn = conversation.turns[index];
+      if (!turn?.envelope) return;
+      setReplay({ threadId: replay.threadId, index });
+      run.restore(turn.envelope, turn.question, turn.localId);
+    },
+    [conversations, replay, run],
+  );
 
   const onRetry = useCallback(() => {
     probe();
@@ -269,6 +340,28 @@ export default function App() {
 
   const idle = state.phase === 'idle';
   const inFlight = isRunInFlight(state.phase);
+
+  /* ── V2: the plan, the interpretation and the conversation so far ────── */
+  const v2 = asV2(state.envelope);
+  const planSteps = inFlight ? state.plan : v2 ? planFromEnvelope(v2) : [];
+  const interpreted = v2
+    ? interpretedText({ question: state.question ?? '', envelope: state.envelope })
+    : state.context?.interpreted_as && state.context.interpreted_as !== state.question
+      ? { text: state.context.interpreted_as, inherited: state.context.inherited_fields }
+      : { text: null, inherited: [] as readonly string[] };
+  const activeThread = activeEntry?.threadId ?? threadId;
+  const threadTurns = session.history
+    .filter(
+      (entry) =>
+        entry.threadId === activeThread &&
+        entry.localId !== state.localId &&
+        entry.status !== null &&
+        entry.askedAt <= (activeEntry?.askedAt ?? Number.POSITIVE_INFINITY),
+    )
+    .reverse();
+  const replayConversation = replay
+    ? conversations.find((item) => item.threadId === replay.threadId)
+    : undefined;
   const settledWithTrack = !inFlight && !!state.envelope && state.stages.length > 0;
 
   return (
@@ -329,6 +422,8 @@ export default function App() {
               </div>
             ) : null}
 
+            <ConversationList conversations={conversations} onReplay={startReplay} />
+
             {mock ? (
               <div className="mx-auto max-w-2xl">
                 <MockBar onPick={(question) => submit(question)} activeQuestion={null} />
@@ -337,11 +432,35 @@ export default function App() {
           </div>
         ) : (
           <div className="space-y-block">
+            {replay && replayConversation ? (
+              <ReplayBar
+                index={replay.index}
+                total={replayConversation.turns.length}
+                onPrevious={() => stepReplay(-1)}
+                onNext={() => stepReplay(1)}
+                onExit={() => setReplay(null)}
+              />
+            ) : (
+              <ConversationThread
+                turns={threadTurns}
+                onOpen={onSelectHistory}
+                onNewTopic={onNewTopic}
+                onReplay={
+                  threadTurns.length > 0 && !inFlight ? () => startReplay(activeThread) : null
+                }
+              />
+            )}
+
             <div data-print="flow">
               <SectionLabel>Question</SectionLabel>
               <h1 className="opsz-title mt-4 max-w-prose font-serif text-[1.625rem] font-light leading-9 tracking-[-0.012em] text-ink">
                 {state.question}
               </h1>
+              {interpreted.text || interpreted.inherited.length > 0 ? (
+                <div className="mt-3">
+                  <InterpretedAs text={interpreted.text} inherited={interpreted.inherited} />
+                </div>
+              ) : null}
             </div>
 
             {/* Live: the full instrument. Settled: a slim bar, expandable. */}
@@ -364,12 +483,29 @@ export default function App() {
               ) : null}
             </div>
 
+            <PlanView steps={planSteps} live={inFlight} />
+
             <ErrorBoundary>
               <AnswerCanvas
               state={state}
               theme={theme.resolved}
               onAsk={(question) => submit(question)}
               onClarify={(answer, clarificationOf) => submit(answer, clarificationOf)}
+              onChooseOption={(optionId, label, clarificationOf) => {
+                // The backend applies the option id to the original question and
+                // ignores this text; it is what the thread shows for the turn.
+                const original = (state.question ?? '').split(' — ')[0] ?? '';
+                submit(original ? `${original} — ${label}` : label, clarificationOf, { optionId });
+              }}
+              afterTrust={
+                state.envelope && state.runId ? (
+                  <FeedbackBar
+                    runId={state.envelope.run_id}
+                    current={feedback.ratingFor(state.envelope.run_id)}
+                    onRate={feedback.rate}
+                  />
+                ) : null
+              }
               onRetry={onRetry}
               onPresent={() => setPresenting(true)}
               starred={starred}

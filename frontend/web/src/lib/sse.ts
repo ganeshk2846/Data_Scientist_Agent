@@ -16,7 +16,16 @@
  */
 
 import { authHeaders } from './api';
-import { RUN_EVENT_TYPES, type RunEvent } from '@/types/events';
+import { RUN_EVENT_TYPES, type RunEvent as V1RunEvent } from '@/types/events';
+import { V2_EVENT_TYPES, type V2RunEvent } from '@/types/v2';
+
+/**
+ * A V1 run emits only the five V1 types. A V2 run emits those same five,
+ * unchanged, plus the V2 progress events (plan, per-step, context), which are
+ * listened for alongside them.
+ */
+export type RunEvent = V1RunEvent | V2RunEvent;
+const STREAM_EVENT_TYPES: readonly RunEvent['type'][] = [...RUN_EVENT_TYPES, ...V2_EVENT_TYPES];
 
 export interface StreamHandlers {
   onEvent: (event: RunEvent) => void;
@@ -38,7 +47,7 @@ function parseEvent(raw: string): RunEvent | null {
     if (!parsed || typeof parsed !== 'object') return null;
     const candidate = parsed as { type?: unknown; seq?: unknown };
     if (typeof candidate.type !== 'string' || typeof candidate.seq !== 'number') return null;
-    if (!RUN_EVENT_TYPES.includes(candidate.type as RunEvent['type'])) return null;
+    if (!STREAM_EVENT_TYPES.includes(candidate.type as RunEvent['type'])) return null;
     return parsed as RunEvent;
   } catch {
     return null;
@@ -99,7 +108,7 @@ export function openRunStream(runId: string, handlers: StreamHandlers): StreamHa
   /** First attempt: EventSource, as the contract documents. */
   function connectEventSource(): void {
     source = new EventSource(url);
-    for (const type of RUN_EVENT_TYPES) {
+    for (const type of STREAM_EVENT_TYPES) {
       source.addEventListener(type, (message) => {
         const event = parseEvent((message as MessageEvent<string>).data);
         if (event) deliver(event);

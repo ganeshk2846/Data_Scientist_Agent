@@ -24,6 +24,7 @@ export const KEYS = {
   pins: `${PREFIX}-pins`,
   tour: `${PREFIX}-tour-seen`,
   token: `${PREFIX}-token`,
+  feedback: `${PREFIX}-feedback`,
 } as const;
 
 export function readRaw(key: string): string | null {

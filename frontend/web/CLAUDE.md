@@ -694,3 +694,63 @@ Backend, from the repo root:
 .venv/Scripts/python.exe -m uvicorn app:app --app-dir backend/src --port 8000
 .venv/Scripts/python.exe -m pytest backend/tests -q
 ```
+
+## 10. Track 5 — the V2 answer (added; nothing above is superseded)
+
+The app now asks through **`POST /api/v2/ask`** and collects from
+**`GET /api/v2/runs/{id}`** (whose envelope is a superset of V1's), falling back
+to `/api/ask` for good if the backend has no V2 route. A `contract_version:
+"1.0.0"` envelope still renders exactly as before: every V2 surface checks
+`asV2()` (`lib/v2.ts`) first and renders nothing without it.
+
+### SSE on a V2 run
+
+A V2 run emits the **same five V1 events, unchanged**, plus these progress
+events from `backend/src/pipeline_v2.py` / `executor_v2.py`, which `lib/sse.ts`
+now listens for: `context`, `intent`, `grounding`, `plan`,
+`plan_step_started`, `plan_step_finished`, `engine_running`, `compose`,
+`replan`. The V2 `clarify` event also carries `question`, `options`, `round`
+and `default_option_id`. Types live in `src/types/v2.ts`. The seven-stage track
+is unchanged; the plan is a separate checklist.
+
+### Surfaces
+
+| Item | Files | Note |
+| --- | --- | --- |
+| Generic chart renderer | `components/viz/VizFrame.tsx` (lazy), `VizCard`, `VizGallery`, `lib/vizData.ts` | Draws any `VisualizationSpec` by `kind`/`encoding`; "view as table" through the shared `ChartFrame` + `DataTable`. Data is resolved from the envelope: `source_query_id` → the lookup block; `source_artifact_id` = `"<step>:<tool>#<path>"` → that step's engine block, then a dotted path. |
+| Plan checklist | `components/briefing/PlanView.tsx` | Type badge per step (SQL / Analytical table / Python · forecast / Python · diagnostic …). Only the running step wears the accent. "Running model — this can take ~N s" uses `TYPICAL_MODEL_SECONDS`, interface copy that is never shown beside a data figure. |
+| Conversation | `components/thread/*`, `InterpretedAs.tsx` | Chat-style earlier turns, the backend's rewritten question as an "interpreted as" chip, **New topic** (sends `reset_context` and calls `/api/sessions/{id}/reset`), and **replay** of stored conversations turn by turn. History entries gained an optional `threadId`. |
+| Clarification | `components/ask/ClarifyOptions.tsx` | Option chips (send `option_id`), "Round n of 2", the default and its rationale; the free-text box stays. |
+| Intent layouts | `components/briefing/IntentPanels.tsx`, `FitQuality.tsx` | WHY: ranked drivers in engine order + waterfall + causal boundary. FORECAST: fan + method/fallback + the MAPE **ledger claim** verbatim ("not backtested" when absent, never 0) + trend/seasonality on request. WHAT IF: scenario charts + engine assumptions and disclosures. NOW WHAT: `next_actions` via the existing `NextActions`. DISCOVERY: the catalog's claims + its "Try: …" example questions. |
+| Also | `AssumptionsPanel`, `SyntheticBadge`, `FollowUpChips` | Backend `follow_ups` verbatim (none → nothing); V1 envelopes keep `lib/followUps.ts`. |
+| Feedback | `components/briefing/FeedbackBar.tsx`, `hooks/useFeedback.ts`, `lib/feedback.ts` | Thumbs + optional reason per answer; `ds-agent-feedback` locally, and `POST /api/sessions/{id}/feedback` live. |
+
+### SAFE-8 notes for the new code
+
+- A waterfall is drawn as **contributions from zero** (sage up, terracotta
+  down), never as running totals — a running total would be our figure.
+- Several series share an axis by *moving* cells into one object per x value;
+  nothing is summed, sorted, sliced or binned. Top-N is the backend's
+  (`encoding.limit`, remainder in the caption).
+- Axis extents including zero (`zero_baseline`) are layout, like bar geometry.
+- A V2 lookup block (string columns, no `row_count`) is reshaped in
+  `asLookup`, never re-counted: `row_count` is `null` and the table prints none.
+
+### Mock mode
+
+`lib/mock/v2.ts` + `v2Scenarios.json`: 16 envelopes **with their event
+streams captured from the real V2 pipeline** on the backend's synthetic test
+fixture (so their figures are the fixture's), loaded on demand. The MockBar
+lists them under "V2 · every intent"; `Summarize revenue` walks the clarify flow
+(free text → round 2; an option → answered). Every V1 mock question routes as
+before.
+
+### Last verification (Track 5)
+
+| Gate | Result |
+| --- | --- |
+| `pytest backend/tests` | 1058 passed, 49 skipped (Olist file absent), 0 failed |
+| `npm run typecheck` / `npm run build` | clean from a wiped cache, no warnings; Recharts and the V2 mock JSON stay lazy |
+| colour names / values | only the three rule comments / 125 token values, 0 in the forbidden band; no raw colour in new code |
+| `verify:features` | **67/67** — the original 44 plus 23 V2 checks, incl. axe with `minor` + `best-practice` on the new surfaces in both themes |
+| `verify:live` | 10/10 against the backend on the synthetic fixture (the Olist snapshot was not available) |

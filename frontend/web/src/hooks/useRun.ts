@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
-import { ApiError, OfflineError, ask, getRun } from '@/lib/api';
+import { ApiError, NoV2Error, OfflineError, ask, askV2, getRun } from '@/lib/api';
 import { openRunStream, type StreamHandle } from '@/lib/sse';
 import { IDLE_RUN, runReducer, type RunState } from '@/lib/runState';
 import type { AnswerEnvelope } from '@/types/envelope';
@@ -10,8 +10,16 @@ import type { AnswerEnvelope } from '@/types/envelope';
  * mock implementation in `lib/mock/` satisfies the same shape, so `useRun` is
  * identical in both modes.
  */
+/** V2-only extras on an ask; a V1 backend ignores them. */
+export interface AskOptions {
+  /** Answers a clarification with one of its offered options (CL-6). */
+  optionId?: string | null;
+  /** Starts a new topic: the question is answered without session context. */
+  resetContext?: boolean;
+}
+
 export interface RunTransport {
-  ask: (question: string, clarificationOf: string | null) => Promise<string>;
+  ask: (question: string, clarificationOf: string | null, options?: AskOptions) => Promise<string>;
   stream: (
     runId: string,
     handlers: Parameters<typeof openRunStream>[1],
@@ -19,20 +27,44 @@ export interface RunTransport {
   getRun: (runId: string, signal: AbortSignal) => Promise<AnswerEnvelope>;
 }
 
+/**
+ * The live transport asks through `/api/v2/ask` — whose envelope is a superset
+ * of V1's, so every V1 surface still renders — and falls back to `/api/ask`
+ * for good if the backend has no V2 route.
+ */
 export function liveTransport(sessionId: string): RunTransport {
+  let v2 = true;
+  const v2Runs = new Set<string>();
   return {
-    ask: async (question, clarificationOf) => {
+    ask: async (question, clarificationOf, options = {}) => {
+      if (v2) {
+        try {
+          const response = await askV2({
+            question,
+            sessionId,
+            clarificationOf,
+            optionId: options.optionId ?? null,
+            resetContext: options.resetContext ?? false,
+          });
+          v2Runs.add(response.run_id);
+          return response.run_id;
+        } catch (error) {
+          if (!(error instanceof NoV2Error)) throw error;
+          v2 = false;
+        }
+      }
       const response = await ask({ question, sessionId, clarificationOf });
       return response.run_id;
     },
     stream: openRunStream,
-    getRun: (runId, signal) => getRun(runId, { signal }),
+    getRun: (runId, signal) =>
+      getRun(runId, { signal, ...(v2Runs.has(runId) ? { base: '/api/v2/runs' } : {}) }),
   };
 }
 
 export interface RunController {
   state: RunState;
-  submit: (question: string, clarificationOf?: string | null) => void;
+  submit: (question: string, clarificationOf?: string | null, options?: AskOptions) => void;
   reset: () => void;
   restore: (envelope: AnswerEnvelope, question: string, localId: string) => void;
 }
@@ -94,7 +126,7 @@ export function useRun({
   );
 
   const submit = useCallback(
-    (question: string, clarificationOf: string | null = null) => {
+    (question: string, clarificationOf: string | null = null, options: AskOptions = {}) => {
       const trimmed = question.trim();
       if (!trimmed) return;
 
@@ -106,7 +138,7 @@ export function useRun({
       void (async () => {
         let runId: string;
         try {
-          runId = await transport.ask(trimmed, clarificationOf);
+          runId = await transport.ask(trimmed, clarificationOf, options);
         } catch (error) {
           if (generation.current !== mine) return;
           if (error instanceof OfflineError) {

@@ -236,7 +236,8 @@ function QueryCard({
       </div>
 
       <div className="p-4">
-        <SqlBlock sql={query.sql} />
+        {/* Named per query, so several SQL regions on one page stay distinct landmarks. */}
+        <SqlBlock sql={query.sql} label={`SQL for ${query.query_id}`} />
       </div>
     </Card>
   );

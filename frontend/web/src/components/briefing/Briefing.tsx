@@ -10,12 +10,17 @@ import {
 } from './BriefingParts';
 import { BriefingToolbar } from './BriefingToolbar';
 import { Conclusion } from './Conclusion';
+import { AssumptionsPanel } from './AssumptionsPanel';
+import { FollowUpChips } from './FollowUpChips';
 import { FollowUps } from './FollowUps';
+import { IntentPanel, layoutOfSpec } from './IntentPanels';
+import { SyntheticBadge } from './SyntheticBadge';
 import { LineageProvider } from './LineageContext';
 import { StatusBadge } from './StatusBadge';
 import { TrustPanel } from './TrustPanel';
 import { UnplacedClaims } from './UnplacedClaims';
 import { EvidenceSection } from '@/components/evidence/EvidenceSection';
+import { VizGallery } from '@/components/viz/VizGallery';
 import { QueryList, ReadOnlyNote } from '@/components/queries/QueryList';
 import { Card, Hairline, SectionLabel } from '@/components/ui/Card';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -23,6 +28,7 @@ import { annotateNarrative, unplacedClaims } from '@/lib/claims';
 import { buildFollowUps } from '@/lib/followUps';
 import { formatWindow, humanise } from '@/lib/format';
 import type { ResolvedTheme } from '@/lib/theme';
+import { asV2, layoutsFor, readsSynthetic } from '@/lib/v2';
 import type { AnswerEnvelope } from '@/types/envelope';
 
 const EASE = [0.22, 0.61, 0.36, 1] as const;
@@ -84,6 +90,8 @@ interface BriefingProps {
   onInspect?: () => void;
   /** Presentation mode drops the chrome and shows only the briefing itself. */
   presenting?: boolean;
+  /** Rendered after the trust panel: the answer's feedback control. */
+  afterTrust?: ReactNode;
 }
 
 export function Briefing({
@@ -99,9 +107,25 @@ export function Briefing({
   onPin,
   onInspect,
   presenting = false,
+  afterTrust,
 }: BriefingProps) {
   const reduced = useReducedMotion();
 
+  // V2 surfaces render only for a V2 envelope; a V1 one is unchanged (5.7).
+  const v2 = useMemo(() => asV2(envelope), [envelope]);
+  const layouts = useMemo(() => (v2 ? layoutsFor(v2) : []), [v2]);
+  const panelSpecs = (layout: string) =>
+    v2 ? v2.visualizations.filter((spec) => layoutOfSpec(spec) === layout) : [];
+  const gallerySpecs = v2
+    ? v2.visualizations.filter((spec) => {
+        const layout = layoutOfSpec(spec);
+        return layout === null || !layouts.includes(layout);
+      })
+    : [];
+  const syntheticCaveat = readsSynthetic(envelope)
+    ? (envelope.caveats.find((caveat) => /synthetic/i.test(caveat)) ?? 'Synthetic data')
+    : null;
+  const actionsInLayout = layouts.includes('nowwhat');
   const segments = useMemo(
     () => annotateNarrative(envelope.conclusion ?? '', envelope.claims ?? []),
     [envelope.conclusion, envelope.claims],
@@ -145,6 +169,7 @@ export function Briefing({
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
               <div className="flex flex-wrap items-center gap-3">
                 <StatusBadge status={envelope.status} />
+                {syntheticCaveat ? <SyntheticBadge detail={syntheticCaveat} /> : null}
                 {period ? (
                   <span className="text-micro uppercase tracking-label text-ink-faint">
                     {period}
@@ -195,6 +220,33 @@ export function Briefing({
           </Reveal>
         </Card>
 
+        {/* ── V2: the answer laid out for its intent, then any other charts. ── */}
+        {v2
+          ? layouts
+              .filter((layout) => layout !== 'what')
+              .map((layout) => (
+                <Reveal key={layout} step={next()} reduced={reduced}>
+                  <IntentPanel
+                    layout={layout}
+                    envelope={v2}
+                    specs={panelSpecs(layout)}
+                    theme={theme}
+                    onAsk={onAsk}
+                  />
+                </Reveal>
+              ))
+          : null}
+        {gallerySpecs.length > 0 ? (
+          <Reveal step={next()} reduced={reduced}>
+            <VizGallery specs={gallerySpecs} envelope={envelope} theme={theme} />
+          </Reveal>
+        ) : null}
+        {v2 && v2.assumptions.length > 0 ? (
+          <Reveal step={next()} reduced={reduced}>
+            <AssumptionsPanel assumptions={v2.assumptions} />
+          </Reveal>
+        ) : null}
+
         {/* ── How this was computed. A first-class section, expanded. ───── */}
         {(envelope.queries?.length ?? 0) > 0 ? (
           <Reveal step={next()} reduced={reduced}>
@@ -226,13 +278,14 @@ export function Briefing({
         {(envelope.caveats?.length ?? 0) > 0 || envelope.causal_boundary_note ? (
           <Reveal step={next()} reduced={reduced}>
             <CaveatCallout
-              caveats={envelope.caveats ?? []}
-              causalBoundaryNote={envelope.causal_boundary_note}
+              caveats={envelope.caveats}
+              // The WHY layout already states the causal boundary in place.
+              causalBoundaryNote={layouts.includes('why') ? null : envelope.causal_boundary_note}
             />
           </Reveal>
         ) : null}
 
-        {(envelope.next_actions?.length ?? 0) > 0 ? (
+        {envelope.next_actions.length > 0 && !actionsInLayout ? (
           <Reveal step={next()} reduced={reduced}>
             <NextActions actions={envelope.next_actions} />
           </Reveal>
@@ -243,7 +296,20 @@ export function Briefing({
           <TrustPanel envelope={envelope} />
         </Reveal>
 
-        {!presenting && followUps.length > 0 ? (
+        {!presenting && afterTrust ? (
+          <Reveal step={next()} reduced={reduced}>
+            {afterTrust}
+          </Reveal>
+        ) : null}
+
+        {/* V2 follow-ups come from the backend, verbatim, and render nothing
+            when empty; a V1 envelope keeps the local templates. */}
+        {!presenting && v2 && v2.follow_ups.length > 0 ? (
+          <Reveal step={next()} reduced={reduced}>
+            <FollowUpChips followUps={v2.follow_ups} onAsk={onAsk} />
+          </Reveal>
+        ) : null}
+        {!presenting && !v2 && followUps.length > 0 ? (
           <Reveal step={next()} reduced={reduced}>
             <FollowUps followUps={followUps} onAsk={onAsk} />
           </Reveal>

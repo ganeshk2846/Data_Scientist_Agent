@@ -1,9 +1,20 @@
-"""Seeded, deterministic synthetic data generator for V2 Data Layer (V2-SYN-1..5).
+"""Seeded synthetic-layer generator (V2-SYN-1..5; build plan Track 1).
 
-Copies real Olist tables from brazil_ecommerce.sqlite (read-only mode) into
-data/brazil_ecommerce_v2.sqlite, synthesizes 10 operational indicator tables
-keyed to real entities and complete periods (2016-10 -> 2018-08), injects
-planted causal effects E1-E4 + elasticity, and writes the ground-truth manifest.
+    python scripts/synth/generate.py [--source brazil_ecommerce.sqlite] \
+        [--target data/brazil_ecommerce_v2.sqlite] [--seed 20261030]
+
+* Opens the real snapshot **read-only** (``?mode=ro``) and checks its SHA-256
+  is unchanged at the end (V2-SYN-1). Refuses to write onto the source.
+* Copies the nine real tables verbatim, then writes the ten synthetic tables
+  keyed to real ids, categories, states and months (V2-SYN-3).
+* Applies the planted effects E1-E5 through synthetic tables only and writes
+  the answer key (``data/SYNTHETIC_GROUND_TRUTH.md`` + JSON sidecar).
+* Adds covering indexes for the new join keys (``docs/DB_INDEXES.md``).
+* Same source + same seed => byte-identical database (V2-SYN-2).
+
+pandas and numpy only. SDV and Mimesis are not used: every synthetic table
+here is a driver table whose effect sizes must be planted exactly, and none
+needs synthetic names or addresses.
 """
 
 from __future__ import annotations
@@ -12,505 +23,223 @@ import argparse
 import hashlib
 import sqlite3
 import sys
-from datetime import date, timedelta
+from dataclasses import dataclass
 from pathlib import Path
 
-# Add project root to sys.path
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
 import numpy as np
+import pandas as pd
 
-from scripts.synth.manifest import ManifestWriter
-from scripts.synth.plants.e1_marketing import MarketingCutPlant
-from scripts.synth.plants.e2_stockouts import StockoutsPlant
-from scripts.synth.plants.e3_promo import PromotionDilutionPlant
-from scripts.synth.plants.e4_delivery import DeliveryDelaySpikePlant
-from scripts.synth.plants.e5_elasticity import PriceElasticityPlant
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    __package__ = "scripts.synth"
 
-REAL_TABLES = (
-    "customers",
-    "geolocation",
-    "order_items",
-    "order_payments",
-    "order_reviews",
-    "orders",
-    "product_category_translation",
-    "products",
-    "sellers",
+from . import base
+from .context import REAL_TABLES, load_context, open_read_only
+from .manifest import ManifestWriter, write_outputs
+from .plants import PLANTS
+
+GENERATOR_VERSION = "v2.0.0"
+DEFAULT_SEED = 20261030
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_SOURCE = REPO_ROOT / "brazil_ecommerce.sqlite"
+DEFAULT_TARGET = REPO_ROOT / "data" / "brazil_ecommerce_v2.sqlite"
+DEFAULT_MARKDOWN = REPO_ROOT / "data" / "SYNTHETIC_GROUND_TRUTH.md"
+
+#: Column order and SQLite types of every synthetic table.
+SCHEMAS: dict[str, tuple[tuple[str, str], ...]] = {
+    "marketing_spend": (("date", "TEXT"), ("channel", "TEXT"), ("category", "TEXT"), ("spend", "REAL")),
+    "promotions": (("promo_id", "TEXT"), ("category", "TEXT"), ("start_date", "TEXT"), ("end_date", "TEXT"), ("discount_pct", "REAL")),
+    "inventory_daily": (("date", "TEXT"), ("category", "TEXT"), ("stock_on_hand", "INTEGER"), ("units_sold", "INTEGER"), ("stockout_flag", "INTEGER")),
+    "web_traffic": (("date", "TEXT"), ("state", "TEXT"), ("sessions", "INTEGER"), ("conversion_rate", "REAL"), ("boleto_share", "REAL")),
+    "price_history": (("product_id", "TEXT"), ("date", "TEXT"), ("price", "REAL"), ("unit_cost", "REAL")),
+    "competitor_prices": (("product_id", "TEXT"), ("date", "TEXT"), ("competitor", "TEXT"), ("price", "REAL")),
+    "customer_segments": (("customer_unique_id", "TEXT"), ("segment", "TEXT"), ("ltv_band", "TEXT"), ("acquisition_channel", "TEXT"), ("assigned_at", "TEXT")),
+    "regional_targets": (("state", "TEXT"), ("month", "TEXT"), ("revenue_target", "REAL")),
+    "returns": (("order_id", "TEXT"), ("order_item_id", "INTEGER"), ("return_date", "TEXT"), ("reason", "TEXT"), ("refund_value", "REAL")),
+    "delivery_sla": (("date", "TEXT"), ("carrier", "TEXT"), ("state", "TEXT"), ("promised_days", "INTEGER"), ("actual_days", "INTEGER"), ("sla_breach_flag", "INTEGER"), ("freight_cost", "REAL")),
+}
+
+#: Covering indexes: join/filter key first, read columns after (docs/DB_INDEXES.md).
+INDEXES: tuple[str, ...] = (
+    "CREATE INDEX idx_order_items_cover ON order_items(order_id, price, freight_value)",
+    "CREATE INDEX idx_orders_status_order_id ON orders(order_status, order_id)",
+    "CREATE INDEX idx_order_payments_cover ON order_payments(order_id, payment_value)",
+    "CREATE INDEX idx_orders_purchase_cover ON orders(order_purchase_timestamp, order_id, order_status, customer_id)",
+    "CREATE INDEX idx_customers_unique_cover ON customers(customer_unique_id, customer_id, customer_state)",
+    "CREATE INDEX idx_order_items_product_cover ON order_items(product_id, order_id, order_item_id, price)",
+    "CREATE INDEX idx_returns_item_cover ON returns(order_id, order_item_id, refund_value, reason)",
+    "CREATE INDEX idx_price_history_cover ON price_history(product_id, date, price, unit_cost)",
+    "CREATE INDEX idx_competitor_prices_cover ON competitor_prices(product_id, date, competitor, price)",
+    "CREATE INDEX idx_customer_segments_cover ON customer_segments(customer_unique_id, segment, ltv_band)",
+    "CREATE INDEX idx_regional_targets_cover ON regional_targets(state, month, revenue_target)",
+    "CREATE INDEX idx_web_traffic_cover ON web_traffic(state, date, sessions, conversion_rate)",
+    "CREATE INDEX idx_inventory_daily_cover ON inventory_daily(category, date, units_sold, stockout_flag)",
+    "CREATE INDEX idx_marketing_spend_cover ON marketing_spend(category, date, channel, spend)",
+    "CREATE INDEX idx_delivery_sla_cover ON delivery_sla(state, date, carrier, actual_days, promised_days)",
+    "CREATE INDEX idx_promotions_category ON promotions(category, start_date, end_date, discount_pct)",
 )
 
-CHANNELS = ("paid_search", "organic_search", "social", "email", "direct", "display")
-CARRIERS = ("correios_pac", "correios_sedex", "loggi_express", "carrier_sul")
-SEGMENTS = ("Champions", "Loyal", "At Risk", "Hibernating", "New")
-LTV_BANDS = ("Tier 1 (High)", "Tier 2 (Mid)", "Tier 3 (Standard)")
-RETURN_REASONS = (
-    "defective_item",
-    "wrong_size",
-    "item_not_as_described",
-    "late_delivery",
-    "buyer_remorse",
+_ROUND = {"REAL": 6}
+
+
+@dataclass(frozen=True)
+class GenerationResult:
+    target: Path
+    database_sha256: str
+    source_sha256: str
+    row_counts: dict[str, int]
+    manifest: ManifestWriter
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _rngs(seed: int, names: tuple[str, ...]) -> dict[str, np.random.Generator]:
+    children = np.random.SeedSequence(seed).spawn(len(names))
+    return {name: np.random.default_rng(child) for name, child in zip(names, children, strict=True)}
+
+
+_STREAMS = (
+    "marketing_spend", "promotions", "price_steps", "price_history", "inventory", "stock",
+    "web_traffic", "competitor_prices", "customer_segments", "regional_targets", "returns",
+    "delivery_sla", *(plant.name for plant in PLANTS),
 )
 
 
-def _compute_sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        while chunk := f.read(1024 * 1024):
-            h.update(chunk)
-    return h.hexdigest()
+def build_frames(ctx, seed: int, manifest: ManifestWriter) -> dict[str, pd.DataFrame]:
+    """All ten synthetic tables, planted, as DataFrames in their final schema."""
+    rng = _rngs(seed, _STREAMS)
+    steps = base.category_price_steps(ctx, rng["price_steps"])
+    for plant in PLANTS:
+        if hasattr(plant, "plan_prices"):
+            steps = plant.plan_prices(steps, ctx, manifest)
+    index = base.category_price_index(ctx, steps)
+
+    frames: dict[str, pd.DataFrame] = {
+        "marketing_spend": base.marketing_spend(ctx, rng["marketing_spend"]),
+        "promotions": base.promotions(ctx, rng["promotions"]),
+        "price_history": base.price_history(ctx, steps, rng["price_history"]),
+        "inventory_demand": base.inventory_demand(ctx, index, rng["inventory"]),
+        "web_traffic": base.web_traffic(ctx, rng["web_traffic"]),
+        "competitor_prices": base.competitor_prices(ctx, rng["competitor_prices"]),
+        "customer_segments": base.customer_segments(ctx, rng["customer_segments"]),
+        "regional_targets": base.regional_targets(ctx, rng["regional_targets"]),
+        "returns": base.returns(ctx, rng["returns"]),
+        "delivery_sla": base.delivery_sla(ctx, rng["delivery_sla"]),
+    }
+    for plant in PLANTS:
+        plant.inject(frames, ctx, rng[plant.name], manifest)
+
+    frames["inventory_daily"] = base.finalize_inventory(frames.pop("inventory_demand"), rng["stock"])
+    frames["returns"] = frames["returns"].sort_values(["order_id", "order_item_id"], kind="mergesort").reset_index(drop=True)
+    for name, columns in SCHEMAS.items():
+        frames[name] = frames[name][[column for column, _ in columns]].reset_index(drop=True)
+    return frames
 
 
-def _date_range(start_date: date, end_date: date) -> list[str]:
-    days = (end_date - start_date).days + 1
-    return [(start_date + timedelta(days=i)).isoformat() for i in range(days)]
+def _copy_real_tables(conn: sqlite3.Connection) -> None:
+    for table in REAL_TABLES:
+        (ddl,) = conn.execute(
+            "SELECT sql FROM src.sqlite_master WHERE type = 'table' AND name = ?", (table,)
+        ).fetchone()
+        conn.execute(ddl)
+        conn.execute(f'INSERT INTO main."{table}" SELECT * FROM src."{table}"')
+
+
+def _write_frame(conn: sqlite3.Connection, name: str, frame: pd.DataFrame) -> None:
+    columns = SCHEMAS[name]
+    conn.execute(f'CREATE TABLE "{name}" (' + ", ".join(f'"{c}" {t}' for c, t in columns) + ")")
+    values = []
+    for column, kind in columns:
+        series = frame[column]
+        if kind == "REAL":
+            values.append(np.round(series.astype(float).to_numpy(), _ROUND["REAL"]).tolist())
+        elif kind == "INTEGER":
+            values.append(series.astype(np.int64).tolist())
+        else:
+            values.append(series.astype(str).tolist())
+    placeholders = ", ".join("?" for _ in columns)
+    conn.executemany(f'INSERT INTO "{name}" VALUES ({placeholders})', zip(*values, strict=True))
 
 
 def generate(
-    source_db: str | Path = "brazil_ecommerce.sqlite",
-    target_db: str | Path = "data/brazil_ecommerce_v2.sqlite",
-    seed: int = 42,
-) -> Path:
-    source_path = Path(source_db).resolve()
-    target_path = Path(target_db).resolve()
-    target_path.parent.mkdir(parents=True, exist_ok=True)
+    source: Path = DEFAULT_SOURCE,
+    target: Path = DEFAULT_TARGET,
+    *,
+    seed: int = DEFAULT_SEED,
+    markdown_path: Path | None = DEFAULT_MARKDOWN,
+) -> GenerationResult:
+    source, target = Path(source).resolve(), Path(target).resolve()
+    if source == target:
+        raise ValueError("the target must not be the real snapshot (V2-SYN-1)")
+    source_sha = sha256(source)
 
-    if not source_path.exists():
-        raise FileNotFoundError(f"Source database not found at {source_path}")
+    with open_read_only(source) as src:
+        ctx = load_context(src)
+    manifest = ManifestWriter(seed=seed, generator_version=GENERATOR_VERSION)
+    frames = build_frames(ctx, seed, manifest)
 
-    # V2-SYN-1: Read-only check and checksum preservation
-    sha_before = _compute_sha256(source_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    partial = target.with_suffix(".partial")
+    for stale in (partial, target):
+        if stale.exists():
+            stale.unlink()
+    conn = sqlite3.connect(f"file:{partial.as_posix()}?mode=rwc", uri=True)
+    try:
+        conn.execute("PRAGMA journal_mode = OFF")
+        conn.execute("PRAGMA synchronous = OFF")
+        conn.execute("ATTACH DATABASE ? AS src", (f"file:{source.as_posix()}?mode=ro",))
+        _copy_real_tables(conn)
+        conn.commit()
+        conn.execute("DETACH DATABASE src")
+        for name in SCHEMAS:
+            _write_frame(conn, name, frames[name])
+        for statement in INDEXES:
+            conn.execute(statement)
+        conn.execute("ANALYZE")
+        conn.commit()
+        conn.execute("VACUUM")
+        row_counts = {
+            name: conn.execute(f'SELECT COUNT(*) FROM "{name}"').fetchone()[0]
+            for name in (*REAL_TABLES, *SCHEMAS)
+        }
+    finally:
+        conn.close()
+    partial.replace(target)
 
-    # Remove existing target if rebuilding
-    if target_path.exists():
-        target_path.unlink()
-
-    # Read from source strictly read-only
-    ro_uri = f"file:{source_path.as_posix()}?mode=ro"
-    src_conn = sqlite3.connect(ro_uri, uri=True)
-    dst_conn = sqlite3.connect(target_path)
-
-    # 1. Copy real tables verbatim
-    print(f"[*] Copying 9 real Olist tables to {target_path}...")
-    src_cur = src_conn.cursor()
-    dst_cur = dst_conn.cursor()
-
-    for table in REAL_TABLES:
-        ddl = src_cur.execute(
-            f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table}'"
-        ).fetchone()
-        if ddl and ddl[0]:
-            dst_cur.execute(ddl[0])
-            rows = src_cur.execute(f"SELECT * FROM {table}").fetchall()
-            if rows:
-                placeholders = ",".join("?" * len(rows[0]))
-                dst_cur.executemany(
-                    f"INSERT INTO {table} VALUES ({placeholders})", rows
-                )
-
-    dst_conn.commit()
-
-    # 2. Extract reference entities for realistic foreign key binding (V2-SYN-3)
-    categories = [
-        r[0]
-        for r in src_cur.execute(
-            "SELECT DISTINCT product_category_name FROM products WHERE product_category_name IS NOT NULL"
-        ).fetchall()
-    ]
-    states = [
-        r[0]
-        for r in src_cur.execute(
-            "SELECT DISTINCT customer_state FROM customers WHERE customer_state IS NOT NULL"
-        ).fetchall()
-    ]
-    product_ids = [
-        r[0]
-        for r in src_cur.execute(
-            "SELECT product_id FROM products LIMIT 5000"
-        ).fetchall()
-    ]
-    customer_uniques = [
-        r[0]
-        for r in src_cur.execute(
-            "SELECT DISTINCT customer_unique_id FROM customers LIMIT 20000"
-        ).fetchall()
-    ]
-    order_item_tuples = [
-        (r[0], r[1], r[2])
-        for r in src_cur.execute(
-            "SELECT oi.order_id, oi.order_item_id, oi.price FROM order_items oi JOIN orders o ON oi.order_id = o.order_id WHERE o.order_status = 'delivered' LIMIT 15000"
-        ).fetchall()
-    ]
-
-    src_conn.close()
-
-    # Verify source db was never touched
-    sha_after = _compute_sha256(source_path)
-    if sha_before != sha_after:
-        raise RuntimeError(
-            "CRITICAL: Source database was modified during generation! (V2-SYN-1)"
+    if sha256(source) != source_sha:
+        raise RuntimeError("the real snapshot changed during generation (V2-SYN-1)")
+    database_sha = sha256(target)
+    if markdown_path is not None:
+        write_outputs(
+            manifest,
+            markdown_path=Path(markdown_path),
+            json_path=target.with_name("synthetic_ground_truth.json"),
+            database_sha256=database_sha,
+            snapshot_id=f"v2-{seed}",
         )
-
-    # 3. Deterministic initialization
-    rng = np.random.default_rng(seed)
-    dates = _date_range(date(2016, 10, 1), date(2018, 8, 31))
-
-    print("[*] Generating 10 synthetic operational tables...")
-
-    # Table 1: marketing_spend
-    dst_cur.execute(
-        """
-        CREATE TABLE marketing_spend (
-            date TEXT NOT NULL,
-            channel TEXT NOT NULL,
-            category TEXT NOT NULL,
-            customer_state TEXT NOT NULL,
-            spend REAL NOT NULL,
-            impressions INTEGER NOT NULL,
-            clicks INTEGER NOT NULL
-        )
-        """
-    )
-    marketing_rows = []
-    top_states = ("SP", "RJ", "MG", "RS", "PR")
-    sample_categories = categories[:10]
-    for d in dates[::2]:  # every 2 days
-        for ch in ("paid_search", "social", "email", "direct"):
-            for st in top_states:
-                cat = sample_categories[int(rng.integers(0, len(sample_categories)))]
-                spend = float(round(rng.uniform(150.0, 1200.0), 2))
-                cpc = rng.uniform(0.5, 1.8)
-                clicks = int(spend / cpc)
-                impressions = clicks * int(rng.integers(15, 45))
-                marketing_rows.append((d, ch, cat, st, spend, impressions, clicks))
-
-    dst_cur.executemany(
-        "INSERT INTO marketing_spend VALUES (?,?,?,?,?,?,?)", marketing_rows
-    )
-
-    # Table 2: promotions
-    dst_cur.execute(
-        """
-        CREATE TABLE promotions (
-            promo_id TEXT PRIMARY KEY,
-            promo_name TEXT NOT NULL,
-            date TEXT NOT NULL,
-            start_date TEXT NOT NULL,
-            end_date TEXT NOT NULL,
-            product_category TEXT NOT NULL,
-            discount_pct REAL NOT NULL,
-            channel TEXT NOT NULL
-        )
-        """
-    )
-    promo_rows = [
-        (
-            "PROMO_BLACK_FRIDAY_2017",
-            "Black Friday 2017",
-            "2017-11-20",
-            "2017-11-20",
-            "2017-11-28",
-            "all",
-            0.25,
-            "all",
-        ),
-        (
-            "PROMO_EASTER_2017",
-            "Easter 2017 Deals",
-            "2017-04-10",
-            "2017-04-10",
-            "2017-04-18",
-            "utilidades_domesticas",
-            0.15,
-            "social",
-        ),
-        (
-            "PROMO_TECH_MADNESS_2017",
-            "Tech Week 2017",
-            "2017-08-01",
-            "2017-08-01",
-            "2017-08-08",
-            "informatica_acessorios",
-            0.20,
-            "paid_search",
-        ),
-        (
-            "PROMO_NEW_YEAR_2018",
-            "New Year Kickoff 2018",
-            "2018-01-02",
-            "2018-01-02",
-            "2018-01-09",
-            "beleza_saude",
-            0.10,
-            "email",
-        ),
-        (
-            "PROMO_CARNIVAL_2018",
-            "Carnival Fiesta 2018",
-            "2018-02-08",
-            "2018-02-08",
-            "2018-02-15",
-            "esporte_lazer",
-            0.15,
-            "social",
-        ),
-    ]
-    dst_cur.executemany("INSERT INTO promotions VALUES (?,?,?,?,?,?,?,?)", promo_rows)
-
-    # Table 3: inventory_daily
-    dst_cur.execute(
-        """
-        CREATE TABLE inventory_daily (
-            date TEXT NOT NULL,
-            product_id TEXT NOT NULL,
-            product_category TEXT NOT NULL,
-            units_on_hand INTEGER NOT NULL,
-            units_sold INTEGER NOT NULL,
-            stockout_flag INTEGER NOT NULL
-        )
-        """
-    )
-    inv_products = product_ids[:300]
-    inv_rows = []
-    # Sample dates once weekly across window
-    for d in dates[::7]:
-        for pid in inv_products:
-            cat = categories[int(rng.integers(0, len(categories)))]
-            on_hand = int(rng.integers(5, 120))
-            sold = int(rng.integers(0, 8))
-            inv_rows.append((d, pid, cat, on_hand, sold, 0))
-    dst_cur.executemany("INSERT INTO inventory_daily VALUES (?,?,?,?,?,?)", inv_rows)
-
-    # Table 4: web_traffic
-    dst_cur.execute(
-        """
-        CREATE TABLE web_traffic (
-            date TEXT NOT NULL,
-            channel TEXT NOT NULL,
-            customer_state TEXT NOT NULL,
-            sessions INTEGER NOT NULL,
-            conversion_rate REAL NOT NULL,
-            bounce_rate REAL NOT NULL,
-            add_to_cart INTEGER NOT NULL,
-            checkout_starts INTEGER NOT NULL
-        )
-        """
-    )
-    traffic_rows = []
-    for d in dates:
-        for ch in ("paid_search", "organic_search", "social", "direct"):
-            for st in ("SP", "RJ", "MG"):
-                sessions = int(rng.integers(120, 1800))
-                conv = float(round(rng.uniform(0.015, 0.045), 4))
-                bounce = float(round(rng.uniform(0.35, 0.55), 4))
-                cart = int(sessions * rng.uniform(0.08, 0.16))
-                chk = int(cart * rng.uniform(0.4, 0.7))
-                traffic_rows.append((d, ch, st, sessions, conv, bounce, cart, chk))
-    dst_cur.executemany(
-        "INSERT INTO web_traffic VALUES (?,?,?,?,?,?,?,?)", traffic_rows
-    )
-
-    # Table 5: price_history
-    dst_cur.execute(
-        """
-        CREATE TABLE price_history (
-            product_id TEXT NOT NULL,
-            date TEXT NOT NULL,
-            list_price REAL NOT NULL,
-            effective_price REAL NOT NULL,
-            price REAL NOT NULL
-        )
-        """
-    )
-    price_rows = []
-    for pid in inv_products[:150]:
-        base_p = float(round(rng.uniform(25.0, 450.0), 2))
-        for d in dates[::14]:
-            eff_p = base_p
-            price_rows.append((pid, d, base_p, eff_p, eff_p))
-    dst_cur.executemany("INSERT INTO price_history VALUES (?,?,?,?,?)", price_rows)
-
-    # Table 6: competitor_prices
-    dst_cur.execute(
-        """
-        CREATE TABLE competitor_prices (
-            date TEXT NOT NULL,
-            product_id TEXT NOT NULL,
-            competitor_price REAL NOT NULL,
-            competitor_name TEXT NOT NULL
-        )
-        """
-    )
-    comp_names = ("MercadoLivre_Top", "Amazon_BR", "MagazineLuiza", "B2W_Retail")
-    comp_rows = []
-    for pid in inv_products[:150]:
-        for d in dates[::28]:
-            cname = comp_names[int(rng.integers(0, len(comp_names)))]
-            cp = float(round(rng.uniform(24.0, 440.0), 2))
-            comp_rows.append((d, pid, cp, cname))
-    dst_cur.executemany("INSERT INTO competitor_prices VALUES (?,?,?,?)", comp_rows)
-
-    # Table 7: customer_segments
-    dst_cur.execute(
-        """
-        CREATE TABLE customer_segments (
-            customer_unique_id TEXT PRIMARY KEY,
-            segment TEXT NOT NULL,
-            ltv_band TEXT NOT NULL,
-            acquisition_channel TEXT NOT NULL,
-            assigned_at TEXT NOT NULL
-        )
-        """
-    )
-    cust_rows = []
-    for cid in customer_uniques:
-        seg = SEGMENTS[int(rng.integers(0, len(SEGMENTS)))]
-        ltv = LTV_BANDS[int(rng.integers(0, len(LTV_BANDS)))]
-        ch = CHANNELS[int(rng.integers(0, len(CHANNELS)))]
-        assigned = "2018-01-01"
-        cust_rows.append((cid, seg, ltv, ch, assigned))
-    dst_cur.executemany("INSERT INTO customer_segments VALUES (?,?,?,?,?)", cust_rows)
-
-    # Table 8: regional_targets
-    dst_cur.execute(
-        """
-        CREATE TABLE regional_targets (
-            month TEXT NOT NULL,
-            customer_state TEXT NOT NULL,
-            metric_id TEXT NOT NULL,
-            target_value REAL NOT NULL,
-            revenue_target REAL NOT NULL
-        )
-        """
-    )
-    months = sorted(list({d[:7] for d in dates}))
-    target_rows = []
-    for m in months:
-        for st in states:
-            base_rev = (
-                120000.0 if st == "SP" else (45000.0 if st in ("RJ", "MG") else 12000.0)
-            )
-            target_rev = float(round(base_rev * rng.uniform(0.95, 1.25), 2))
-            target_rows.append((m, st, "revenue", target_rev, target_rev))
-            target_orders = float(
-                round((target_rev / 135.0) * rng.uniform(0.95, 1.05), 1)
-            )
-            target_rows.append((m, st, "order_count", target_orders, target_rev))
-    dst_cur.executemany("INSERT INTO regional_targets VALUES (?,?,?,?,?)", target_rows)
-
-    # Table 9: returns
-    dst_cur.execute(
-        """
-        CREATE TABLE returns (
-            order_id TEXT NOT NULL,
-            order_item_id INTEGER NOT NULL,
-            return_date TEXT NOT NULL,
-            reason TEXT NOT NULL,
-            refund_value REAL NOT NULL
-        )
-        """
-    )
-    return_rows = []
-    for oid, item_id, price in order_item_tuples:
-        if rng.random() < 0.045:  # ~4.5% return rate
-            rdate = "2018-03-12"
-            reason = RETURN_REASONS[int(rng.integers(0, len(RETURN_REASONS)))]
-            return_rows.append((oid, item_id, rdate, reason, float(price)))
-    dst_cur.executemany("INSERT INTO returns VALUES (?,?,?,?,?)", return_rows)
-
-    # Table 10: delivery_sla
-    dst_cur.execute(
-        """
-        CREATE TABLE delivery_sla (
-            date TEXT NOT NULL,
-            carrier TEXT NOT NULL,
-            customer_state TEXT NOT NULL,
-            promised_days INTEGER NOT NULL,
-            actual_days INTEGER NOT NULL,
-            sla_breach_flag INTEGER NOT NULL
-        )
-        """
-    )
-    sla_rows = []
-    for d in dates[::3]:
-        for car in CARRIERS:
-            for st in ("SP", "RJ", "MG", "RS", "SC", "PR"):
-                promised = int(rng.integers(5, 12))
-                actual = int(promised + rng.integers(-2, 3))
-                breach = 1 if actual > promised else 0
-                sla_rows.append((d, car, st, promised, actual, breach))
-    dst_cur.executemany("INSERT INTO delivery_sla VALUES (?,?,?,?,?,?)", sla_rows)
-
-    dst_conn.commit()
-
-    # 4. Inject planted effects E1-E5
-    print("[*] Injecting planted effects E1-E5...")
-    manifest = ManifestWriter()
-    plugins = [
-        MarketingCutPlant(),
-        StockoutsPlant(),
-        PromotionDilutionPlant(),
-        DeliveryDelaySpikePlant(),
-        PriceElasticityPlant(),
-    ]
-    for plugin in plugins:
-        plugin.inject(dst_conn, rng, manifest)
-
-    # 5. Build covering indexes for join keys
-    print("[*] Creating covering indexes for synthetic join keys...")
-    indexes = [
-        "CREATE INDEX idx_synth_marketing_date ON marketing_spend(date)",
-        "CREATE INDEX idx_synth_marketing_channel_state ON marketing_spend(channel, customer_state)",
-        "CREATE INDEX idx_synth_inventory_date_prod ON inventory_daily(date, product_id)",
-        "CREATE INDEX idx_synth_inventory_stockout ON inventory_daily(stockout_flag)",
-        "CREATE INDEX idx_synth_traffic_date_channel ON web_traffic(date, channel)",
-        "CREATE INDEX idx_synth_price_product_date ON price_history(product_id, date)",
-        "CREATE INDEX idx_synth_competitor_prod_date ON competitor_prices(product_id, date)",
-        "CREATE INDEX idx_synth_cust_seg_id ON customer_segments(customer_unique_id)",
-        "CREATE INDEX idx_synth_regional_month_st ON regional_targets(month, customer_state)",
-        "CREATE INDEX idx_synth_returns_order ON returns(order_id, order_item_id)",
-        "CREATE INDEX idx_synth_sla_date_carrier ON delivery_sla(date, carrier, customer_state)",
-    ]
-    for idx_sql in indexes:
-        dst_cur.execute(idx_sql)
-
-    dst_conn.commit()
-    dst_conn.close()
-
-    # 6. Write manifest answer key to data/
-    data_dir = target_path.parent
-    md_path, json_path = manifest.write(data_dir)
-    print(f"[*] Evaluation answer key written to {md_path} and {json_path}")
-
-    # Final checksum verification
-    sha_final = _compute_sha256(source_path)
-    assert sha_before == sha_final, "Source database was modified!"
-    print(f"[+] Successfully generated {target_path} (reproducible seed={seed}).")
-    return target_path
+    return GenerationResult(target, database_sha, source_sha, row_counts, manifest)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Deterministic Synthetic Data Generator (Track 1)"
-    )
-    parser.add_argument(
-        "--source",
-        default="brazil_ecommerce.sqlite",
-        help="Path to real SQLite database",
-    )
-    parser.add_argument(
-        "--target",
-        default="data/brazil_ecommerce_v2.sqlite",
-        help="Path to output database",
-    )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="RNG seed for reproducibility"
-    )
-    args = parser.parse_args()
-
-    generate(source_db=args.source, target_db=args.target, seed=args.seed)
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Build data/brazil_ecommerce_v2.sqlite.")
+    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--target", type=Path, default=DEFAULT_TARGET)
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    parser.add_argument("--markdown", type=Path, default=DEFAULT_MARKDOWN)
+    args = parser.parse_args(argv)
+    result = generate(args.source, args.target, seed=args.seed, markdown_path=args.markdown)
+    width = max(len(name) for name in result.row_counts)
+    for name, count in result.row_counts.items():
+        print(f"{name:<{width}}  {count:>10,}")
+    print(f"sha256 {result.database_sha256}  ->  {result.target}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

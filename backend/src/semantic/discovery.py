@@ -1,404 +1,308 @@
-"""Discovery intent provider backing questions D1-D10 (SAFE-8, scope.md section 3.1).
+"""Catalog-backed answer to "what data do you have?" (scope.md D1, acceptance 1.13/1.16).
 
-Answers catalog, schema, dimension, metric, and data availability questions
-purely from governed metadata without evaluating dynamic language model numbers.
+Every figure in the answer is either a catalog fact (names, grains,
+aggregation classes, synthetic labels) or a count / date bound read from the
+warehouse by a fixed SQL statement. No model writes any part of it (SAFE-8),
+and every synthetic table and metric is labelled as such (V2-SYN-4).
+
+:func:`describe_warehouse` returns the facts; :func:`catalog_facts` packs
+them into the V2 ``CatalogFactsPayload``; :func:`render_answer` turns them
+into the deterministic markdown answer.
 """
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Literal
 
+from contracts.models import ContractModel
 from contracts.v2 import CatalogFact, CatalogFactsPayload
+from pydantic import Field
+from sqlalchemy import text
+from sqlalchemy.engine import Connection
 
-from .completeness import LAST_COMPLETE_MONTH
-from .tables import REAL_TABLE_NAMES, SYNTHETIC_TABLE_NAMES, TABLES
+from semantic.aggregation import AggregationRegistry
+from semantic.metrics_v2 import all_metrics, is_synthetic_metric
+from semantic.tables import TableInfo, TableRegistry
+from semantic.versioning import catalog_version
 
-CATALOG_VERSION = "2026.10.1"
+Layer = Literal["real", "synthetic", "user_supplied", "analytical"]
+
+_SUBJECT_ORDER = (
+    "orders", "customers", "products", "sellers", "geography",
+    "marketing", "pricing", "operations", "targets", "user_data", "analytics",
+)
 
 
-class DiscoveryService:
-    """Answers discovery inquiries from catalog facts."""
+class TableFact(ContractModel):
+    name: str
+    subject: str
+    layer: Layer
+    grain: str
+    description: str
+    present: bool
+    row_count: int | None = Field(default=None, ge=0)
+    date_column: str | None = None
+    date_min: str | None = None
+    date_max: str | None = None
 
-    def __init__(self, catalog_version: str = CATALOG_VERSION) -> None:
-        self.catalog_version = catalog_version
 
-    def answer_discovery(self, question: str) -> dict[str, Any]:
-        """Dispatch discovery question to deterministic catalog handler."""
-        q = question.lower().strip()
+class MetricFact(ContractModel):
+    metric_id: str
+    name: str
+    aggregation: str
+    is_synthetic: bool
+    base_table: str
+    dimensions: tuple[str, ...]
 
-        # D1: "What tables do you have?"
-        if any(
-            w in q
-            for w in (
-                "what table",
-                "what tables",
-                "list table",
-                "list tables",
-                "what data do you have",
-            )
-        ):
-            return self._answer_d1_tables()
 
-        # D2: "What date range is covered?"
-        if any(
-            w in q for w in ("date range", "time range", "what dates", "time period")
-        ):
-            return self._answer_d2_date_range()
+class WarehouseDescription(ContractModel):
+    catalog_version: str
+    tables: tuple[TableFact, ...]
+    metrics: tuple[MetricFact, ...]
 
-        # D3: "What metrics are available?"
-        if any(
-            w in q
-            for w in (
-                "what metric",
-                "what metrics",
-                "list metric",
-                "list metrics",
-                "available kpi",
-            )
-        ):
-            return self._answer_d3_metrics()
+    @property
+    def synthetic_tables(self) -> tuple[str, ...]:
+        return tuple(t.name for t in self.tables if t.layer == "synthetic" and t.present)
 
-        # D4: "What dimensions can I group by?"
-        if any(
-            w in q
-            for w in (
-                "what dimension",
-                "what dimensions",
-                "group by",
-                "break down by",
-                "slice",
-            )
-        ):
-            return self._answer_d4_dimensions()
 
-        # D5: "What synthetic data is present?"
-        if any(
-            w in q
-            for w in ("synthetic data", "what synthetic", "simulated", "generated data")
-        ):
-            return self._answer_d5_synthetic()
+def _layer(table: TableInfo) -> Layer:
+    if table.is_synthetic:
+        return "synthetic"
+    return {"user_supplied": "user_supplied", "analytical": "analytical"}.get(table.source, "real")
 
-        # D6: "How many customers are in the dataset?"
-        if any(
-            w in q
-            for w in (
-                "how many customer",
-                "how many customers",
-                "customer volume",
-                "number of customer",
-            )
-        ):
-            return self._answer_d6_customer_count()
 
-        # D7: "What is the primary key of customer_segments?"
-        if "customer_segments" in q and any(
-            w in q for w in ("primary key", "key", "identifier", "join")
-        ):
-            return self._answer_d7_customer_segments_key()
+def _present(connection: Connection) -> set[str]:
+    rows = connection.execute(text("SELECT name FROM sqlite_master WHERE type = 'table'")).all()
+    return {row[0] for row in rows}
 
-        # D8: "What carrier data is tracked?"
-        if any(
-            w in q
-            for w in ("carrier", "carriers", "delivery_sla", "sla", "logistics carrier")
-        ):
-            return self._answer_d8_carrier_data()
 
-        # D9: "What analytical tables are precomputed?"
-        if any(
-            w in q
-            for w in (
-                "analytical table",
-                "analytical tables",
-                "precomputed",
-                "pre-computed",
-            )
-        ):
-            return self._answer_d9_analytical_tables()
+def describe_warehouse(connection: Connection, registry: TableRegistry | None = None) -> WarehouseDescription:
+    registry = registry or TableRegistry.default()
+    present = _present(connection)
+    tables = []
+    for table in registry.tables:
+        if table.name not in present:
+            tables.append(TableFact(
+                name=table.name, subject=table.subject, layer=_layer(table), grain=table.grain,
+                description=table.description, present=False, date_column=table.date_column,
+            ))
+            continue
+        # Identifiers come from the closed registry, never from user text.
+        (count,) = connection.execute(text(f'SELECT COUNT(*) FROM "{table.name}"')).one()
+        low = high = None
+        if table.date_column:
+            low, high = connection.execute(
+                text(f'SELECT MIN("{table.date_column}"), MAX("{table.date_column}") FROM "{table.name}"')
+            ).one()
+        tables.append(TableFact(
+            name=table.name, subject=table.subject, layer=_layer(table), grain=table.grain,
+            description=table.description, present=True, row_count=int(count),
+            date_column=table.date_column,
+            date_min=None if low is None else str(low)[:10],
+            date_max=None if high is None else str(high)[:10],
+        ))
+    tables.sort(key=lambda t: (_SUBJECT_ORDER.index(t.subject) if t.subject in _SUBJECT_ORDER else 99, t.name))
 
-        # D10: Out of scope request (e.g. credit score, demographic survey)
-        if any(
-            w in q
-            for w in (
-                "credit score",
-                "survey",
-                "demographic",
-                "income",
-                "social security",
-                "cpf",
-            )
-        ):
-            return self._answer_d10_refusal(question)
+    aggregations = AggregationRegistry()
+    metrics = tuple(
+        MetricFact(
+            metric_id=metric.metric_id,
+            name=metric.name,
+            aggregation=aggregations.require(metric.metric_id).aggregation,
+            is_synthetic=is_synthetic_metric(metric.metric_id),
+            base_table=metric.base_table,
+            dimensions=tuple(d.name for d in metric.allowed_dimensions),
+        )
+        for metric in all_metrics().metrics
+    )
+    return WarehouseDescription(catalog_version=catalog_version(registry), tables=tuple(tables), metrics=metrics)
 
-        # Default fallback: general tables & metrics summary
-        return self._answer_d1_tables()
 
-    def _answer_d1_tables(self) -> dict[str, Any]:
-        facts = [
-            CatalogFact(
-                key=t.name,
-                value={
-                    "grain": t.grain,
-                    "is_synthetic": t.is_synthetic,
-                    "description": t.description,
-                },
-                source="catalog.tables",
-            )
-            for t in TABLES.values()
-            if not t.is_analytical
+def catalog_facts(description: WarehouseDescription) -> CatalogFactsPayload:
+    facts: list[CatalogFact] = []
+    for table in description.tables:
+        facts.append(CatalogFact(key=f"table.{table.name}.layer", value=table.layer, source="catalog"))
+        if table.present:
+            facts.append(CatalogFact(key=f"table.{table.name}.row_count", value=table.row_count, source="sql"))
+            if table.date_min:
+                facts.append(CatalogFact(key=f"table.{table.name}.date_range", value=[table.date_min, table.date_max], source="sql"))
+    for metric in description.metrics:
+        facts.append(CatalogFact(
+            key=f"metric.{metric.metric_id}",
+            value={"aggregation": metric.aggregation, "is_synthetic": metric.is_synthetic},
+            source="catalog",
+        ))
+    return CatalogFactsPayload(catalog_version=description.catalog_version, facts=tuple(facts))
+
+
+_LAYER_LABEL = {
+    "real": "real (Olist snapshot)",
+    "synthetic": "**synthetic**",
+    "user_supplied": "user-supplied",
+    "analytical": "derived (engine output)",
+}
+
+
+def render_answer(description: WarehouseDescription) -> str:
+    """The deterministic markdown answer to "what data do you have?"."""
+    base = [t for t in description.tables if t.present and t.layer != "analytical"]
+    synthetic = [t for t in base if t.layer == "synthetic"]
+    lines = [
+        (f"The warehouse holds **{len(base)} tables**: "
+        f"{len(base) - len(synthetic)} real or user-supplied and {len(synthetic)} synthetic."),
+        "",
+    ]
+    if synthetic:
+        lines += [
+            "Synthetic tables are generated for demonstration and are **not "
+            "measurements of the real business**: "
+            + ", ".join(f"`{t.name}`" for t in synthetic) + ".",
+            "",
         ]
-        real_count = len(REAL_TABLE_NAMES)
-        synth_count = len(SYNTHETIC_TABLE_NAMES)
-        total_count = real_count + synth_count
+    lines += ["| Table | Subject | Layer | Grain | Rows | Dates |", "| --- | --- | --- | --- | --- | --- |"]
+    for table in description.tables:
+        if not table.present:
+            continue
+        dates = f"{table.date_min} to {table.date_max}" if table.date_min else "-"
+        lines.append(
+            f"| `{table.name}` | {table.subject} | {_LAYER_LABEL[table.layer]} | {table.grain} "
+            f"| {table.row_count:,} | {dates} |"
+        )
+    missing = [t.name for t in description.tables if not t.present and t.layer != "analytical"]
+    if missing:
+        lines += ["", "Registered but not loaded in this database: " + ", ".join(f"`{n}`" for n in missing) + "."]
+    lines += [
+        "",
+        f"**{len(description.metrics)} metrics** can be calculated:",
+        "",
+        "| Metric | Aggregation | Layer | Dimensions |",
+        "| --- | --- | --- | --- |",
+    ]
+    for metric in description.metrics:
+        layer = "**synthetic**" if metric.is_synthetic else "real"
+        lines.append(f"| `{metric.metric_id}` ({metric.name}) | {metric.aggregation} | {layer} | {', '.join(metric.dimensions) or '-'} |")
+    lines += [
+        "",
+        ("Real order data runs to 2018-10, but 2018-09 and 2018-10 are incomplete "
+        "collection months; the last complete month is reported per metric by the "
+        "completeness rule."),
+        "",
+        f"Catalog version `{description.catalog_version}`.",
+    ]
+    return "\n".join(lines) + "\n"
 
-        narrative = (
-            f"The warehouse contains {total_count} tables: {real_count} real Olist e-commerce snapshot tables "
-            f"and {synth_count} synthetic operational indicator tables. "
-            f"Synthetic tables are clearly catalog-labeled (is_synthetic=True)."
-        )
 
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=tuple(facts)
-            ),
-            "tables_count": total_count,
-        }
+# --------------------------------------------------------------------------- #
+# Track 4: one table, the metric list, and example questions. Same rules as
+# above: catalog facts plus fixed COUNT / MIN / MAX / PRAGMA statements over
+# identifiers from the closed registry. No SQL is generated from user text.
+# --------------------------------------------------------------------------- #
 
-    def _answer_d2_date_range(self) -> dict[str, Any]:
-        facts = (
-            CatalogFact(
-                key="order_history_start", value="2016-09-04", source="catalog.temporal"
-            ),
-            CatalogFact(
-                key="order_history_end", value="2018-10-17", source="catalog.temporal"
-            ),
-            CatalogFact(
-                key="last_complete_month",
-                value=LAST_COMPLETE_MONTH,
-                source="semantic.completeness",
-            ),
-            CatalogFact(
-                key="synthetic_layer_range",
-                value="2016-10-01 to 2018-08-31",
-                source="catalog.temporal",
-            ),
-        )
-        narrative = (
-            f"The real Olist order history covers 2016-09-04 to 2018-10-17. "
-            f"However, per the completeness rule (V2-DATA-1), the last complete month is {LAST_COMPLETE_MONTH}. "
-            f"The synthetic indicator layer spans 2016-10-01 to 2018-08-31."
-        )
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
+_TABLE_CUE = re.compile(
+    r"\btables?\b|\bcolumns?\b|\bschema\b|\bfields?\b|\bwhat(?:'s| is| does)\s+(?:in|inside)\b|\bwhat(?:'s| is)\s+in\b|"
+    r"\bdescribe\b|\binside\b|\bcontains?\b|\bstructure of\b",
+    re.IGNORECASE,
+)
+_METRIC_LIST = re.compile(
+    r"\b(?:which|what) (?:metrics|kpis|measures)\b|\bmetrics (?:can|could|do) (?:i|you|we)\b|\blist (?:the |all |your )?(?:metrics|kpis)\b|"
+    r"\bwhat can i ask\b|\bwhat (?:can|could) you (?:calculate|measure|compute)\b",
+    re.IGNORECASE,
+)
+_DIMENSION_WORDS = {"product_category": "category", "customer_state": "state", "payment_type": "payment type",
+                    "order_status": "order status", "customer_city": "city", "seller_state": "seller state"}
 
-    def _answer_d3_metrics(self) -> dict[str, Any]:
-        metrics_list = [
-            ("revenue", "sum", "Total delivered sales revenue (excl. freight)"),
-            ("gmv", "sum", "Gross merchandise volume including freight"),
-            ("order_count", "count", "Distinct delivered order count"),
-            ("aov", "ratio", "Average order value (revenue / order_count)"),
-            (
-                "cancellation_rate",
-                "ratio",
-                "Canceled orders divided by total orders placed",
-            ),
-            ("review_score", "mean", "Customer satisfaction review rating (1 to 5)"),
-            ("marketing_spend", "sum", "Synthetic daily advertising expenditure"),
-            ("conversion_rate", "ratio", "Synthetic web session order conversion rate"),
-            ("stockout_rate", "ratio", "Synthetic product stockout frequency"),
-            ("delivery_delay", "mean", "Synthetic carrier transit days over promise"),
-        ]
-        facts = tuple(
-            CatalogFact(
-                key=m[0],
-                value={"aggregation": m[1], "description": m[2]},
-                source="catalog.metrics",
-            )
-            for m in metrics_list
-        )
-        narrative = (
-            f"The semantic layer governs {len(metrics_list)} key metrics with declared aggregation classes "
-            f"(sum, count, mean, ratio) across real and synthetic layers."
-        )
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
 
-    def _answer_d4_dimensions(self) -> dict[str, Any]:
-        dims = (
-            CatalogFact(
-                key="customer_state",
-                value="27 Brazilian states (SP, RJ, MG...)",
-                source="catalog.dimensions",
-            ),
-            CatalogFact(
-                key="product_category",
-                value="71 translated category names",
-                source="catalog.dimensions",
-            ),
-            CatalogFact(
-                key="payment_type",
-                value="credit_card, boleto, voucher, debit_card",
-                source="catalog.dimensions",
-            ),
-            CatalogFact(
-                key="channel",
-                value="paid_search, organic_search, social, email, direct",
-                source="catalog.dimensions",
-            ),
-            CatalogFact(
-                key="carrier",
-                value="correios_pac, correios_sedex, loggi_express, carrier_sul",
-                source="catalog.dimensions",
-            ),
-        )
-        narrative = "Governed dimensions for grouping include customer_state, product_category, payment_type, channel, and carrier."
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=dims
-            ),
-        }
+def table_mentioned(question: str, registry: TableRegistry | None = None) -> str | None:
+    """The registered table a question asks *about* ("what is in order_items?"), if any.
 
-    def _answer_d5_synthetic(self) -> dict[str, Any]:
-        synth_tables = [t for t in TABLES.values() if t.is_synthetic]
-        facts = tuple(
-            CatalogFact(key=t.name, value=t.description, source="catalog.synthetic")
-            for t in synth_tables
-        )
-        narrative = (
-            f"The synthetic layer provides {len(synth_tables)} operational indicator tables: "
-            + ", ".join(t.name for t in synth_tables)
-            + ". All synthetic tables are keyed to real Olist entities and flagged is_synthetic=True."
-        )
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
+    A table name alone is not enough - "orders" and "customers" are ordinary
+    words - so a structural cue (table, columns, describe, what is in ...) is
+    required too. Only names from the closed registry can match.
+    """
+    if not _TABLE_CUE.search(question):
+        return None
+    registry = registry or TableRegistry.default()
+    text = question.lower()
+    for table in sorted(registry.tables, key=lambda item: len(item.name), reverse=True):
+        spaced = table.name.replace("_", " ")
+        if re.search(rf"\b(?:{re.escape(table.name)}|{re.escape(spaced)})\b", text):
+            return table.name
+    return None
 
-    def _answer_d6_customer_count(self) -> dict[str, Any]:
-        facts = (
-            CatalogFact(
-                key="total_customer_records", value=99441, source="catalog.row_counts"
-            ),
-            CatalogFact(
-                key="unique_customers", value=96096, source="catalog.row_counts"
-            ),
-        )
-        narrative = "The dataset holds 99,441 customer order instances representing 96,096 unique customer entities (customer_unique_id)."
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
 
-    def _answer_d7_customer_segments_key(self) -> dict[str, Any]:
-        facts = (
-            CatalogFact(
-                key="primary_key", value="customer_unique_id", source="catalog.schema"
-            ),
-            CatalogFact(
-                key="foreign_key_target",
-                value="customers.customer_unique_id",
-                source="catalog.schema",
-            ),
-            CatalogFact(
-                key="caveat",
-                value="Do not join customer_segments on customer_id (order-level instance).",
-                source="semantic.rules",
-            ),
-        )
-        narrative = (
-            "The primary key for customer_segments is customer_unique_id, identifying unique individuals. "
-            "It must not be joined on customer_id, which represents single order instances."
-        )
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
+def asks_for_metric_list(question: str) -> bool:
+    return bool(_METRIC_LIST.search(question))
 
-    def _answer_d8_carrier_data(self) -> dict[str, Any]:
-        facts = (
-            CatalogFact(key="table", value="delivery_sla", source="catalog.schema"),
-            CatalogFact(
-                key="tracked_carriers",
-                value="correios_pac, correios_sedex, loggi_express, carrier_sul",
-                source="catalog.entities",
-            ),
-            CatalogFact(
-                key="metrics",
-                value="promised_days, actual_days, sla_breach_flag",
-                source="catalog.schema",
-            ),
-        )
-        narrative = "Carrier delivery performance is tracked in delivery_sla covering carriers such as correios_pac, correios_sedex, loggi_express, and carrier_sul."
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
 
-    def _answer_d9_analytical_tables(self) -> dict[str, Any]:
-        an_tables = [t for t in TABLES.values() if t.is_analytical]
-        facts = tuple(
-            CatalogFact(key=t.name, value=t.description, source="catalog.analytical")
-            for t in an_tables
-        )
-        narrative = (
-            "Precomputed analytical tables include: "
-            + ", ".join(t.name for t in an_tables)
-            + ". They serve low-latency cached reads with engine provenance."
-        )
-        return {
-            "status": "ok",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
+def example_questions(metric_id: str) -> tuple[str, ...]:
+    """Questions the agent can answer about a metric. Digit-free, so they carry no figure."""
+    metric = all_metrics().get(metric_id)
+    if metric is None:
+        return ()
+    label = metric.name if metric.name.isupper() else metric.name.lower()
+    questions = [f"What was {label} last month?", f"How does {label} trend look today?"]
+    dimensions = [d.name for d in metric.allowed_dimensions]
+    split = next((name for name in ("product_category", "customer_state", "payment_type", "order_status") if name in dimensions), None)
+    if split is not None:
+        questions.append(f"What was {label} by {_DIMENSION_WORDS[split]} last month?")
+    questions.append(f"Why did {label} change last month?")
+    return tuple(questions)
 
-    def _answer_d10_refusal(self, question: str) -> dict[str, Any]:
-        facts = (
-            CatalogFact(
-                key="missing_attributes",
-                value="income, credit_score, demographic_survey",
-                source="catalog.guard",
-            ),
-            CatalogFact(
-                key="held_attributes",
-                value="customer_city, customer_state, customer_zip_code_prefix",
-                source="catalog.schema",
-            ),
-        )
-        narrative = (
-            "The warehouse does not contain customer credit scores, personal income, or demographic survey data. "
-            "Available customer attributes are limited to customer_state, customer_city, customer_zip_code_prefix, and synthetic behavioral segments."
-        )
-        return {
-            "status": "refused",
-            "narrative": narrative,
-            "facts_payload": CatalogFactsPayload(
-                catalog_version=self.catalog_version, facts=facts
-            ),
-        }
+
+class ColumnFact(ContractModel):
+    name: str
+    data_type: str
+
+
+class TableDetail(ContractModel):
+    table: TableFact
+    key_columns: tuple[str, ...]
+    columns: tuple[ColumnFact, ...]
+    metrics: tuple[str, ...]
+    example_questions: tuple[str, ...]
+
+
+def describe_table(connection: Connection, name: str, registry: TableRegistry | None = None) -> TableDetail | None:
+    """One table from the catalog: layer, grain, row count, date span, columns, the metrics built on it."""
+    registry = registry or TableRegistry.default()
+    info = registry.get(name)
+    if info is None:
+        return None
+    present = name in _present(connection)
+    count = low = high = None
+    columns: tuple[ColumnFact, ...] = ()
+    if present:
+        # Identifiers come from the closed registry, never from user text.
+        (count,) = connection.execute(text(f'SELECT COUNT(*) FROM "{info.name}"')).one()
+        if info.date_column:
+            low, high = connection.execute(
+                text(f'SELECT MIN("{info.date_column}"), MAX("{info.date_column}") FROM "{info.name}"')
+            ).one()
+        columns = tuple(ColumnFact(name=str(row[1]), data_type=str(row[2] or "")) for row in
+                        connection.execute(text(f'PRAGMA table_info("{info.name}")')).all())
+    fact = TableFact(
+        name=info.name, subject=info.subject, layer=_layer(info), grain=info.grain, description=info.description,
+        present=present, row_count=None if count is None else int(count), date_column=info.date_column,
+        date_min=None if low is None else str(low)[:10], date_max=None if high is None else str(high)[:10],
+    )
+    metrics = tuple(metric.metric_id for metric in all_metrics().metrics if metric.base_table == info.name)
+    examples = tuple(dict.fromkeys(question for metric_id in metrics[:2] for question in example_questions(metric_id)[:2]))
+    return TableDetail(table=fact, key_columns=info.key_columns, columns=columns, metrics=metrics,
+                       example_questions=examples or ("What data do you have?", "Which metrics can I ask about?"))
+
+
+__all__ = [
+    "ColumnFact",
+    "MetricFact",
+    "TableDetail",
+    "TableFact",
+    "WarehouseDescription",
+    "asks_for_metric_list",
+    "catalog_facts",
+    "describe_table",
+    "describe_warehouse",
+    "example_questions",
+    "render_answer",
+    "table_mentioned",
+]

@@ -1,0 +1,17 @@
+# Known-good value for `order_count`, checked by tests/test_metric_values.py.
+# fixture: scripts/synth/fixture.py (seed 7) -> scripts/synth/generate.py (seed 20261030)
+#          -> scripts/build_analytical_tables.py. Regenerate deliberately if a definition changes.
+metric_id: order_count
+layer: real
+checks:
+  - source: fixture
+    period: "2018-03"
+    dimension: null
+    value: 361
+    tolerance: 0
+  - source: real_snapshot
+    period: "2018-08"
+    dimension: null
+    value: 6512
+    tolerance: 0
+    note: "spec/v2/scope.md section 2.1: orders purchased in August 2018"

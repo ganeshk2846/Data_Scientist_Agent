@@ -1,14 +1,25 @@
-# Table: order_payments
+# `order_payments`
 
-- **Data Layer:** Real
-- **Grain:** payment_installment
-- **Primary / Composite Key:** order_id, payment_sequential
-- **Synthetic Flag:** False
+**Layer:** real — Olist Brazilian e-commerce snapshot, read-only, never modified (`V2-SYN-1`).
 
-## Description
-Payment transaction records by method (credit card, boleto, voucher) and installment.
+One row per payment instalment of an order.
 
-## Caveats & Usage Rules
-- Governed joins must match approved keys (order_id, payment_sequential).
-- For customer analytics, group by customer_unique_id.
-- Period completeness applies (2018-08 last complete month).
+**Grain:** payment.
+
+## Columns
+
+| Column | Meaning | Unit |
+| --- | --- | --- |
+| `order_id` | Order key. | text |
+| `payment_sequential` | Sequence of the payment within its order. | integer |
+| `payment_type` | credit_card, boleto, voucher, debit_card or not_defined (3 rows). | text |
+| `payment_installments` | Number of instalments. | integer |
+| `payment_value` | Amount paid. | BRL |
+
+## Join keys
+
+- `order_payments.order_id = orders.order_id` (N:1)
+
+## Caveats
+
+- An order can have several payment rows; revenue sums them. Joining payments to items multiplies rows — never sum payments across an item join.

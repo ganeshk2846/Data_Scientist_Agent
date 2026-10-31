@@ -1,127 +1,193 @@
-"""Manifest writer for synthetic ground-truth planted effects (DATA-4, DATA-9).
+"""The evaluation answer key for the planted effects (DATA-4, DATA-9, V2-SYN-5).
 
-Writes human-readable data/SYNTHETIC_GROUND_TRUTH.md and machine-readable
-data/synthetic_ground_truth.json sidecar.
+Two outputs, written by the generator and read only by scoring code:
+
+* ``data/SYNTHETIC_GROUND_TRUTH.md`` - human-readable, **committed**. It is
+  rendered from the *planted parameters* only (table, period, dimension,
+  planted effect size), so it is identical whichever source snapshot the
+  generator ran on, and a test holds the committed file equal to it.
+* ``data/synthetic_ground_truth.json`` - the machine-readable sidecar, built
+  next to the database it describes. It adds the *realised* effect measured
+  on the generated rows and the database's SHA-256, plus a V1
+  ``GroundTruthManifest`` section for the existing scoring code. It is a
+  build artefact, like the database, and is not committed.
+
+Nothing is planted without an entry: every plant calls :meth:`ManifestWriter.effect`
+or :meth:`ManifestWriter.confounder` for each change it makes.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Literal
+
+Role = Literal["effect", "confounder", "negative_control"]
+
+
+@dataclass(frozen=True)
+class PlantedFact:
+    plant: str                    # "E1".."E5"
+    fact_id: str                  # unique, e.g. "E1-spend"
+    role: Role
+    table: str
+    column: str
+    period_start: str             # inclusive, YYYY-MM-DD
+    period_end: str               # inclusive, YYYY-MM-DD
+    dimension: str                # what the effect is scoped to
+    dimension_values: tuple[str, ...]
+    planted_effect: str           # the exact change applied, in words
+    expected_pct: float | None    # planted relative change, e.g. -0.40
+    is_cause: bool
+    note: str = ""
+    realised_pct: float | None = None
+    realised_rows: int | None = None    # rows added, for plants that insert rows
 
 
 @dataclass
-class PlantedEffectItem:
-    effect_id: str
-    name: str
-    window: str
-    target_table: str
-    dimension: str
-    true_mechanism: str
-    expected_effect_size: str
-    confounder: str
-    recovery_engine: str
-    parameters: dict[str, object]
-
-
 class ManifestWriter:
-    """Collects planted effects and serializes the evaluation answer key."""
+    seed: int
+    generator_version: str
+    facts: list[PlantedFact] = field(default_factory=list)
 
-    def __init__(self) -> None:
-        self.effects: list[PlantedEffectItem] = []
+    def record(self, fact: PlantedFact) -> PlantedFact:
+        if any(existing.fact_id == fact.fact_id for existing in self.facts):
+            raise ValueError(f"duplicate planted fact {fact.fact_id!r}")
+        self.facts.append(fact)
+        return fact
 
-    def record_effect(
-        self,
-        *,
-        effect_id: str,
-        name: str,
-        window: str,
-        target_table: str,
-        dimension: str,
-        true_mechanism: str,
-        expected_effect_size: str,
-        confounder: str,
-        recovery_engine: str,
-        parameters: dict[str, object] | None = None,
-    ) -> None:
-        self.effects.append(
-            PlantedEffectItem(
-                effect_id=effect_id,
-                name=name,
-                window=window,
-                target_table=target_table,
-                dimension=dimension,
-                true_mechanism=true_mechanism,
-                expected_effect_size=expected_effect_size,
-                confounder=confounder,
-                recovery_engine=recovery_engine,
-                parameters=parameters or {},
-            )
-        )
+    def by_plant(self, plant: str) -> list[PlantedFact]:
+        return [fact for fact in self.facts if fact.plant == plant]
 
-    def write(self, data_dir: str | Path) -> tuple[Path, Path]:
-        out_dir = Path(data_dir)
-        out_dir.mkdir(parents=True, exist_ok=True)
-        md_path = out_dir / "SYNTHETIC_GROUND_TRUTH.md"
-        json_path = out_dir / "synthetic_ground_truth.json"
+    # ------------------------------------------------------------------ #
 
-        # Machine-readable sidecar
-        data_payload = {
-            "version": "2.0.0",
-            "seed": 42,
-            "effects": [asdict(e) for e in self.effects],
+    def to_json(self, *, database_sha256: str, snapshot_id: str) -> dict:
+        return {
+            "snapshot_id": snapshot_id,
+            "seed": self.seed,
+            "generator_version": self.generator_version,
+            "database_sha256": database_sha256,
+            "facts": [asdict(fact) for fact in self.facts],
+            "v1_manifest": self._v1_manifest(snapshot_id),
         }
-        with open(json_path, "w", encoding="utf-8") as f:
-            json.dump(data_payload, f, indent=2)
 
-        # Human-readable markdown answer key
+    def _v1_manifest(self, snapshot_id: str) -> dict:
+        """The subset expressible as a V1 ``GroundTruthManifest``."""
+        anomalies, drivers, confounders = [], [], []
+        effects = [fact for fact in self.facts if fact.role == "effect" and not fact.is_cause]
+        causes = [fact for fact in self.facts if fact.role == "effect" and fact.is_cause]
+        for outcome in effects:
+            for value in outcome.dimension_values:
+                anomaly_id = f"{outcome.fact_id}-{value}".replace(" ", "_")
+                anomalies.append({
+                    "anomaly_id": anomaly_id,
+                    "metric": outcome.column,
+                    "unit": {"dimension": outcome.dimension, "value": value},
+                    "kind": "dip" if (outcome.expected_pct or 0) < 0 else "spike",
+                    "start": outcome.period_start,
+                    "end": outcome.period_end,
+                    "magnitude_pct": round(100 * (outcome.expected_pct or 0), 4),
+                })
+                for cause in (c for c in causes if c.plant == outcome.plant):
+                    drivers.append({
+                        "anomaly_id": anomaly_id,
+                        "cause_kind": _CAUSE_KIND.get(cause.plant, "segment"),
+                        "cause": {"dimension": cause.dimension, "value": cause.dimension_values[0]},
+                        "true_share": 1.0,
+                    })
+                for confounder in self.facts:
+                    if confounder.plant == outcome.plant and confounder.role == "confounder":
+                        confounders.append({
+                            "anomaly_id": anomaly_id,
+                            "moves_with": {
+                                "dimension": confounder.dimension,
+                                "value": confounder.dimension_values[0],
+                            },
+                            "is_cause": False,
+                        })
+        return {
+            "snapshot_id": snapshot_id,
+            "seed": self.seed,
+            "generator_version": self.generator_version,
+            "split": "build",
+            "anomalies": anomalies,
+            "drivers": drivers,
+            "confounders": confounders,
+        }
+
+    def render_markdown(self) -> str:
         lines = [
-            "# Synthetic Ground Truth Answer Key (V2 Evaluation)",
+            "# Synthetic ground truth - evaluation answer key",
             "",
-            "> **CONFIDENTIAL / EVALUATION ONLY** (DATA-4, DATA-9)",
-            "> This document records the planted causal mechanisms, windows, effect sizes,",
-            "> and confounders across the synthetic data layer (`brazil_ecommerce_v2.sqlite`).",
-            "> Agents must never read this document during live reasoning.",
+            "**Generated by `scripts/synth/generate.py`. Do not edit by hand.**",
             "",
-            "## Summary of Planted Effects",
+            "This file is the answer key for the planted effects in",
+            "`data/brazil_ecommerce_v2.sqlite` (`DATA-4`, `V2-SYN-5`). Only",
+            "scoring code reads it; the agent never does (`DATA-9`).",
             "",
-            "| ID | Name | Window | Table | Dimension | Expected Effect Size | Recovery Engine | Confounder |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            "Every effect is applied **only through synthetic tables**. No real",
+            "Olist row is modified (`V2-SYN-1`), so where the spec describes an",
+            "effect on a real metric (order count, AOV, review score, freight),",
+            "the planted outcome is the synthetic table and column named below.",
+            "",
+            f"- Seed: `{self.seed}`",
+            f"- Generator version: `{self.generator_version}`",
+            "- Realised effect sizes measured on the generated rows, and the",
+            "  database checksum, are in the build-time sidecar",
+            "  `data/synthetic_ground_truth.json`.",
+            "",
         ]
-
-        for e in self.effects:
-            lines.append(
-                f"| **{e.effect_id}** | {e.name} | `{e.window}` | `{e.target_table}` | "
-                f"{e.dimension} | {e.expected_effect_size} | `{e.recovery_engine}` | {e.confounder} |"
-            )
-
-        lines.extend(
-            [
-                "",
-                "## Detailed Effect Specifications",
-                "",
+        for plant in sorted({fact.plant for fact in self.facts}):
+            facts = self.by_plant(plant)
+            lines += [f"## {plant} - {_TITLES.get(plant, plant)}", ""]
+            lines += [
+                "| Fact | Role | Cause? | Table.column | Period | Dimension | Values | Planted effect | Expected size |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
-        )
+            for fact in facts:
+                size = "-" if fact.expected_pct is None else f"{fact.expected_pct:+.1%}"
+                lines.append(
+                    f"| `{fact.fact_id}` | {fact.role} | {'yes' if fact.is_cause else 'no'} "
+                    f"| `{fact.table}.{fact.column}` | {fact.period_start} to {fact.period_end} "
+                    f"| `{fact.dimension}` | {', '.join(fact.dimension_values)} "
+                    f"| {fact.planted_effect} | {size} |"
+                )
+            notes = [fact for fact in facts if fact.note]
+            if notes:
+                lines.append("")
+                for fact in notes:
+                    lines.append(f"- `{fact.fact_id}`: {fact.note}")
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
 
-        for e in self.effects:
-            lines.extend(
-                [
-                    f"### {e.effect_id}: {e.name}",
-                    f"- **Target Window:** `{e.window}`",
-                    f"- **Target Table:** `{e.target_table}`",
-                    f"- **Dimension Filter:** `{e.dimension}`",
-                    f"- **True Mechanism:** {e.true_mechanism}",
-                    f"- **Expected Effect Size:** {e.expected_effect_size}",
-                    f"- **Recovery Engine:** `{e.recovery_engine}`",
-                    f"- **Planted Confounder:** {e.confounder}",
-                    f"- **Parameters:** `{json.dumps(e.parameters)}`",
-                    "",
-                ]
-            )
 
-        with open(md_path, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
+_TITLES = {
+    "E1": "Marketing cut",
+    "E2": "Stockouts",
+    "E3": "Promotion: orders up, AOV down",
+    "E4": "Delivery-delay spike",
+    "E5": "Price change with a known elasticity",
+}
 
-        return md_path, json_path
+_CAUSE_KIND = {"E1": "segment", "E2": "category", "E3": "price_change", "E4": "carrier", "E5": "price_change"}
 
+
+def write_outputs(
+    manifest: ManifestWriter,
+    *,
+    markdown_path: Path,
+    json_path: Path,
+    database_sha256: str,
+    snapshot_id: str,
+) -> None:
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    markdown_path.write_text(manifest.render_markdown(), encoding="utf-8")
+    json_path.write_text(
+        json.dumps(manifest.to_json(database_sha256=database_sha256, snapshot_id=snapshot_id), indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+__all__ = ["ManifestWriter", "PlantedFact", "write_outputs"]
