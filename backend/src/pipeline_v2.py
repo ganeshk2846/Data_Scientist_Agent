@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -202,6 +202,12 @@ class PipelineV2:
             grounded = Grounded(self.grounder._clarify_intent(extraction, rewrite.clarification), None, rewrite.clarification, (), ())
         else:
             grounded = self.grounder.ground(extraction, patch=patch, round_number=round_number, of_run_id=of_run_id)
+        if (grounded.clarification is not None and reply is not None and round_number <= clarify.MAX_ROUNDS
+                and _preexisting_ambiguity(grounded.clarification.slot, reply, patch)):
+            # scope.md 3.2: round 2 asks only about an ambiguity the reply itself introduced. One that was there
+            # all along (the window, after choosing a metric) takes the stated default instead.
+            round_number = clarify.MAX_ROUNDS + 1
+            grounded = self.grounder.ground(extraction, patch=patch, round_number=round_number, of_run_id=of_run_id)
         if grounded.clarification is not None and round_number > clarify.MAX_ROUNDS:
             default_patch, note = clarify.patch_for(grounded.clarification, None)
             if "effective_text" in default_patch:
@@ -342,6 +348,21 @@ class PipelineV2:
                               clarification=None, catalog_version=self.catalog_version, latency_ms=_ms(started),
                               blocked=BlockBlock(reason=guard.reason or "unsafe", detail=guard.matched_rule or guard.reason or "Blocked by guard."))
         return PipelineOutcome(envelope, question, None)
+
+
+#: Which reply-patch keys can make each slot ambiguous (an option that set the metric can make the dimension invalid).
+_SLOT_KEYS = {"metric": ("metric_id",), "period": ("period",), "comparison_period": ("comparison_period", "period"),
+              "grain": ("grain", "period"), "dimension": ("dimensions", "metric_id"), "filter_value": ("filters",),
+              "horizon": ("horizon",), "scenario_param": ("scenario_params",), "intent": ()}
+
+
+def _preexisting_ambiguity(slot: str, reply: ClarificationReply, patch: Mapping[str, Any]) -> bool:
+    """True when a round-2 question is about a slot the chosen option did not touch (CL-4)."""
+    if reply.text is not None and reply.option_id is None and not patch:
+        return False  # free text can introduce anything; it may earn a second round
+    if slot == reply.request.slot:
+        return False
+    return not any(key in patch for key in _SLOT_KEYS.get(slot, ()))
 
 
 def _route_discovery(extraction):

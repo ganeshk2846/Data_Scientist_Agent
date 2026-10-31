@@ -75,3 +75,14 @@ def test_a_judgement_about_the_prior_figure_is_answered_against_the_year_before(
     runner.run_sync("What was the average review score in 2018?", session_id="fx-u2")
     _, bare = runner.run_sync("Why?", session_id="fx-u2")
     assert bare.status == "clarify"
+
+
+def test_accepting_the_default_answers_instead_of_asking_about_a_window_that_was_always_open(runner):
+    """scope.md 3.2: round 2 only for an ambiguity the reply introduced; otherwise the stated default applies."""
+    run_id, first = runner.run_sync("How are sales doing?", session_id="fx-cl")
+    assert first.status == "clarify" and first.clarification.slot == "metric"
+    _, second = runner.run_sync("ok", session_id="fx-cl", clarification_of=run_id,
+                                option_id=first.clarification.default_assumption.option_id)
+    assert second.status == "answered"
+    assert second.resolved_question.metric_id == "revenue"
+    assert any("default was used" in item for item in second.assumptions)  # never silent (CL-4)
