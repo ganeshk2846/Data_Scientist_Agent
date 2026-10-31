@@ -31,14 +31,30 @@ def daily_list_price(price_history: pd.DataFrame, products: pd.DataFrame, dates:
     index = _dates(dates)
     history = price_history.merge(products[["product_id", "product_category_name"]], on="product_id", how="inner")
     history = history.dropna(subset=["product_category_name"]).sort_values(["product_id", "date"], kind="mergesort")
+    history = history.assign(date=history["date"].astype(str).str[:10]).drop_duplicates(["product_id", "date"], keep="last")
+    if history.empty or not len(index):
+        return pd.DataFrame(columns=["date", "category", "list_price"])
+    # Each product's last price on or before a day is its list price that day. A price change takes effect on the
+    # first panel day on or after it, so the category's running sum of price changes (and count of products priced
+    # so far) gives the same mean as carrying every product forward, without a product x day grid.
+    position = np.searchsorted(index.to_numpy(dtype=str), history["date"].to_numpy(dtype=str), side="left")
+    keep = position < len(index)
+    previous = history.groupby("product_id", sort=False)["price"].shift(1)
+    events = pd.DataFrame({
+        "category": history["product_category_name"].to_numpy()[keep],
+        "position": position[keep],
+        "delta": (history["price"] - previous.fillna(0.0)).to_numpy(dtype=float)[keep],
+        "first": previous.isna().to_numpy()[keep].astype(float),
+    })
+    # A product whose first change falls after the panel still carries nothing, exactly as before.
+    totals = events.groupby(["category", "position"], sort=True)[["delta", "first"]].sum()
     frames = []
-    for product_id, rows in history.groupby("product_id", sort=True):
-        steps = rows.assign(date=rows["date"].astype(str).str[:10]).drop_duplicates("date", keep="last").set_index("date")["price"]
-        daily = steps.reindex(steps.index.union(index)).sort_index().ffill().reindex(index)
-        frames.append(pd.DataFrame({"date": index, "category": rows["product_category_name"].iloc[0], "product_id": product_id,
-                                    "list_price": daily.to_numpy(dtype=float)}))
-    panel = pd.concat(frames, ignore_index=True).dropna(subset=["list_price"])
-    return panel.groupby(["date", "category"], as_index=False)["list_price"].mean()
+    for category, rows in totals.groupby(level="category", sort=True):
+        steps = rows.droplevel("category").reindex(range(len(index)), fill_value=0.0).cumsum()
+        priced = steps["first"].to_numpy() > 0
+        frames.append(pd.DataFrame({"date": index[priced], "category": category,
+                                    "list_price": steps["delta"].to_numpy()[priced] / steps["first"].to_numpy()[priced]}))
+    return pd.concat(frames, ignore_index=True).sort_values(["date", "category"], kind="mergesort").reset_index(drop=True)
 
 
 def daily_discount(promotions: pd.DataFrame, dates: Iterable[str], categories: Iterable[str]) -> pd.DataFrame:

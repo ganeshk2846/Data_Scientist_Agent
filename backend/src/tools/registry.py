@@ -847,6 +847,11 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
 
     if tool == "python.scenario":
         if bind.get("unsupported") is not None and "panel_from" not in bind:
+            missing = sorted(set(DATASET_TABLES["price_panel"]) - ctx.warehouse.tables)
+            if any(item.get("target") == "price" for item in bind["unsupported"]) and missing:
+                return fail(f"A price change needs a fitted demand elasticity, and this database has no price history to fit "
+                            f"it on (missing: {', '.join(missing)}). No figure is invented. These are V2 synthetic tables: "
+                            f"build them with `python scripts/build_v2.py` and point the backend at the result with DS_AGENT_DB.")
             described = "; ".join(item.get("source_phrase", "") for item in bind["unsupported"]) or "the stated change"
             return fail(f"Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). "
                         f"'{described}' has no fitted relationship to perturb, so no figure is invented.")
