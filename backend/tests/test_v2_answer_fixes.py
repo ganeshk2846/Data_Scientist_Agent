@@ -90,12 +90,12 @@ def test_accepting_the_default_answers_instead_of_asking_about_a_window_that_was
 
 @pytest.mark.parametrize(("question", "sql", "expected_text"), [
     ("What was revenue in 2017?",
-     "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id "
-     "WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' "
-     "AND o.order_purchase_timestamp < '2018-01-01'", "Revenue for 2017-01 to 2017-12 was"),
+     ("SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id "
+      "WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' "
+      "AND o.order_purchase_timestamp < '2018-01-01'"), "Revenue for 2017-01 to 2017-12 was"),
     ("How many unique customers ordered in Q2 2018?",
-     "SELECT COUNT(DISTINCT c.customer_unique_id) FROM orders o JOIN customers c ON c.customer_id = o.customer_id "
-     "WHERE o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-07-01'", "for 2018-04 to 2018-06 was"),
+     ("SELECT COUNT(DISTINCT c.customer_unique_id) FROM orders o JOIN customers c ON c.customer_id = o.customer_id "
+      "WHERE o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-07-01'"), "for 2018-04 to 2018-06 was"),
 ])
 def test_a_window_question_states_the_governed_total_for_the_window(pipeline, v2_build, question, sql, expected_text):
     import sqlite3
