@@ -112,3 +112,14 @@ def test_a_single_month_states_its_value_without_a_zero_change_trend(pipeline):
     envelope = pipeline.run("How many orders were there in August 2018?", run_id="fx-month").envelope
     assert envelope.conclusion.startswith("Order count for 2018-08 was")
     assert "moved from" not in envelope.conclusion
+
+
+def test_the_segment_question_ranks_two_to_three_options_without_new_figures(pipeline):
+    """scope.md 3.8 P1 (must-answer) and REC-3: options with assumptions, trade-offs, what to monitor."""
+    envelope = pipeline.run("Which customer segment should we target?", run_id="fx-p1").envelope
+    assert envelope.status == "answered"
+    assert 2 <= len(envelope.next_actions) <= 3
+    assert [option.rank for option in envelope.next_actions] == list(range(1, len(envelope.next_actions) + 1))
+    for option in envelope.next_actions:
+        assert option.assumptions and option.trade_offs and option.monitor and option.data_that_would_change_ranking
+        assert not re.search(r"\d+\.\d|R\$", option.title)  # SAFE-8: options cite segments by rank, figures stay in claims

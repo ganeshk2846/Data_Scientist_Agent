@@ -113,6 +113,32 @@ def _period_text(period) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _segment_traits(columns: tuple[str, ...], row: tuple[Any, ...]) -> list[str]:
+    return [name.split("=", 1)[1] for name, value in zip(columns[4:], row[4:], strict=False)
+            if "=" in str(name) and isinstance(value, (int, float)) and value >= 0.5]
+
+
+def _segment_actions(report: EngineReport) -> tuple[ActionOption, ...]:
+    """2-3 options from the engine's ranked segments (REC-3); they cite segments by rank, never a new figure."""
+    table = report.table("clusters")
+    options = []
+    for rank, row in enumerate(table.rows[:3], start=1):
+        traits = _segment_traits(table.columns, row)
+        name = f"segment rank {rank}" + (f" ({', '.join(traits[:3])})" if traits else "")
+        options.append(ActionOption(
+            action_id=f"segment-{rank}", rank=rank, kind="intervention",
+            title=f"Target {name}" + (" first" if rank == 1 else ""),
+            assumptions=("Segments are ranked by measured revenue per customer; past revenue is assumed to indicate the value of "
+                         "reaching them.", "Segment labels come from synthetic data generated for demonstration."),
+            trade_offs=("A higher-value segment is usually smaller, so total reach is lower." if rank == 1 else
+                        "Lower revenue per customer than the first-ranked segment, traded for a different audience.",),
+            sensitivity="The ranking moves if campaign response differs by segment; no response data is held, so it is not modelled.",
+            monitor=(f"Revenue per customer and order frequency in {name} after the campaign starts.",),
+            data_that_would_change_ranking=("Campaign response or uplift by segment from a test.", "Acquisition cost by channel."),
+        ))
+    return tuple(options)
+
+
 def _window_numbers(text: str) -> list[float]:
     """Figures a window label such as 'January 2017 to August 2017' or '2018' puts into a sentence."""
     return [float(token) for token in re.findall(r"\d+", text)]
@@ -385,8 +411,7 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
             columns = report.table("clusters").columns
             say("Customers fall into {} segments, ranked by measured revenue per customer.", [(float(len(clusters)), "", 0)])
             for rank, row in enumerate(clusters[:3], start=1):
-                traits = [name.split("=", 1)[1] for name, value in zip(columns[4:], row[4:], strict=False)
-                          if "=" in str(name) and isinstance(value, (int, float)) and value >= 0.5]
+                traits = _segment_traits(columns, row)
                 described = f" ({', '.join(traits[:3])})" if traits else ""
                 say(f"Segment rank {{}}{described} holds {{}} customers averaging {{}} revenue each.",
                     [(float(rank), "", 0), (float(row[1]), "", 0), (float(row[2]), "R$", 2)])
@@ -502,6 +527,9 @@ def compose(
                 result_payload = result.analyst_output.result
                 if result_payload is not None and getattr(result_payload, "mode", None) == "rank_actions" and "prescriptive" in intent.intent_names:
                     next_actions = tuple(result_payload.actions)
+                elif (not next_actions and report is not None and report.engine == "prescriptive" and report.method == "kmeans"
+                      and "prescriptive" in intent.intent_names):
+                    next_actions = _segment_actions(report)
             elif result.rows is not None and result.status == "ok":
                 evidence.append(EvidenceBlock(module="lookup", output={"query_id": result.rows.query_id, "columns": [c.name for c in result.rows.columns],
                                                                        "rows": [list(row) for row in result.rows.rows[:50]]}, source_claims=tuple(ids)))
