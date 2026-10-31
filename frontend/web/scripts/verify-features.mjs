@@ -838,11 +838,219 @@ async function axe() {
   }
 }
 
+/* ───────────────────── 8. V2: Track 5 surfaces (additive) ────────────────── */
+
+/** Body text, whitespace-collapsed; SectionLabel uppercases through CSS. */
+const bodyText = (page) => page.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+
+const V2_QUESTIONS = {
+  why: 'Why did revenue drop in the top category in April 2018?',
+  impact: 'How much did the April 2018 drop cost us?',
+  forecast: 'Forecast revenue for the next 3 months',
+  forecastLive: 'Forecast revenue in SP for the next 3 months',
+  whatif: 'What if we raise prices 5%?',
+  nowwhat: 'Why did August 2018 revenue fall, what did it cost, and what should we do?',
+  discovery: 'What metrics do you have?',
+  spikes: 'What are the spikes across all months?',
+};
+
+async function v2() {
+  const { context, page, errors } = await fresh();
+  await page.goto(`${BASE}/?mock=1`, { waitUntil: 'networkidle' });
+
+  try {
+    const chips = await page.locator('main ul li button').allInnerTexts();
+    record('hero suggestions lead with WHY questions', /^Why\b/.test(chips[0] ?? '') && /^Why\b/.test(chips[1] ?? ''), chips.slice(0, 2).join(' | '));
+  } catch (error) {
+    record('hero suggestions lead with WHY questions', false, error.message.split('\n')[0]);
+  }
+
+  const facts = async () =>
+    page.evaluate(() => ({
+      kinds: [...document.querySelectorAll('[data-viz-kind]')].map((e) => e.getAttribute('data-viz-kind')),
+      drawn: document.querySelectorAll('[data-testid="viz-card"] svg.recharts-surface').length,
+      layouts: [...document.querySelectorAll('[data-layout]')].map((e) => e.getAttribute('data-layout')),
+      plan: [...document.querySelectorAll('[data-plan-step]')].map((e) => e.getAttribute('data-state')),
+      drivers: document.querySelectorAll('[data-testid="ranked-drivers"] li').length,
+    }));
+
+  const scenarios = [
+    ['WHY: ranked drivers + waterfall + causal boundary', 'why', (f, text) =>
+      f.layouts.includes('why') && f.drivers > 0 && f.kinds.includes('waterfall') && /causal boundary/i.test(text)],
+    ['SO WHAT: impact range with its interval', 'impact', (f) => f.layouts.includes('impact') && f.kinds.includes('range_band')],
+    ['FORECAST: fan with interval + method + backtest MAPE', 'forecast', (f, text) =>
+      f.kinds.includes('forecast_fan') && /prediction interval/i.test(text) && /MAPE/.test(text) && /Fallback/i.test(text)],
+    ['WHAT IF: scenario charts + assumptions', 'whatif', (f, text) =>
+      f.layouts.includes('whatif') && f.drawn >= 2 && /scenario assumptions/i.test(text)],
+    ['NOW WHAT: ranked actions with trade-offs', 'nowwhat', (f, text) =>
+      f.layouts[0] === 'nowwhat' && /next actions/i.test(text)],
+    ['DISCOVERY: catalog facts + example questions', 'discovery', (f, text) =>
+      f.layouts.includes('discovery') && /example questions/i.test(text)],
+    ['anomalies: flagged spikes and dips listed and marked', 'spikes', (f, text) =>
+      f.kinds.includes('table') && /spike|dip/i.test(text)],
+  ];
+  for (const [name, key, check] of scenarios) {
+    try {
+      await ask(page, V2_QUESTIONS[key]);
+      const f = await facts();
+      const text = await bodyText(page);
+      const done = f.plan.length > 0 && f.plan.every((state) => state !== 'pending' && state !== 'running');
+      record(name, check(f, text) && done, `${f.layouts.join('+') || '—'} · ${f.kinds.join(',') || 'no charts'} · plan ${f.plan.length}`);
+    } catch (error) {
+      record(name, false, error.message.split('\n')[0]);
+    }
+  }
+
+  // VZ-5 / 5.8: a forecast chart always shows its interval.
+  try {
+    await ask(page, V2_QUESTIONS.forecastLive);
+    const fans = await page.locator('[data-viz-kind="forecast_fan"]').allInnerTexts();
+    const before = (await facts()).kinds.length;
+    await page.getByRole('button', { name: /Show trend and seasonality/ }).click();
+    await page.waitForTimeout(900);
+    const after = await facts();
+    const badge = await page.locator('[data-plan-step]').allInnerTexts();
+    record(
+      'forecast: interval always drawn; trend + seasonality on request; plan badges',
+      fans.length > 0 && fans.every((t) => /interval/i.test(t)) && after.kinds.length > before &&
+        badge.some((t) => /Python · forecast/i.test(t)) && badge.some((t) => /Analytical table/i.test(t)),
+      `${fans.length} fan(s), ${before} → ${after.kinds.length} charts`,
+    );
+  } catch (error) {
+    record('forecast: interval always drawn; trend + seasonality on request; plan badges', false, error.message.split('\n')[0]);
+  }
+
+  // Live plan: the model step announces itself while it runs.
+  try {
+    await page.getByRole('textbox', { name: /Ask your data/ }).fill(V2_QUESTIONS.forecastLive);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => /Running model — this can take ~\d+ s/.test(document.body.innerText), undefined, { timeout: 15_000 });
+    record('live plan view: "Running model — this can take ~N s"', true);
+    await page.waitForFunction(() => /Pipeline · \d+ stages/i.test(document.body.innerText), undefined, { timeout: 30_000 });
+  } catch (error) {
+    record('live plan view: "Running model — this can take ~N s"', false, error.message.split('\n')[0]);
+  }
+
+  // Clarification: options, round, default; free text → round 2; an option → answered.
+  try {
+    await ask(page, 'Summarize revenue');
+    const round1 = await page.getByTestId('clarify-round').innerText();
+    const fallback = await page.getByTestId('clarify-default').innerText();
+    const options = await page.locator('[data-testid="clarify-options"] li button').count();
+    await page.getByPlaceholder(/missing metric or period/).fill('the usual one');
+    await page.getByPlaceholder(/missing metric or period/).press('Enter');
+    await page.waitForFunction(() => /Round 2 of 2/.test(document.body.innerText), undefined, { timeout: 30_000 });
+    await page.waitForTimeout(1_200);
+    await page.locator('[data-testid="clarify-options"] li button').first().click();
+    await page.waitForSelector('[data-testid="feedback-bar"]', { timeout: 30_000 });
+    const heading = await page.locator('h1').first().innerText();
+    record(
+      'clarify: option chips, "round 1 of 2", default stated, round 2, option answers',
+      /Round 1 of 2/.test(round1) && /assumes/i.test(fallback) && options >= 2 && / — /.test(heading),
+      `${options} options · ${heading}`,
+    );
+  } catch (error) {
+    record('clarify: option chips, "round 1 of 2", default stated, round 2, option answers', false, error.message.split('\n')[0]);
+  }
+
+  // Conversation thread: a follow-up inherits, shows how it was read; New topic resets.
+  try {
+    await ask(page, 'revenue in SP in July 2018');
+    await ask(page, 'What about RJ?');
+    const chip = await page.getByTestId('interpreted-as').last().innerText();
+    const thread = await page.getByTestId('conversation-thread').innerText();
+    await page.getByTestId('new-topic').click();
+    await ask(page, V2_QUESTIONS.impact);
+    const after = await page.getByTestId('conversation-thread').innerText();
+    record(
+      'thread: turns + "interpreted as" chip; New topic starts cold',
+      /Interpreted as/i.test(chip) && /Carried from/i.test(chip) && /earlier/i.test(thread) && !/earlier/i.test(after),
+      chip.replace(/\s+/g, ' ').slice(0, 90),
+    );
+  } catch (error) {
+    record('thread: turns + "interpreted as" chip; New topic starts cold', false, error.message.split('\n')[0]);
+  }
+
+  // Feedback: thumbs + reason, stored per answer.
+  try {
+    await page.getByRole('button', { name: 'Not useful' }).click();
+    await page.locator('input[id^="feedback-reason"]').fill('wrong month');
+    await page.getByRole('button', { name: 'Save reason' }).click();
+    await page.waitForTimeout(300);
+    const stored = await page.evaluate(() => window.localStorage.getItem('ds-agent-feedback') ?? '');
+    const pressed = await page.getByRole('button', { name: 'Not useful' }).getAttribute('aria-pressed');
+    record('feedback: thumbs + optional reason stored per answer', /"rating":"down"/.test(stored) && /wrong month/.test(stored) && pressed === 'true');
+  } catch (error) {
+    record('feedback: thumbs + optional reason stored per answer', false, error.message.split('\n')[0]);
+  }
+
+  // Replay: a past conversation, turn by turn, from the hero.
+  try {
+    // N returns to the hero, where stored conversations are offered for replay.
+    await page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : null));
+    await page.keyboard.press('n');
+    await page.waitForSelector('[data-testid="conversation-list"]', { timeout: 10_000 });
+    // The newest conversation (after New topic) has one turn; replay one with several.
+    await page.locator('[data-testid="conversation-list"] button').filter({ hasText: /\b([2-9]|\d{2,}) turns/ }).first().click();
+    const first = await page.getByTestId('replay-bar').innerText();
+    await page.getByRole('button', { name: 'Next turn' }).click();
+    const second = await page.getByTestId('replay-bar').innerText();
+    record('replay: a past conversation steps turn by turn', /turn 1 of/.test(first) && /turn 2 of/.test(second), first.split('\n')[0]);
+  } catch (error) {
+    record('replay: a past conversation steps turn by turn', false, error.message.split('\n').filter((line) => /intercept|waiting for|Timeout/.test(line)).slice(0, 3).join(' / '));
+  }
+
+  const real = errors.filter((text) => !/404/.test(text));
+  record('V2 mock flows: no console errors', real.length === 0, real.slice(0, 2).join(' | '));
+  await context.close();
+
+  // axe on the new surfaces, both themes, minor and best-practice included (5.6).
+  for (const theme of ['light', 'dark']) {
+    for (const [scene, question, expand] of [
+      ['v2 why', V2_QUESTIONS.why, false],
+      ['v2 forecast + components', V2_QUESTIONS.forecastLive, true],
+      ['v2 clarify', 'Summarize revenue', false],
+      ['v2 discovery', V2_QUESTIONS.discovery, false],
+    ]) {
+      const { context: ctx, page: p } = await fresh();
+      await ctx.addInitScript(([t]) => {
+        try { window.localStorage.setItem('ds-agent-theme', t); } catch { /* private mode */ }
+      }, [theme]);
+      try {
+        await p.goto(`${BASE}/?mock=1`, { waitUntil: 'networkidle' });
+        await ask(p, question);
+        if (expand) {
+          await p.getByRole('button', { name: /Show trend and seasonality/ }).click();
+          await p.waitForTimeout(900);
+        }
+        await p.evaluate(AXE);
+        const run = await p.evaluate(() =>
+          window.axe.run(document, {
+            runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'] },
+            resultTypes: ['violations'],
+          }),
+        );
+        record(
+          `axe (incl. minor + best-practice): ${scene} (${theme})`,
+          run.violations.length === 0,
+          run.violations.length
+            ? run.violations.map((v) => `${v.id}[${v.impact}] ${v.nodes[0]?.target.join(' ')}`).join(' | ')
+            : `0 violations, ${run.passes?.length ?? '?'} checks passed`,
+        );
+      } catch (error) {
+        record(`axe (incl. minor + best-practice): ${scene} (${theme})`, false, error.message.split('\n')[0]);
+      }
+      await ctx.close();
+    }
+  }
+}
+
 async function main() {
   browser = await chromium.launch();
   if (!wanted || wanted === 'mock') await mockStates();
   if (!wanted || wanted === 'features') await features();
   if (!wanted || wanted === 'axe') await axe();
+  if (!wanted || wanted === 'v2') await v2();
   await browser.close();
 
   const failed = results.filter((r) => !r.pass);

@@ -46,6 +46,7 @@ from engines.diagnostic import CAUSAL_BOUNDARY
 from engines.report import EngineReport
 from evidence.ledger import _NUMBER, FactChecker, _token_value, format_number
 from intent import describe_period
+from viz import build_visualizations
 
 _MONEY = frozenset({"revenue", "gmv", "aov", "freight_value", "marketing_spend", "R$"})
 _LABELS = {"gmv": "GMV", "aov": "AOV", "revenue": "revenue", "order_count": "order count", "sla_breach_rate": "SLA breach rate"}
@@ -516,6 +517,8 @@ def compose(
         step_results=tuple(step_results),
         assumptions=tuple(dict.fromkeys(assumptions)),
         follow_ups=_follow_ups(intent, resolved),
+        visualizations=build_visualizations(plan.steps if plan else (), results,
+                                             {item.step_id: item.claim_ids for item in step_results}),
     )
     return envelope, ledger
 

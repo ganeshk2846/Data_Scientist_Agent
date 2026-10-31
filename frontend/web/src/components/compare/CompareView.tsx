@@ -185,7 +185,7 @@ function EvidenceBlocks({ envelope }: { envelope: AnswerEnvelope }) {
 
             {lookup && !hero ? (
               <dl className="mt-3 space-y-1.5">
-                <Row label="Rows" value={formatNumber(lookup.row_count)} />
+                <Row label="Rows" value={lookup.row_count !== null ? formatNumber(lookup.row_count) : '—'} />
                 <Row
                   label="Columns"
                   value={lookup.columns.map((column) => column.name).join(', ')}

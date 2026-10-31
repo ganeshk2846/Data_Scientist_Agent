@@ -26,6 +26,11 @@ export interface StoredEntry {
   envelope: AnswerEnvelope | null;
   clarificationOf: string | null;
   starred: boolean;
+  /**
+   * The conversation (topic) this question belongs to. Entries stored before
+   * threads existed have none and each reads as its own conversation.
+   */
+  threadId?: string;
 }
 
 const STATUSES: readonly string[] = [
@@ -77,6 +82,7 @@ function validateEntry(value: unknown): StoredEntry | null {
     clarificationOf:
       typeof value['clarificationOf'] === 'string' ? value['clarificationOf'] : null,
     starred: value['starred'] === true,
+    ...(typeof value['threadId'] === 'string' ? { threadId: value['threadId'] } : {}),
   };
 }
 

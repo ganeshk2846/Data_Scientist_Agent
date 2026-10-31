@@ -23,7 +23,7 @@ export interface HeroFigure {
  * not a table. Anything else stays a table.
  */
 export function asHeroFigure(output: LookupOutput): HeroFigure | null {
-  if (output.row_count !== 1 || output.rows.length !== 1) return null;
+  if ((output.row_count !== null && output.row_count !== 1) || output.rows.length !== 1) return null;
   if (output.columns.length !== 1) return null;
   const column = output.columns[0];
   const cell = output.rows[0]?.[0];

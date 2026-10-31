@@ -173,7 +173,8 @@ export interface LookupOutput {
   query_id: string;
   columns: readonly LookupColumn[];
   rows: readonly (readonly unknown[])[];
-  row_count: number;
+  /** Null for a V2 lookup block, which carries no count of its own. */
+  row_count: number | null;
   truncated: boolean;
 }
 

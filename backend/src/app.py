@@ -16,6 +16,7 @@ from pathlib import Path
 
 from auth import ApiTokenAuthenticator
 from contracts.models import AnswerEnvelope, AskRequest, AskResponse
+from feedback import FeedbackRequest, FeedbackStore
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from service import (
@@ -82,6 +83,7 @@ def create_app(
     )
 
     v2 = V2Runner(service)
+    feedback = FeedbackStore.from_environment()
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -184,6 +186,34 @@ def create_app(
         principal = authenticator.authenticate(authorization)
         cleared = v2.contexts.reset(principal, session_id)
         return JSONResponse(content={"session_id": session_id, "cleared_turns": cleared})
+
+    @app.post("/api/sessions/{session_id}/feedback")
+    def session_feedback(
+        session_id: str,
+        payload: FeedbackRequest,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """Thumbs up / down on one of the caller's own runs, with an optional reason (Track 5)."""
+        principal = authenticator.authenticate(authorization)
+        try:
+            if service.store.owner_id(payload.run_id) != principal:
+                raise RunNotFoundError(payload.run_id)
+            record = feedback.record(principal, session_id, payload)
+        except RunNotFoundError as exc:
+            raise HTTPException(status_code=404, detail="run not found") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return JSONResponse(content=record.model_dump(mode="json"))
+
+    @app.get("/api/sessions/{session_id}/feedback")
+    def session_feedback_list(
+        session_id: str,
+        authorization: str | None = Header(default=None),
+    ) -> JSONResponse:
+        """The caller's own ratings in this session, one per run (Track 5)."""
+        principal = authenticator.authenticate(authorization)
+        records = feedback.list(principal, session_id)
+        return JSONResponse(content={"session_id": session_id, "feedback": [r.model_dump(mode="json") for r in records]})
 
     @app.get("/api/runs/{run_id}/events")
     def events(
