@@ -34,6 +34,9 @@ Click through the chips once on your machine before presenting.
 
 ## Setup
 
+On Windows, follow [`RUN_LOCALLY.md`](RUN_LOCALLY.md) step by step (Command Prompt + VS Code);
+`python scripts/check_setup.py` must print `OK` before you start the backend. In short:
+
 ```bash
 python scripts/build_v2.py --source brazil_ecommerce.sqlite   # or --fixture without the snapshot
 export DS_AGENT_DB=data/brazil_ecommerce_v2.sqlite             # REQUIRED - see "If 'what if' says insufficient evidence"
@@ -164,11 +167,12 @@ chart, the method actually used (ETS: Prophet is not installed) and its backtest
 At real scale: -1.64 (interval -1.83 to -1.45). The planted elasticity is -1.5; both
 intervals contain it. Say: *the coefficient is fitted, never assumed; no fit, no number.*
 
-### 9. NOW WHAT - "Which customer segment should we target?" (318 ms / **7.2 s**)
+### 9. NOW WHAT - "Which customer segment should we target?" (318 ms / **~5 s**)
 
 Point at: three ranked options with assumptions, trade-offs, what to monitor and what
 data would change the ranking. Options cite segments by rank; every figure stays in
-the claims. **At real scale this takes ~7 s** - start talking before you click.
+the claims. **At real scale this takes ~5 s** (it was ~9 s before the clustering loop was
+vectorised) - start talking before you click.
 
 ### 10. Two intents at once - "How does revenue trend look today and what will it be in 3 months?" (838 / 804 ms)
 
