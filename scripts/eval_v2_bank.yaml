@@ -22,6 +22,12 @@
 #   checks    spec-derived assertions implemented in eval_v2.py (see CHECKS there)
 #   plant     planted effect the answer must recover (diagnostic) - scored against
 #             data/SYNTHETIC_GROUND_TRUTH.md through the `plants` table below
+#   recover   case-level cause tokens replacing the plant's (used where the outcome IS the planted
+#             fact, so the cause is where it happened - the E2-stockout categories)
+#   premise   the change the question asserts ("why did X drop"), recomputed by reference SQL as
+#             current window minus the previous period. A plant is only scored when the premise
+#             holds on the database under test: the plants live in synthetic tables, so a real
+#             metric need not move with them, and an answer cannot recover a drop that is not there.
 
 plants:
   # Tokens transcribed from data/SYNTHETIC_GROUND_TRUTH.md. cause = the fact rows with
@@ -79,26 +85,37 @@ cases:
      key_sql: "SELECT COUNT(DISTINCT c.customer_unique_id) FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-07-01'"}
   - {id: S9, question: "What was the average review score by state in 2018?", intent: descriptive, outcome: answer, layer: R}
   - {id: S10, question: "What was marketing spend by channel in 2018?", intent: descriptive, outcome: answer, layer: S, checks: [names_synthetic],
-     key_sql: "SELECT SUM(spend) s FROM marketing_spend WHERE date >= '2018-01-01' AND date < '2019-01-01' GROUP BY channel ORDER BY s DESC LIMIT 1"}
+     key_sql: ["SELECT SUM(spend) s FROM marketing_spend WHERE date >= '2018-01-01' AND date < '2019-01-01' GROUP BY channel ORDER BY s DESC LIMIT 1",
+               "SELECT SUM(spend) s FROM marketing_spend WHERE date >= '2018-01-01' AND date < '2018-09-01' GROUP BY channel ORDER BY s DESC LIMIT 1"]}
 
   # ----------------------------------------------------------- diagnostic (3.4)
-  - {id: G1, question: "Why did revenue drop in the top category in April 2018?", intent: diagnostic, outcome: answer, layer: R+S, must_answer: true, plant: E1, checks: [no_causal_claim]}
+  - {id: G1, question: "Why did revenue drop in the top category in April 2018?", intent: diagnostic, outcome: answer, layer: R+S, must_answer: true, plant: E1, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(i.price + i.freight_value) FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN products p ON p.product_id = i.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-05-01' AND p.product_category_name = (SELECT p2.product_category_name FROM order_items i2 JOIN orders o2 ON o2.order_id = i2.order_id JOIN products p2 ON p2.product_id = i2.product_id WHERE o2.order_status NOT IN ('canceled','unavailable') AND o2.order_purchase_timestamp >= '2018-01-01' AND o2.order_purchase_timestamp < '2018-09-01' GROUP BY 1 ORDER BY SUM(i2.price + i2.freight_value) DESC LIMIT 1)) - (SELECT SUM(i.price + i.freight_value) FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN products p ON p.product_id = i.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-03-01' AND o.order_purchase_timestamp < '2018-04-01' AND p.product_category_name = (SELECT p2.product_category_name FROM order_items i2 JOIN orders o2 ON o2.order_id = i2.order_id JOIN products p2 ON p2.product_id = i2.product_id WHERE o2.order_status NOT IN ('canceled','unavailable') AND o2.order_purchase_timestamp >= '2018-01-01' AND o2.order_purchase_timestamp < '2018-09-01' GROUP BY 1 ORDER BY SUM(i2.price + i2.freight_value) DESC LIMIT 1))"}}
   - {id: G2, question: "Was order count unusual in August 2018?", intent: diagnostic, outcome: answer, layer: R}
-  - {id: G3, question: "Why did order count fall in December 2017?", intent: diagnostic, outcome: answer, layer: R+S, plant: E2, checks: [no_causal_claim]}
-  - {id: G4, question: "Why did AOV fall in January 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E3, checks: [no_causal_claim]}
-  - {id: G5, question: "Why did review scores drop in June 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E4, checks: [no_causal_claim]}
+  - {id: G3, question: "Why did order count fall in December 2017?", intent: diagnostic, outcome: answer, layer: R+S, plant: E2, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT COUNT(DISTINCT order_id) FROM orders WHERE order_purchase_timestamp >= '2017-12-01' AND order_purchase_timestamp < '2018-01-01') - (SELECT COUNT(DISTINCT order_id) FROM orders WHERE order_purchase_timestamp >= '2017-11-01' AND order_purchase_timestamp < '2017-12-01')"}}
+  - {id: G4, question: "Why did AOV fall in January 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E3, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-02-01') - (SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-12-01' AND o.order_purchase_timestamp < '2018-01-01')"}}
+  - {id: G5, question: "Why did review scores drop in June 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E4, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT AVG(r.review_score) FROM order_reviews r JOIN orders o ON o.order_id = r.order_id WHERE o.order_purchase_timestamp >= '2018-06-01' AND o.order_purchase_timestamp < '2018-07-01') - (SELECT AVG(r.review_score) FROM order_reviews r JOIN orders o ON o.order_id = r.order_id WHERE o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01')"}}
   - {id: G6, question: "What drove the GMV change between Q1 and Q2 2018?", intent: diagnostic, outcome: answer, layer: R}
   - {id: G7, question: "Why is AOV higher for boleto than credit card?", intent: diagnostic, outcome: answer, layer: R}
-  - {id: G8, question: "Which states drove the revenue decline in May 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E1}
+  - {id: G8, question: "Which states drove the revenue decline in May 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E1,
+     premise: {direction: down, sql: "SELECT (SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01') - (SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-05-01')"}}
   - {id: G9, question: "Why did cancellations rise in 2018 versus 2017?", intent: diagnostic, outcome: answer, layer: R+S}
   - {id: G10, question: "Did the carrier cause the delivery delays?", intent: diagnostic, outcome: answer, layer: S, plant: E4, checks: [no_causal_claim]}
   # The ground truth names synthetic outcome columns for each plant (sessions for E1,
   # stockout_flag for E2, conversion_rate for E3, late-delivery returns for E4), so the
   # same "why" is also asked about the outcome the plant was written to.
-  - {id: E-G1s, question: "Why did web sessions drop in April 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E1, checks: [names_synthetic, no_causal_claim]}
-  - {id: E-G3s, question: "Why did the stockout rate spike in December 2017?", intent: diagnostic, outcome: answer, layer: S, plant: E2, checks: [names_synthetic]}
-  - {id: E-G4s, question: "Why did conversion rate rise in January 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E3, checks: [names_synthetic]}
-  - {id: E-G5s, question: "Why did the return rate rise in June 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E4, checks: [names_synthetic]}
+  - {id: E-G1s, question: "Why did web sessions drop in April 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E1, checks: [names_synthetic, no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(sessions) FROM web_traffic WHERE date >= '2018-04-01' AND date < '2018-05-01') - (SELECT SUM(sessions) FROM web_traffic WHERE date >= '2018-03-01' AND date < '2018-04-01')"}}
+  - {id: E-G3s, question: "Why did the stockout rate spike in December 2017?", intent: diagnostic, outcome: answer, layer: S, plant: E2, checks: [names_synthetic],
+     recover: [cama_mesa_banho, beleza_saude, esporte_lazer],
+     premise: {direction: up, sql: "SELECT (SELECT AVG(stockout_flag) FROM inventory_daily WHERE date >= '2017-12-01' AND date < '2018-01-01') - (SELECT AVG(stockout_flag) FROM inventory_daily WHERE date >= '2017-11-01' AND date < '2017-12-01')"}}
+  - {id: E-G4s, question: "Why did conversion rate rise in January 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E3, checks: [names_synthetic],
+     premise: {direction: up, sql: "SELECT (SELECT SUM(sessions * conversion_rate) / SUM(sessions) FROM web_traffic WHERE date >= '2018-01-01' AND date < '2018-02-01') - (SELECT SUM(sessions * conversion_rate) / SUM(sessions) FROM web_traffic WHERE date >= '2017-12-01' AND date < '2018-01-01')"}}
+  - {id: E-G5s, question: "Why did the return rate rise in June 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E4, checks: [names_synthetic],
+     premise: {direction: up, sql: "SELECT (SELECT COUNT(r.order_item_id) * 1.0 / COUNT(i.order_item_id) FROM order_items i JOIN orders o ON o.order_id = i.order_id LEFT JOIN returns r ON r.order_id = i.order_id AND r.order_item_id = i.order_item_id WHERE o.order_status = 'delivered' AND o.order_purchase_timestamp >= '2018-06-01' AND o.order_purchase_timestamp < '2018-07-01') - (SELECT COUNT(r.order_item_id) * 1.0 / COUNT(i.order_item_id) FROM order_items i JOIN orders o ON o.order_id = i.order_id LEFT JOIN returns r ON r.order_id = i.order_id AND r.order_item_id = i.order_item_id WHERE o.order_status = 'delivered' AND o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01')"}}
 
   # --------------------------------------------------------------- impact (3.5)
   - {id: I1, question: "How much did the April 2018 drop cost us?", intent: impact, outcome: answer, layer: R+S, must_answer: true}

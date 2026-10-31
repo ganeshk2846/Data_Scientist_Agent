@@ -225,10 +225,15 @@ def check(name: str, envelope: dict[str, Any]) -> str | None:
 
 def plant_result(plant: str, cfg: dict[str, Any], envelope: dict[str, Any]) -> dict[str, Any]:
     text = _texts(envelope).lower()
-    cause = [token for token in cfg["cause"] if token.lower() in text]
+    # Naming the outcome is not naming its cause: drop the resolved metric's own name first.
+    metric = ((envelope.get("resolved_question") or {}).get("metric_id") or "").lower()
+    text = text.replace("_", " ")  # identifiers and prose match alike: paid_search == "paid search"
+    if metric:
+        text = text.replace(metric.replace("_", " "), " ")
+    cause = [token for token in cfg["cause"] if token.lower().replace("_", " ") in text]
     driver_claims = " ".join(claim.get("text", "") for claim in envelope.get("claims", ())
-                             if claim.get("kind") in ("co_movement", "consistent_with", "hypothesis")).lower()
-    confounder = [token for token in cfg["confounder"] if token.lower() in driver_claims]
+                             if claim.get("kind") in ("co_movement", "consistent_with", "hypothesis")).lower().replace("_", " ")
+    confounder = [token for token in cfg["confounder"] if token.lower().replace("_", " ") in driver_claims]
     return {"plant": plant, "recovered": bool(cause), "cause_tokens": cause,
             "misattributed": bool(confounder) and not cause, "confounder_tokens": confounder}
 
@@ -301,12 +306,23 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: Referenc
         if not any(number_present(value, numbers) for value in expected):
             failures.append(f"key number {', '.join(f'{v:,.2f}' for v in expected)} (reference SQL) not in the answer")
     if case.get("plant"):
-        plant = plant_result(case["plant"], plants_cfg[case["plant"]], envelope)
+        plant_cfg = {**plants_cfg[case["plant"]], **({"cause": case["recover"]} if case.get("recover") else {})}
+        plant = plant_result(case["plant"], plant_cfg, envelope)
+        premise = case.get("premise")
+        if premise:
+            change = reference.scalar(premise["sql"])
+            plant["premise_change"] = change
+            plant["premise_holds"] = change is not None and (change < 0 if premise["direction"] == "down" else change > 0)
+        else:
+            plant["premise_holds"] = True
         row["plant"] = plant
-        if not plant["recovered"]:
-            failures.append(f"planted {case['plant']} cause not identified")
         if plant["misattributed"]:
             failures.append(f"{case['plant']} confounder reported as the driver: {plant['confounder_tokens']}")
+        elif not plant["premise_holds"]:
+            row["reasons"].append(f"premise false on this database (measured change {plant['premise_change']:+,.4g}); "
+                                  f"{case['plant']} not scored")
+        elif not plant["recovered"]:
+            failures.append(f"planted {case['plant']} cause not identified")
     row["category"] = "incorrect_answer" if failures else "correct"
     row["reasons"] += failures
     return row
@@ -436,12 +452,12 @@ def _free_port() -> int:
         return sock.getsockname()[1]
 
 
-def serve(db: Path, token: str) -> tuple[subprocess.Popen, str]:
+def serve(db: Path, token: str, backend: Path = ROOT / "backend") -> tuple[subprocess.Popen, str]:
     port = _free_port()
     env = {**os.environ, "DS_AGENT_DB": str(db), "DS_AGENT_TOKEN": token}
     env.pop("DS_AGENT_API_TOKENS", None)
     process = subprocess.Popen([sys.executable, "-m", "uvicorn", "app:app", "--app-dir", "src", "--port", str(port),
-                                "--log-level", "warning"], cwd=ROOT / "backend", env=env)
+                                "--log-level", "warning"], cwd=backend, env=env)
     base = f"http://127.0.0.1:{port}"
     for _ in range(120):
         try:
@@ -508,11 +524,11 @@ def render(run: dict[str, Any], baseline: dict[str, Any] | None) -> str:
     lines += [
         f"- Run at {meta['started']} UTC on commit `{meta['commit']}`; {meta['duration_s']:.0f} s wall clock.",
         f"- Backend: live uvicorn, `POST /api/v2/ask` + `GET /api/v2/runs/{{id}}` ({meta['base_url']}).",
-        f"- Database: `{db['path']}` - {db['orders']:,} orders, sha256 `{db['sha256'][:16]}...`, snapshot "
-        f"`{db['snapshot_id']}` - **{'real Olist snapshot + synthetic layer' if db['real_olist'] else 'seeded Olist-shaped FIXTURE + synthetic layer (not the real Olist data)'}**.",
+        (f"- Database: `{db['path']}` - {db['orders']:,} orders, sha256 `{db['sha256'][:16]}...`, snapshot "
+         f"`{db['snapshot_id']}` - **{'real Olist snapshot + synthetic layer' if db['real_olist'] else 'seeded Olist-shaped FIXTURE + synthetic layer (not the real Olist data)'}**."),
         f"- Local model (Ollama): {'available' if meta['ollama'] else '**unavailable** - every run used the deterministic fallbacks'}.",
-        "- Latency: client wall clock from sending the POST to receiving the complete envelope, sequential, "
-        "one warm-up question discarded; columns are p50 / p95 / max in ms. Server latency is `run_metrics.latency_ms`.",
+        ("- Latency: client wall clock from sending the POST to receiving the complete envelope, sequential, "
+         "one warm-up question discarded; columns are p50 / p95 / max in ms. Server latency is `run_metrics.latency_ms`."),
         "",
     ]
     if baseline is not None:
@@ -535,9 +551,9 @@ def render(run: dict[str, Any], baseline: dict[str, Any] | None) -> str:
               f"| Must-answer (scope.md 7) returned `answered` | {_pct(summary['must_answer_answered'], summary['must_answer'])} |",
               f"| V1 `/api/ask` regression (V1 envelope shape + V1 SSE names) | {_pct(summary['v1_ok'], summary['v1'])} |",
               "", "### Per intent (single-turn)", "",
-              "Denominators are cases in the section. *Routed* = expected outcome class and intent. "
-              "*Answered* = status `answered`. *Chart* is over answered cases. *Clarified* = status `clarify` "
-              "(expected for the clarify and vague sections).", "",
+              ("Denominators are cases in the section. *Routed* = expected outcome class and intent. "
+               "*Answered* = status `answered`. *Chart* is over answered cases. *Clarified* = status `clarify` "
+               "(expected for the clarify and vague sections)."), "",
               "| Section | Cases | Correct | Routed | Answered | Chart (of answered) | Clarified | Latency p50/p95/max ms | Server p50 ms |",
               "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     by_section: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -581,21 +597,32 @@ def render(run: dict[str, Any], baseline: dict[str, Any] | None) -> str:
                 lines.append(f"| {script['id']} turn {turn['turn']} | {turn['q']} (follow-up) | {turn['status']} | {turn['category']} |")
 
     lines += ["", "### Planted effects (data/SYNTHETIC_GROUND_TRUTH.md)", "",
-              "A diagnostic answer *recovers* a plant when its conclusion or a claim names the planted cause; it "
-              "*misattributes* when a co-movement claim names the planted confounder instead. Every row reads "
-              "synthetic tables, so these are results on generated data only.", "",
-              "| Ref | Plant | Question | Status | Recovered | Confounder as driver | Cause tokens found |",
-              "| --- | --- | --- | --- | --- | --- | --- |"]
+              ("A diagnostic answer *recovers* a plant when its conclusion or a claim names the planted cause; it "
+               "*misattributes* when a co-movement claim names the planted confounder instead. Every row reads "
+               "synthetic tables, so these are results on generated data only."), "",
+              ("*Premise* is the change the question asserts, recomputed by reference SQL (current window minus the "
+               "previous period); where it is false on this database the plant cannot be recovered and is not scored."), "",
+              "| Ref | Plant | Question | Status | Premise (measured change) | Recovered | Confounder as driver | Cause tokens found |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for row in rows:
         plant = row.get("plant")
         if plant is not None:
-            lines.append(f"| {row['id']} | {plant['plant']} | {row['question']} | {row.get('status')} | "
-                         f"{'yes' if plant['recovered'] else 'no'} | {'yes' if plant['misattributed'] else 'no'} | "
-                         f"{', '.join(plant['cause_tokens']) or '-'} |")
+            change = plant.get("premise_change")
+            premise = "-" if "premise_change" not in plant else (
+                f"{'holds' if plant['premise_holds'] else 'FALSE'} ({change:+,.4g})" if change is not None else "no data")
+            recovered = ("yes" if plant["recovered"] else "no") if plant["premise_holds"] else \
+                f"n/a ({'yes' if plant['recovered'] else 'no'} named)"
+            lines.append(f"| {row['id']} | {plant['plant']} | {row['question']} | {row.get('status')} | {premise} | "
+                         f"{recovered} | {'yes' if plant['misattributed'] else 'no'} | {', '.join(plant['cause_tokens']) or '-'} |")
         elif row.get("plant_expected"):
             lines.append(f"| {row['id']} | {row['plant_expected']} | {row['question']} | {row.get('status')} | "
-                         f"no ({row['category']}) | - | - |")
+                         f"- | no ({row['category']}) | - | - |")
 
+    plant_rows = [row["plant"] for row in rows if row.get("plant")]
+    scored = [plant for plant in plant_rows if plant["premise_holds"]]
+    lines += ["", (f"Plants scored: {sum(p['recovered'] for p in scored)}/{len(scored)} recovered where the premise holds; "
+                   f"{sum(not p['premise_holds'] for p in plant_rows)} not scored (premise false); "
+                   f"{sum(p['misattributed'] for p in plant_rows)} answers named a confounder as the driver."), ""]
     lines += ["", "### Multi-turn scripts", "", "| Script | Spec | Turns correct | Result | Failing turn: reason |",
               "| --- | --- | --- | --- | --- |"]
     for script in scripts:
@@ -641,6 +668,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--token", default=os.environ.get("DS_AGENT_TOKEN"))
     parser.add_argument("--serve", action="store_true", help="start uvicorn on --db for the run and stop it after")
     parser.add_argument("--db", type=Path, default=Path(os.environ.get("DS_AGENT_DB") or DEFAULT_DB))
+    parser.add_argument("--backend-root", type=Path, default=ROOT / "backend",
+                        help="backend/ directory --serve starts (e.g. a worktree of an earlier commit for a baseline)")
     parser.add_argument("--report", type=Path, default=REPORT)
     parser.add_argument("--save-json", type=Path)
     parser.add_argument("--baseline", type=Path, help="results JSON of an earlier run, shown as before/after")
@@ -669,11 +698,11 @@ def main(argv: list[str] | None = None) -> int:
     base_url = args.base_url
     if args.serve:
         token = token or secrets.token_hex(24)
-        process, base_url = serve(db, token)
+        process, base_url = serve(db, token, args.backend_root.resolve())
     if not base_url:
         raise SystemExit("pass --base-url or --serve")
     started = time.perf_counter()
-    started_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M")
+    started_at = dt.datetime.now(dt.UTC).strftime("%Y-%m-%d %H:%M")
     try:
         client = Client(base_url, token, args.timeout)
         client.ask("What data do you have?", session_id="eval-warmup")  # warm-up, discarded
@@ -685,8 +714,10 @@ def main(argv: list[str] | None = None) -> int:
         if process is not None:
             process.terminate()
             process.wait(timeout=20)
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
-    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    served = args.backend_root.resolve() if args.serve else ROOT
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=served, capture_output=True, text=True, check=False).stdout.strip()
+    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no", "--", "."], cwd=served,
+                           capture_output=True, text=True, check=False).stdout.strip()
     run = {"meta": {"label": args.label, "started": started_at, "commit": commit + ("+dirty" if dirty else ""),
                     "duration_s": time.perf_counter() - started, "base_url": "spawned by --serve" if args.serve else base_url,
                     "database": database_facts(db), "ollama": ollama_available()},
