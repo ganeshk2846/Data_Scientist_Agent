@@ -123,3 +123,35 @@ def test_the_segment_question_ranks_two_to_three_options_without_new_figures(pip
     for option in envelope.next_actions:
         assert option.assumptions and option.trade_offs and option.monitor and option.data_that_would_change_ranking
         assert not re.search(r"\d+\.\d|R\$", option.title)  # SAFE-8: options cite segments by rank, figures stay in claims
+
+
+def test_shock_measurements_compose_by_product_and_bound_recovered_cancellations():
+    from engines.prep import shock_measurements
+
+    outcome, frame = shock_measurements({"revenue": 1000.0}, [("order_count", 1.10), ("aov", 0.95)])
+    assert outcome == "revenue" and frame.loc[0, "baseline"] == 1000.0
+    assert abs(frame.loc[0, "current"] - 1000.0 * 1.10 * 0.95) < 1e-9
+    _, frame = shock_measurements({"revenue": 1000.0, "cancellation_rate": 0.02, "order_count": 500.0, "aov": 50.0},
+                                  [("cancellation_rate", 0.5)])
+    assert abs(frame.loc[0, "current"] - (1000.0 + 0.5 * 0.02 * 500.0 * 50.0)) < 1e-9
+    with pytest.raises(ValueError):
+        shock_measurements({"revenue": 1.0, "freight_value": 1.0}, [("aov", 1.1), ("freight_value", 1.1)])
+
+
+def test_a_stated_multiplier_is_applied_to_the_measured_baseline_and_labelled_mechanical(pipeline, v2_build):
+    """scope.md X8: two shocks composed by the engine, not multiplied in prose; no fitted response is claimed."""
+    import sqlite3
+
+    with sqlite3.connect(f"file:{v2_build['db']}?mode=ro", uri=True) as conn:
+        revenue = conn.execute(
+            "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id "
+            "WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-06-01' "
+            "AND o.order_purchase_timestamp < '2018-09-01'").fetchone()[0]
+    envelope = pipeline.run("What if order volume grew 10% but AOV fell 5%?", run_id="fx-x8").envelope
+    assert envelope.status == "answered"
+    assert "not a fitted response" in envelope.conclusion
+    numbers = _numbers(envelope)
+    assert any(abs(value - round(revenue, 2)) < 0.01 for value in numbers)
+    assert any(abs(value - round(revenue * 1.10 * 0.95, 2)) < 0.01 for value in numbers)
+    unsupported = pipeline.run("What if we eliminated the stockouts?", run_id="fx-x9").envelope
+    assert unsupported.status == "insufficient_evidence"  # an absolute target has no measured multiplier to apply

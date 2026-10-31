@@ -788,6 +788,23 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
         return run
 
     if tool == "python.impact":
+        if "shock_from" in bind:
+            totals = {}
+            for name, source in bind["shock_from"].items():
+                report = ctx.reports.get(source)
+                try:
+                    totals[name] = report.number("window_total") if report is not None else None
+                except KeyError:
+                    totals[name] = None
+            missing = sorted(name for name, value in totals.items() if value is None)
+            if missing:
+                return fail(f"The measured baseline for {', '.join(missing)} is unavailable, so the change cannot be applied.")
+            _, measurements = prep.shock_measurements(totals, [(target, float(value)) for target, value in bind["shocks"]])
+            data = _engine_data(ctx, step, {"measurements": measurements})
+            run = engines.run_step(step.model_copy(update={"params": params}), data)
+            note = ("A mechanical what-if: the stated change is applied to the measured totals of the last 3 complete months, "
+                    "holding everything else fixed. No behavioural response is fitted, so this is not a forecast of the outcome.")
+            return EngineRun(run.result, run.report.model_copy(update={"assumptions": (note, *run.report.assumptions)}))
         fallback_note = None
         if "anomaly_from" in bind:
             anomaly = ctx.results.get(bind["anomaly_from"])

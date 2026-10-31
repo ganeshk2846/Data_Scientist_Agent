@@ -76,6 +76,42 @@ def monthly_promotion_intensity(promotions: pd.DataFrame, months: Iterable[str])
     return pd.DataFrame(rows, columns=["month", "promo_discount"])
 
 
+#: Multiplicative what-ifs that can be applied to measured governed totals without any fitted response.
+#: Each maps the shocked metric to the outcome it is sized on and the measured inputs that outcome needs.
+SHOCK_OUTCOMES = {
+    "freight_value": ("freight_value", ("freight_value",)),
+    "revenue": ("revenue", ("revenue",)),
+    "gmv": ("gmv", ("gmv",)),
+    "aov": ("revenue", ("revenue",)),
+    "order_count": ("revenue", ("revenue",)),
+    "item_count": ("gmv", ("gmv",)),
+    "cancellation_rate": ("revenue", ("revenue", "cancellation_rate", "order_count", "aov")),
+}
+
+
+def shock_measurements(totals: dict[str, float], shocks: list[tuple[str, float]]) -> tuple[str, pd.DataFrame]:
+    """Baseline and shocked value of the outcome, from measured window totals and stated multipliers.
+
+    Revenue = orders x AOV, so order-count and AOV multipliers compose by product on revenue (orders or
+    AOV held fixed otherwise). A cancellation-rate multiplier ``k`` recovers ``(1 - k)`` of the cancelled
+    orders at the measured AOV - an upper bound, since a recovered order need not be an average one.
+    Products and sums of measured inputs only; nothing is estimated here (SAFE-8).
+    """
+    outcomes = {SHOCK_OUTCOMES[target][0] for target, _ in shocks}
+    if len(outcomes) != 1:
+        raise ValueError("every shock must size the same outcome")
+    outcome = outcomes.pop()
+    baseline = float(totals[outcome])
+    current = baseline
+    for target, multiplier in shocks:
+        if target == "cancellation_rate":
+            cancelled = totals["cancellation_rate"] * totals["order_count"]
+            current += (1.0 - multiplier) * cancelled * totals["aov"]
+        else:
+            current *= multiplier
+    return outcome, pd.DataFrame({"baseline": [baseline], "current": [current]})
+
+
 def category_sales(inventory: pd.DataFrame, list_price: pd.DataFrame, discount: pd.DataFrame) -> pd.DataFrame:
     """Category-day panel: units sold and effective price = list price x (1 - discount)."""
     panel = inventory[["date", "category", "units_sold", "stockout_flag"]].copy()
@@ -152,6 +188,7 @@ def frame(table: TableRef) -> pd.DataFrame:
 
 
 __all__ = [
+    "SHOCK_OUTCOMES",
     "as_table",
     "category_sales",
     "competitor_by_category",
@@ -160,4 +197,5 @@ __all__ = [
     "elasticity_panel",
     "frame",
     "monthly_promotion_intensity",
+    "shock_measurements",
 ]

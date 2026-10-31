@@ -350,6 +350,11 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         tested = _number(report, "tested_periods")
         if flagged is not None and tested is not None and tested > 1:
             say("{} of {} periods tested were flagged unusual.", [(flagged, "", 0), (tested, "", 0)], grade=2)
+    elif engine == "impact" and step.purpose.startswith("Apply the stated change"):
+        say(f"Applied to the last {{}} complete months, the stated change moves {label} from {{}} to {{}}, a change of {{}} ({{}}).",
+            [(3.0, "", 0), (_number(report, "baseline"), unit, 2), (_number(report, "current"), unit, 2), (_number(report, "delta"), unit, 2),
+             (_number(report, "delta_pct"), "%", 1)], grade=1, kind="consistent_with")
+        out.append("This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.")
     elif engine == "impact" and step.purpose.startswith("Measure the baseline"):
         say(f"Baseline {label} over the last 3 complete months was {{}}.", [(_number(report, "current"), unit, 2)], grade=1)
     elif engine == "impact":
