@@ -113,6 +113,16 @@ def _period_text(period) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _month_numbers(*labels: str) -> list[float]:
+    """The year and month figures a 'YYYY-MM' label puts into a sentence (for the fact checker)."""
+    numbers: list[float] = []
+    for label in labels:
+        year, _, month = str(label)[:7].partition("-")
+        if year.isdigit() and month.isdigit():
+            numbers += [float(year), float(int(month))]
+    return numbers
+
+
 def _number(report: EngineReport, name: str) -> float | None:
     try:
         return report.number(name)
@@ -207,14 +217,23 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         elif table == "analytical_forecasts":
             rows = report.table("forecast").rows
             if rows:
-                last = rows[-1]
-                year, month = (float(part) for part in str(last[2])[:7].split("-"))
+                first, last = rows[0], rows[-1]
                 text, value = _fmt(last[3], unit)
                 low, low_value = _fmt(last[4], unit)
                 high, high_value = _fmt(last[5], unit)
-                sentence = f"The {label} forecast for {str(last[2])[:7]} is {text}, with an interval of {low} to {high} ({last[6]} model)."
-                ids.append(claims.add(sentence, [v for v in (value, low_value, high_value, year, float(int(month))) if v is not None], source, grade=2))
+                anchor, start, end = str(last[1])[:7], str(first[2])[:7], str(last[2])[:7]
+                window = f"{start} to {end}" if start != end else end
+                sentence = (f"Anchored on {anchor}, the last complete month, the {label} forecast for {window} ends at {text} "
+                            f"in {end}, with an interval of {low} to {high} ({last[6]} model).")
+                ids.append(claims.add(sentence, [v for v in (value, low_value, high_value, *_month_numbers(anchor, start, end)) if v is not None],
+                                      source, grade=2))
                 out.append(sentence)
+                if len(rows) > 1:
+                    points = [(str(row[2])[:7], *_fmt(row[3], unit)) for row in rows]
+                    sentence = "Month by month: " + "; ".join(f"{ds} {shown}" for ds, shown, _ in points) + "."
+                    ids.append(claims.add(sentence, [v for _, _, v in points if v is not None] + _month_numbers(*(ds for ds, _, _ in points)),
+                                          source, grade=2))
+                    out.append(sentence)
                 mape = last[8]
                 if mape is not None:
                     say("Its backtest MAPE on held-out months is {}.", [(float(mape) * 100, "%", 1)], grade=2)
@@ -265,9 +284,19 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
     # Engine outputs
     engine = report.engine
     if engine == "forecast":
-        say(f"The {label} forecast for {{}} periods ahead ends at {{}}, with a prediction interval of {{}} to {{}}.",
-            [(_number(report, "horizon"), "", 0), (_number(report, "final_yhat"), unit, 2), (_number(report, "final_lower"), unit, 2),
-             (_number(report, "final_upper"), unit, 2)], grade=2)
+        anchor = str(step.params.get("anchor") or "")[:7]
+        figures = [_fmt(_number(report, "horizon"), "", 0), _fmt(_number(report, "final_yhat"), unit),
+                   _fmt(_number(report, "final_lower"), unit), _fmt(_number(report, "final_upper"), unit)]
+        if all(value is not None for _, value in figures):
+            prefix = f"Anchored on {anchor}, the last complete month, the" if re.fullmatch(r"\d{4}-\d{2}", anchor) else "The"
+            sentence = (f"{prefix} {label} forecast for {figures[0][0]} periods ahead ends at {figures[1][0]}, "
+                        f"with a prediction interval of {figures[2][0]} to {figures[3][0]}.")
+            ids.append(claims.add(sentence, [value for _, value in figures] + _month_numbers(anchor), source, grade=2))
+            out.append(sentence)
+        requested, horizon = _number(report, "requested_horizon"), _number(report, "horizon")
+        if requested is not None and horizon is not None and requested > horizon:
+            say("{} periods were asked for; the history supports {} defensible periods, and beyond that the interval is wider than the signal.",
+                [(requested, "", 0), (horizon, "", 0)], grade=2)
         mape = _number(report, "backtest_mape")
         if mape is not None:
             say(f"The {result.provenance.engine.method if result.provenance.engine else 'model'} backtest MAPE is {{}}.", [(mape * 100, "%", 1)], grade=2)

@@ -148,6 +148,29 @@ def load_ground_truth(path: Path) -> dict[str, list[dict[str, str]]]:
     return dict(plants)
 
 
+def planted_elasticity(truth: dict[str, list[dict[str, str]]]) -> float | None:
+    """The true own-price elasticity stated in the E5 rows of the answer key."""
+    for row in truth.get("E5", ()):
+        match = re.search(r"elasticity (-?\d+(?:\.\d+)?)", row.get("Planted effect", ""))
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def elasticity_result(envelope: dict[str, Any], true_value: float) -> dict[str, Any]:
+    """E5 is numeric: recovered when the reported elasticity interval contains the planted value."""
+    for claim in envelope.get("claims", ()):
+        numbers = [number["value"] for number in claim.get("numbers", ())]
+        if "elasticity" in claim.get("text", "").lower() and len(numbers) >= 4:
+            point, low, high = numbers[1], min(numbers[2:4]), max(numbers[2:4])
+            competitor = "competitor" in claim["text"].lower()
+            return {"plant": "E5", "recovered": low <= true_value <= high and not competitor, "misattributed": competitor,
+                    "cause_tokens": [f"elasticity {point:g} ({low:g} to {high:g}) vs planted {true_value:g}"],
+                    "confounder_tokens": ["competitor"] if competitor else [], "premise_holds": True}
+    return {"plant": "E5", "recovered": False, "misattributed": False, "cause_tokens": [], "confounder_tokens": [],
+            "premise_holds": True}
+
+
 def check_plant_tokens(plants_cfg: dict[str, Any], truth: dict[str, list[dict[str, str]]]) -> list[str]:
     """The bank's plant tokens must still name every cause table in the answer key."""
     problems = []
@@ -305,7 +328,14 @@ def score_case(case: dict[str, Any], result: dict[str, Any], reference: Referenc
         row["key_numbers"] = expected
         if not any(number_present(value, numbers) for value in expected):
             failures.append(f"key number {', '.join(f'{v:,.2f}' for v in expected)} (reference SQL) not in the answer")
-    if case.get("plant"):
+    if case.get("plant") == "E5" and plants_cfg.get("_elasticity") is not None:
+        plant = elasticity_result(envelope, plants_cfg["_elasticity"])
+        row["plant"] = plant
+        if plant["misattributed"]:
+            failures.append("E5 demand change attributed to competitor prices")
+        elif not plant["recovered"]:
+            failures.append(f"E5 elasticity interval does not contain the planted {plants_cfg['_elasticity']:g}")
+    elif case.get("plant"):
         plant_cfg = {**plants_cfg[case["plant"]], **({"cause": case["recover"]} if case.get("recover") else {})}
         plant = plant_result(case["plant"], plant_cfg, envelope)
         premise = case.get("premise")
@@ -688,6 +718,7 @@ def main(argv: list[str] | None = None) -> int:
     problems = check_plant_tokens(bank["plants"], truth)
     if problems:
         raise SystemExit("bank plants out of step with the answer key: " + "; ".join(problems))
+    bank["plants"]["_elasticity"] = planted_elasticity(truth)
     if args.only:
         wanted = set(args.only.split(","))
         cases = [case for case in cases if case["id"] in wanted]
