@@ -245,6 +245,76 @@ def lagged_correlations(
     return [best[name] for name in sorted(best)]
 
 
+def window_screen(candidates: Mapping[str, pd.Series], params: DiagnosticParams, *, outcome_sign: float = 0.0,
+                  signs: Mapping[str, int] | None = None, baseline: int = 6) -> list[dict[str, Any]]:
+    """Which candidates sat at an unusual level in the question's window, at lags 0..max_lag (DRV-5).
+
+    Each period's level is read against the median of the ``baseline``
+    periods before it (log scale for positive series, level otherwise); the
+    window's mean deviation is scored against the deviations of every other
+    period in the candidate's own history - a robust z-score (median / MAD,
+    scaled for the window length), a two-sided normal p-value, and
+    Benjamini-Hochberg across every (candidate, lag) tested. The most
+    significant lag per candidate is kept. A candidate with a declared
+    expected sign is *consistent* when its deviation times that sign has the
+    sign of the outcome's change. This is timing evidence only: it says the
+    candidate was unusual when the outcome moved, never that it moved the outcome.
+    """
+    from scipy.stats import norm
+
+    signs = signs or {}
+    tested: list[dict[str, Any]] = []
+    for name in sorted(candidates):
+        series = candidates[name].sort_index().astype(float)
+        current = np.flatnonzero(_in_window(series.index, params.current_period, params.grain))
+        if not len(current):
+            continue
+        logged = bool((series > 0).all())
+        values = np.log(series.to_numpy()) if logged else series.to_numpy()
+        deviation = np.full(len(values), np.nan)
+        reference = np.full(len(values), np.nan)
+        for t in range(3, len(values)):
+            trailing = values[max(0, t - baseline):t]
+            reference[t] = float(np.median(trailing))
+            deviation[t] = values[t] - reference[t]
+        for lag in range(params.max_lag + 1):
+            window = current - lag
+            if window.min() < 0 or np.isnan(deviation[window]).any():
+                continue
+            history = np.delete(deviation, window)
+            history = history[~np.isnan(history)]
+            if len(history) < 6:
+                continue
+            observed = float(deviation[window].mean())
+            centre = float(np.median(history))
+            scale = 1.4826 * float(np.median(np.abs(history - centre))) or float(np.std(history))
+            if scale <= 1e-12:
+                if abs(observed - centre) <= 1e-12:
+                    continue
+                scale = 1e-12
+            z = max(-50.0, min(50.0, (observed - centre) / (scale / math.sqrt(len(window)))))
+            base_level = float(np.mean(np.exp(reference[window]) if logged else reference[window]))
+            level = float(series.iloc[window].mean())
+            sign = signs.get(name)
+            tested.append({
+                "name": name, "lag": lag, "z": z, "p": float(2 * norm.sf(abs(z))), "n": len(history),
+                "change_pct": 100.0 * (level / base_level - 1) if abs(base_level) > 1e-12 else None,
+                "consistent": None if sign is None or outcome_sign == 0 else bool(np.sign(observed) * sign == np.sign(outcome_sign)),
+            })
+    if not tested:
+        return []
+    q_values = multipletests([item["p"] for item in tested], alpha=params.alpha, method="fdr_bh")[1]
+    for item, q in zip(tested, q_values, strict=True):
+        item["q"] = float(q)
+    best: dict[str, dict[str, Any]] = {}
+    for item in tested:
+        current_best = best.get(item["name"])
+        if current_best is None or item["q"] < current_best["q"] - 1e-12 or (
+                abs(item["q"] - current_best["q"]) <= 1e-12 and abs(item["z"]) > abs(current_best["z"])):
+            best[item["name"]] = item
+    return [best[name] for name in sorted(best)]
+
+
 def _window_change(series: pd.Series, params: DiagnosticParams) -> tuple[float | None, float | None]:
     current = series[_in_window(series.index, params.current_period, params.grain)]
     comparison = series[_in_window(series.index, params.comparison_period, params.grain)]
@@ -484,6 +554,9 @@ def execute(params: Mapping[str, Any], data: EngineData) -> EngineRun:
             if moved is not None and offset is not None and moved * offset < 0:
                 item["reallocation"] = True
 
+    # 2b. Timing screen: which candidates moved unusually into the window itself (lagged).
+    screen = window_screen(candidates, parsed, outcome_sign=float(np.sign(primary["result"].total_change or 0.0)), signs=signs)
+
     # 3. Feature importance from the existing engine, on the same adjusted series (monthly).
     importance: tuple[DiagnosticEvidence, ...] = ()
     if len(candidates) >= 2:
@@ -509,7 +582,7 @@ def execute(params: Mapping[str, Any], data: EngineData) -> EngineRun:
         pvm = price_volume_mix(frame_from_table(data.tables[parsed.pvm.table]), parsed.pvm, parsed)
 
     evidence = _evidence(parsed, correlations, specificity)
-    ranked = _rank(parsed, primary["result"], correlations, specificity, importance)
+    ranked = _rank(parsed, primary["result"], correlations, specificity, importance, screen)
     decomposition = _pvm_contributions(pvm) if pvm is not None else primary["result"].value_decomposition
     result = DiagnosticResult(
         **{
@@ -624,8 +697,20 @@ def _rank(
     correlations: list[dict[str, Any]],
     specificity: list[dict[str, Any]],
     importance: tuple[DiagnosticEvidence, ...],
+    screen: list[dict[str, Any]] = (),
 ) -> list[tuple[Any, ...]]:
     rows: list[tuple[Any, ...]] = []
+    for item in screen:
+        if item["q"] >= params.alpha:
+            note = "no unusual level in the window"
+        elif item["consistent"]:
+            note = "unusual level in the window, in the direction expected to move the outcome"
+        elif item["consistent"] is None:
+            note = "unusual level in the window, with no declared link to the outcome's direction"
+        else:
+            note = "unusual level in the window, against the direction expected to move the outcome"
+        rows.append((item["name"], "window_change", item["z"], item["z"] - 1.959963984540054, item["z"] + 1.959963984540054,
+                     item["p"], item["q"], 1, "unusual level in the same window (timing only)", item["lag"], item["change_pct"], note))
     for item in correlations:
         grade = _correlation_grade(item, params.alpha)
         if item["reallocation"]:
@@ -654,7 +739,7 @@ def _rank(
         rows.append((f"{item.dimension}={item.value}", "contribution", item.contribution, item.interval[0], item.interval[1],
                      None, None, 1, EVIDENCE_LABELS[1], 0, None,
                      "ratio component (shares are not additive for a ratio)" if "(" in item.dimension else f"share {item.share:.3f} of the change"))
-    method_order = {"difference_in_differences": 0, "correlation": 1, "feature_importance": 2, "contribution": 3}
+    method_order = {"difference_in_differences": 0, "correlation": 1, "feature_importance": 2, "window_change": 3, "contribution": 4}
     rows.sort(key=lambda row: (-row[7], method_order[row[1]], row[6] if row[6] is not None else (row[5] if row[5] is not None else 1.0), -abs(row[2]), row[0]))
     return rows
 
@@ -725,6 +810,9 @@ def _report(
         assumptions=(
             "Drill-down runs the contribution decomposition once per dimension and once for the most concentrated pair.",
             "Correlations are Benjamini-Hochberg corrected across every candidate and lag tested.",
+            ("The window screen reads each candidate's level in the window against its trailing six-period median and "
+             "scores that deviation against the rest of its own history (robust z-score, Benjamini-Hochberg across "
+             "candidates and lags); it is timing evidence only."),
             "A share whose numerator and the rest of its total move in opposite directions is a reallocation and held at grade 1.",
             "A candidate whose correlation contradicts its declared expected sign is held at grade 1.",
             "Difference-in-differences uses ordinary least squares with HC1 robust errors on the row-level observations.",
@@ -743,4 +831,4 @@ def _samples(levels: list[dict[str, Any]]) -> int:
 
 
 __all__ = ["CAUSAL_BOUNDARY", "DiagnosticParams", "DriverSpec", "PvmSpec", "SpecificitySpec", "difference_in_differences",
-           "drill_down", "driver_series", "execute", "lagged_correlations", "price_volume_mix", "run"]
+           "drill_down", "driver_series", "execute", "lagged_correlations", "price_volume_mix", "run", "window_screen"]

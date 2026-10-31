@@ -113,6 +113,52 @@ def _period_text(period) -> str:
 # --------------------------------------------------------------------------- #
 
 
+def _cap(label: str) -> str:
+    """Sentence-case a metric label without lowering an acronym ('AOV', not 'Aov')."""
+    return label[:1].upper() + label[1:]
+
+
+def _segment_traits(columns: tuple[str, ...], row: tuple[Any, ...]) -> list[str]:
+    return [name.split("=", 1)[1] for name, value in zip(columns[4:], row[4:], strict=False)
+            if "=" in str(name) and isinstance(value, (int, float)) and value >= 0.5]
+
+
+def _segment_actions(report: EngineReport) -> tuple[ActionOption, ...]:
+    """2-3 options from the engine's ranked segments (REC-3); they cite segments by rank, never a new figure."""
+    table = report.table("clusters")
+    options = []
+    for rank, row in enumerate(table.rows[:3], start=1):
+        traits = _segment_traits(table.columns, row)
+        name = f"segment rank {rank}" + (f" ({', '.join(traits[:3])})" if traits else "")
+        options.append(ActionOption(
+            action_id=f"segment-{rank}", rank=rank, kind="intervention",
+            title=f"Target {name}" + (" first" if rank == 1 else ""),
+            assumptions=(("Segments are ranked by measured revenue per customer; past revenue is assumed to indicate the value of "
+                          "reaching them."), "Segment labels come from synthetic data generated for demonstration."),
+            trade_offs=("A higher-value segment is usually smaller, so total reach is lower." if rank == 1 else
+                        "Lower revenue per customer than the first-ranked segment, traded for a different audience.",),
+            sensitivity="The ranking moves if campaign response differs by segment; no response data is held, so it is not modelled.",
+            monitor=(f"Revenue per customer and order frequency in {name} after the campaign starts.",),
+            data_that_would_change_ranking=("Campaign response or uplift by segment from a test.", "Acquisition cost by channel."),
+        ))
+    return tuple(options)
+
+
+def _window_numbers(text: str) -> list[float]:
+    """Figures a window label such as 'January 2017 to August 2017' or '2018' puts into a sentence."""
+    return [float(token) for token in re.findall(r"\d+", text)]
+
+
+def _month_numbers(*labels: str) -> list[float]:
+    """The year and month figures a 'YYYY-MM' label puts into a sentence (for the fact checker)."""
+    numbers: list[float] = []
+    for label in labels:
+        year, _, month = str(label)[:7].partition("-")
+        if year.isdigit() and month.isdigit():
+            numbers += [float(year), float(int(month))]
+    return numbers
+
+
 def _number(report: EngineReport, name: str) -> float | None:
     try:
         return report.number(name)
@@ -207,14 +253,23 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         elif table == "analytical_forecasts":
             rows = report.table("forecast").rows
             if rows:
-                last = rows[-1]
-                year, month = (float(part) for part in str(last[2])[:7].split("-"))
+                first, last = rows[0], rows[-1]
                 text, value = _fmt(last[3], unit)
                 low, low_value = _fmt(last[4], unit)
                 high, high_value = _fmt(last[5], unit)
-                sentence = f"The {label} forecast for {str(last[2])[:7]} is {text}, with an interval of {low} to {high} ({last[6]} model)."
-                ids.append(claims.add(sentence, [v for v in (value, low_value, high_value, year, float(int(month))) if v is not None], source, grade=2))
+                anchor, start, end = str(last[1])[:7], str(first[2])[:7], str(last[2])[:7]
+                window = f"{start} to {end}" if start != end else end
+                sentence = (f"Anchored on {anchor}, the last complete month, the {label} forecast for {window} ends at {text} "
+                            f"in {end}, with an interval of {low} to {high} ({last[6]} model).")
+                ids.append(claims.add(sentence, [v for v in (value, low_value, high_value, *_month_numbers(anchor, start, end)) if v is not None],
+                                      source, grade=2))
                 out.append(sentence)
+                if len(rows) > 1:
+                    points = [(str(row[2])[:7], *_fmt(row[3], unit)) for row in rows]
+                    sentence = "Month by month: " + "; ".join(f"{ds} {shown}" for ds, shown, _ in points) + "."
+                    ids.append(claims.add(sentence, [v for _, _, v in points if v is not None] + _month_numbers(*(ds for ds, _, _ in points)),
+                                          source, grade=2))
+                    out.append(sentence)
                 mape = last[8]
                 if mape is not None:
                     say("Its backtest MAPE on held-out months is {}.", [(float(mape) * 100, "%", 1)], grade=2)
@@ -226,10 +281,19 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         return out, ids  # a supporting series feeds an engine; its rows are evidence, not narrative
     if result.tool == "sql":
         if method == "sql.trend":
-            say(f"{label.capitalize()} moved from {{}} to {{}} over the window, a change of {{}}.",
-                [(_number(report, "first_value"), unit, 2), (_number(report, "last_value"), unit, 2), (_number(report, "change_pct"), "%", 1)])
-            say("The average per period was {}, ranging from {} to {}.",
-                [(_number(report, "mean_value"), unit, 2), (_number(report, "min_value"), unit, 2), (_number(report, "max_value"), unit, 2)])
+            total = _number(report, "window_total")
+            if total is not None and resolved is not None and resolved.period is not None:
+                window = _period_text(resolved.period)
+                where = "".join(f" in {', '.join(item.values)}" for item in resolved.filters)
+                text, value = _fmt(total, unit)
+                sentence = f"{label[:1].upper()}{label[1:]}{where} for {window} was {text}."
+                ids.append(claims.add(sentence, [v for v in (value, *_window_numbers(window + where)) if v is not None], source))
+                out.append(sentence)
+            if total is None or (_number(report, "periods") or 0) > 1:
+                say(f"{_cap(label)} moved from {{}} to {{}} over the window, a change of {{}}.",
+                    [(_number(report, "first_value"), unit, 2), (_number(report, "last_value"), unit, 2), (_number(report, "change_pct"), "%", 1)])
+                say("The average per period was {}, ranging from {} to {}.",
+                    [(_number(report, "mean_value"), unit, 2), (_number(report, "min_value"), unit, 2), (_number(report, "max_value"), unit, 2)])
         elif method == "sql.rank":
             rows = report.tables[0].rows if report.tables else ()
             columns = report.tables[0].columns if report.tables else ()
@@ -249,25 +313,45 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
             for item in report.key_numbers[:6]:
                 if item.name.startswith("value:"):
                     pct = next((other.value for other in report.key_numbers if other.name == f"change_pct:{item.label}"), None)
-                    if pct is not None:
-                        say(f"{label.capitalize()} for {item.label} was {{}} in the current window, a change of {{}} against the comparison window.",
+                    windows = (resolved.period, resolved.comparison_period) if resolved is not None else (None, None)
+                    if pct is not None and item.label == "total" and all(windows):
+                        # One total, no breakdown: name both windows instead of "for total ... the comparison window".
+                        current, comparison = _period_text(windows[0]), _period_text(windows[1])
+                        text, value = _fmt(item.value, unit)
+                        change, change_value = _fmt(pct, "%", 1)
+                        sentence = f"{_cap(label)} for {current} was {text}, a change of {change} against {comparison}."
+                        ids.append(claims.add(sentence, [v for v in (value, change_value, *_window_numbers(current + " " + comparison))
+                                                         if v is not None], source))
+                        out.append(sentence)
+                    elif pct is not None:
+                        say(f"{_cap(label)} for {item.label} was {{}} in the current window, a change of {{}} against the comparison window.",
                             [(item.value, unit, 2), (pct, "%", 1)])
                     else:
-                        say(f"{label.capitalize()} for {item.label} was {{}}.", [(item.value, unit, 2)])
+                        say(f"{_cap(label)} for {item.label} was {{}}.", [(item.value, unit, 2)])
         else:
             for item in report.key_numbers[:5]:
                 if item.name == "value":
-                    say(f"{label.capitalize()} for {_period_text(resolved.period if resolved else None)} was {{}}.", [(item.value, unit, 2)])
+                    say(f"{_cap(label)} for {_period_text(resolved.period if resolved else None)} was {{}}.", [(item.value, unit, 2)])
                 elif item.name.startswith("value:"):
-                    say(f"{label.capitalize()} for {item.label}: {{}}.", [(item.value, unit, 2)])
+                    say(f"{_cap(label)} for {item.label}: {{}}.", [(item.value, unit, 2)])
         return out, ids
 
     # Engine outputs
     engine = report.engine
     if engine == "forecast":
-        say(f"The {label} forecast for {{}} periods ahead ends at {{}}, with a prediction interval of {{}} to {{}}.",
-            [(_number(report, "horizon"), "", 0), (_number(report, "final_yhat"), unit, 2), (_number(report, "final_lower"), unit, 2),
-             (_number(report, "final_upper"), unit, 2)], grade=2)
+        anchor = str(step.params.get("anchor") or "")[:7]
+        figures = [_fmt(_number(report, "horizon"), "", 0), _fmt(_number(report, "final_yhat"), unit),
+                   _fmt(_number(report, "final_lower"), unit), _fmt(_number(report, "final_upper"), unit)]
+        if all(value is not None for _, value in figures):
+            prefix = f"Anchored on {anchor}, the last complete month, the" if re.fullmatch(r"\d{4}-\d{2}", anchor) else "The"
+            sentence = (f"{prefix} {label} forecast for {figures[0][0]} periods ahead ends at {figures[1][0]}, "
+                        f"with a prediction interval of {figures[2][0]} to {figures[3][0]}.")
+            ids.append(claims.add(sentence, [value for _, value in figures] + _month_numbers(anchor), source, grade=2))
+            out.append(sentence)
+        requested, horizon = _number(report, "requested_horizon"), _number(report, "horizon")
+        if requested is not None and horizon is not None and requested > horizon:
+            say("{} periods were asked for; the history supports {} defensible periods, and beyond that the interval is wider than the signal.",
+                [(requested, "", 0), (horizon, "", 0)], grade=2)
         mape = _number(report, "backtest_mape")
         if mape is not None:
             say(f"The {result.provenance.engine.method if result.provenance.engine else 'model'} backtest MAPE is {{}}.", [(mape * 100, "%", 1)], grade=2)
@@ -275,12 +359,17 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         if arima is not None:
             say("An ARIMA challenger scored {} on the same held-out months; it is shown for comparison only.", [(arima * 100, "%", 1)], grade=2)
     elif engine == "impact" and "anomaly" in method:
-        say(f"{label.capitalize()} was {{}} against an expected {{}}, a deviation of {{}}.",
+        say(f"{_cap(label)} was {{}} against an expected {{}}, a deviation of {{}}.",
             [(_number(report, "actual"), unit, 2), (_number(report, "expected"), unit, 2), (_number(report, "deviation_pct"), "%", 1)], grade=2)
         flagged = _number(report, "flagged_periods")
         tested = _number(report, "tested_periods")
         if flagged is not None and tested is not None and tested > 1:
             say("{} of {} periods tested were flagged unusual.", [(flagged, "", 0), (tested, "", 0)], grade=2)
+    elif engine == "impact" and step.purpose.startswith("Apply the stated change"):
+        say(f"Applied to the last {{}} complete months, the stated change moves {label} from {{}} to {{}}, a change of {{}} ({{}}).",
+            [(3.0, "", 0), (_number(report, "baseline"), unit, 2), (_number(report, "current"), unit, 2), (_number(report, "delta"), unit, 2),
+             (_number(report, "delta_pct"), "%", 1)], grade=1, kind="consistent_with")
+        out.append("This is a mechanical what-if on measured values with everything else held fixed, not a fitted response.")
     elif engine == "impact" and step.purpose.startswith("Measure the baseline"):
         say(f"Baseline {label} over the last 3 complete months was {{}}.", [(_number(report, "current"), unit, 2)], grade=1)
     elif engine == "impact":
@@ -308,7 +397,19 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
                 [(row[2], "", 2), (float(row[9]), "", 0), (float(row[7]), "", 0)], grade=2, kind="co_movement")
         tested = [row for row in ranked if row[1] == "correlation"]
         if tested and not significant:
-            out.append("No candidate driver co-moved significantly once the multiple-testing correction was applied.")
+            out.append(f"No candidate driver correlated with {label} across its full history once the multiple-testing "
+                       f"correction was applied.")
+        moved = [row for row in ranked if row[1] == "window_change" and "in the direction expected" in str(row[11])]
+        for row in moved[:2]:
+            name = str(row[0]).replace("_", " ")
+            if row[10] is not None:
+                say(f"In the window, {name} was {{}} against its trailing median at a lag of {{}} periods, an unusual level for it "
+                    f"(robust z {{}}); the timing is consistent with the change and is not evidence of a cause.",
+                    [(row[10], "%", 1), (float(row[9]), "", 0), (row[2], "", 1)], grade=1, kind="consistent_with")
+            else:
+                say(f"In the window, {name} sat at an unusual level at a lag of {{}} periods (robust z {{}}); "
+                    f"the timing is consistent with the change and is not evidence of a cause.",
+                    [(float(row[9]), "", 0), (row[2], "", 1)], grade=1, kind="consistent_with")
         demoted = [row for row in tested if "reallocation" in str(row[11])]
         for row in demoted[:1]:
             out.append(f"{row[0]} moved in the same window but is a reallocation within an unchanged total, so it is not treated as the driver.")
@@ -331,8 +432,7 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
             columns = report.table("clusters").columns
             say("Customers fall into {} segments, ranked by measured revenue per customer.", [(float(len(clusters)), "", 0)])
             for rank, row in enumerate(clusters[:3], start=1):
-                traits = [name.split("=", 1)[1] for name, value in zip(columns[4:], row[4:], strict=False)
-                          if "=" in str(name) and isinstance(value, (int, float)) and value >= 0.5]
+                traits = _segment_traits(columns, row)
                 described = f" ({', '.join(traits[:3])})" if traits else ""
                 say(f"Segment rank {{}}{described} holds {{}} customers averaging {{}} revenue each.",
                     [(float(rank), "", 0), (float(row[1]), "", 0), (float(row[2]), "R$", 2)])
@@ -448,6 +548,9 @@ def compose(
                 result_payload = result.analyst_output.result
                 if result_payload is not None and getattr(result_payload, "mode", None) == "rank_actions" and "prescriptive" in intent.intent_names:
                     next_actions = tuple(result_payload.actions)
+                elif (not next_actions and report is not None and report.engine == "prescriptive" and report.method == "kmeans"
+                      and "prescriptive" in intent.intent_names):
+                    next_actions = _segment_actions(report)
             elif result.rows is not None and result.status == "ok":
                 evidence.append(EvidenceBlock(module="lookup", output={"query_id": result.rows.query_id, "columns": [c.name for c in result.rows.columns],
                                                                        "rows": [list(row) for row in result.rows.rows[:50]]}, source_claims=tuple(ids)))

@@ -1,21 +1,25 @@
 import { cx } from '@/lib/cx';
 
 /**
- * The hero suggestions, in the demo order: the WHY questions lead, then the
- * rest of the V2 must-answer set (spec/v2/scope.md §7) — so what, what next,
- * what if, now what, discovery — then the four V1 chips, kept unchanged.
+ * The hero suggestions are the demo's single-question beats (docs/DEMO_SCRIPT.md),
+ * WHY first: why, so what, what next, what if, now what, a compound question,
+ * discovery, then the V1 chips. `scripts/verify_demo.py` replays every one live
+ * against `/api/v2/ask` and fails if this list differs from `hero_chips` in
+ * `scripts/demo_v2.yaml`, so a chip is always a question that has just passed.
  *
  * Every chip answers through `/api/v2/ask`. The V1 caveats still hold for the
- * last four: the anomaly route needs a governed metric and a window including
+ * last three: the anomaly route needs a governed metric and a window including
  * the year, and a bare month clarifies instead.
  */
 export const SUGGESTIONS: readonly string[] = [
   'Why did revenue drop in the top category in April 2018?',
-  'Why did revenue spike in May 2018?',
-  'How much did the April 2018 drop cost us?',
+  'Why did order count fall in December 2017?',
+  'Did the carrier cause the delivery delays?',
+  'How far are we off the regional targets?',
   'Forecast revenue for the next 3 months',
   'What if we raise prices 5%?',
   'Which customer segment should we target?',
+  'How does revenue trend look today and what will it be in 3 months?',
   'What data do you have?',
   'How many orders were there in August 2018?',
   'How did revenue in 2018 compare to 2017?',

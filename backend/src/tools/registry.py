@@ -233,10 +233,36 @@ def _sql(step: PlanStep, ctx: StepContext) -> EngineRun:
     if summary != "none" and not frame.empty:
         result = _summarise(step, ctx, frame, metric.metric_id, execution.query_id, tables, summary, timer)
         if result is not None:
+            # The total is for the window the user asked about: when the query reaches back further so a forecast
+            # can fit on it, that window is summary_period, not the extended period.
+            window = Period.model_validate(params["summary_period"]) if params.get("summary_period") else period
+            if summary == "trend" and window is not None and not params.get("dimensions"):
+                result = _with_window_total(result, warehouse, metric, filters, window)
             return result
     result = _rows_result(step, frame, (execution.query_id,), tables, timer, truncated=execution.status == "truncated")
     report = _rows_report(metric.metric_id, frame, step)
     return EngineRun(result, report)
+
+
+def _with_window_total(run: EngineRun, warehouse, metric, filters, period: Period) -> EngineRun:
+    """Add the governed metric over the whole window (one more compiled query, no time grain).
+
+    "What was revenue in 2017?" asks for this figure, and for distinct counts and ratios it cannot be
+    formed from the monthly rows, so it is measured, never summed from them (SAFE-8).
+    """
+    compiled = warehouse.compiler.compile(metric, filters=tuple(filters), period=period, time_grain=None)
+    if not compiled.validation.approved:
+        return run
+    execution = warehouse.run(compiled.candidate.sql.strip(), purpose=f"{metric.metric_id} window total",
+                              tables=tuple(warehouse.tables))
+    frame = _frame(execution)
+    if frame.empty or frame.iloc[0, -1] is None or pd.isna(frame.iloc[0, -1]):
+        return run
+    total = KeyNumber(name="window_total", value=float(frame.iloc[0, -1]), label=f"{metric.metric_id} over the window")
+    provenance = run.result.provenance.model_copy(
+        update={"query_ids": tuple(dict.fromkeys((*run.result.provenance.query_ids, execution.query_id)))})
+    return EngineRun(run.result.model_copy(update={"provenance": provenance}),
+                     run.report.model_copy(update={"key_numbers": (*run.report.key_numbers, total)}))
 
 
 def _summarise(step, ctx, frame, metric_id, query_id, tables, summary, timer) -> EngineRun | None:
@@ -297,6 +323,30 @@ def _rows_report(metric_id: str, frame: pd.DataFrame, step: PlanStep) -> EngineR
     )
 
 
+# Business priors for the synthetic indicators: the direction each one is expected to push an
+# outcome class. They only decide whether a candidate's move is *consistent* with the outcome's
+# measured direction (a candidate moving the other way is never named as consistent); they are
+# not estimates and carry no number into an answer. boleto_share has no prior anywhere.
+_VOLUME = {"revenue", "gmv", "order_count", "item_count", "customer_count", "sessions", "conversion_rate"}
+_PRICE_LIKE = {"aov", "average_selling_price", "margin"}
+_SERVICE_BAD = {"return_rate", "cancellation_rate"}
+_INDICATOR_PRIORS: dict[str, dict[str, int]] = {
+    "spend_*": {**dict.fromkeys(_VOLUME - {"conversion_rate"}, 1)},
+    "sessions": {**dict.fromkeys(_VOLUME - {"sessions", "conversion_rate"}, 1)},
+    "conversion_rate": {**dict.fromkeys(_VOLUME - {"sessions", "conversion_rate"}, 1)},
+    "promo_discount": {**dict.fromkeys(_VOLUME - {"sessions"}, 1), **dict.fromkeys(_PRICE_LIKE, -1)},
+    "stockout_rate": {**dict.fromkeys(_VOLUME - {"sessions", "conversion_rate"}, -1)},
+    "delay_days": {"review_score": -1, **dict.fromkeys(_SERVICE_BAD, 1)},
+    "sla_breach_rate": {"review_score": -1, **dict.fromkeys(_SERVICE_BAD, 1)},
+}
+
+
+def indicator_sign(indicator: str, metric: str | None) -> int | None:
+    """Expected sign of an indicator's effect on ``metric`` (None when there is no prior)."""
+    priors = _INDICATOR_PRIORS.get("spend_*" if indicator.startswith("spend_") else indicator, {})
+    return priors.get(metric or "")
+
+
 def _dataset(step: PlanStep, ctx: StepContext, timer: Timer) -> EngineRun:
     params = step.params
     name = params["dataset"]
@@ -329,6 +379,12 @@ def _dataset(step: PlanStep, ctx: StepContext, timer: Timer) -> EngineRun:
         wide = frames["spend"].pivot_table(index="month", columns="indicator", values="value", aggfunc="sum").add_prefix("spend_").reset_index()
         for key in ("traffic", "stock", "delivery"):
             wide = wide.merge(frames[key], on="month", how="outer")
+        if "promotions" in warehouse.tables:
+            # Discount-weighted promotion days per calendar day of the month (0 when nothing ran).
+            read("promotions", f"SELECT category, start_date, end_date, discount_pct FROM promotions WHERE end_date >= {start} "
+                               f"AND start_date < {end} LIMIT 5000", ("promotions",))
+            wide = wide.merge(prep.monthly_promotion_intensity(frames["promotions"], wide["month"]), on="month", how="left")
+            wide["promo_discount"] = wide["promo_discount"].fillna(0.0)
         frame = wide.sort_values("month").reset_index(drop=True)
     elif name == "delivery_sla":
         read("rows", f"SELECT date, carrier, state AS customer_state, sla_breach_flag AS numerator, 1 AS denominator, "
@@ -712,8 +768,9 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
                 indicators["month"] = indicators["month"].astype(str).str[:7] + "-01"
                 tables["indicators"] = indicators
                 params["drivers"] = [{"name": column, "table": "indicators", "value": column, "date": "month",
-                                      "agg": "sum" if column.startswith("spend_") or column == "sessions" else "mean"}
-                                     for column in indicators.columns if column != "month"]
+                                      "agg": "sum" if column.startswith("spend_") or column == "sessions" else "mean",
+                                      **({"expected_sign": sign} if (sign := indicator_sign(column, metric)) else {})}
+                                     for column in indicators.columns if column not in ("month", metric)]  # never the outcome itself
                 params["grain"] = "month"
         if "treated_from" in bind:
             drill = ctx.reports.get(bind["treated_from"])
@@ -734,14 +791,39 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
         return run
 
     if tool == "python.impact":
+        if "shock_from" in bind:
+            totals = {}
+            for name, source in bind["shock_from"].items():
+                report = ctx.reports.get(source)
+                try:
+                    totals[name] = report.number("window_total") if report is not None else None
+                except KeyError:
+                    totals[name] = None
+            missing = sorted(name for name, value in totals.items() if value is None)
+            if missing:
+                return fail(f"The measured baseline for {', '.join(missing)} is unavailable, so the change cannot be applied.")
+            _, measurements = prep.shock_measurements(totals, [(target, float(value)) for target, value in bind["shocks"]])
+            data = _engine_data(ctx, step, {"measurements": measurements})
+            run = engines.run_step(step.model_copy(update={"params": params}), data)
+            note = ("A mechanical what-if: the stated change is applied to the measured totals of the last 3 complete months, "
+                    "holding everything else fixed. No behavioural response is fitted, so this is not a forecast of the outcome.")
+            return EngineRun(run.result, run.report.model_copy(update={"assumptions": (note, *run.report.assumptions)}))
+        fallback_note = None
         if "anomaly_from" in bind:
             anomaly = ctx.results.get(bind["anomaly_from"])
             result = anomaly.analyst_output.result if anomaly is not None and anomaly.analyst_output is not None else None
-            if result is None:
+            if result is not None:
+                measurements = pd.DataFrame({"baseline": [float(result.expected)], "current": [float(result.actual)]})
+                data = _engine_data(ctx, step, {"measurements": measurements})
+                return engines.run_step(step.model_copy(update={"params": params}), data)
+            if "current" not in bind or "baseline" not in bind:
                 return fail("The anomaly step produced no expected baseline to size against.")
-            measurements = pd.DataFrame({"baseline": [float(result.expected)], "current": [float(result.actual)]})
-            data = _engine_data(ctx, step, {"measurements": measurements})
-            return engines.run_step(step.model_copy(update={"params": params}), data)
+            # V2-ANS-1: no expected value (too little history) is a reason to use the plainer baseline, not to refuse.
+            reason = anomaly.reason if anomaly is not None and anomaly.reason else "the anomaly baseline was unavailable"
+            fallback_note = (f"No expected value could be fitted ({reason.rstrip('.')}), so the change is sized against the "
+                             f"previous window instead.")
+            params = {key: value for key, value in params.items() if key != "basis"}
+            params.update(current_period="current", baseline_period="baseline")
         if frame is None or frame.empty:
             return fail("The upstream series step returned no rows.")
         series = _series_frame(frame, metric)
@@ -761,10 +843,18 @@ def _engine(step: PlanStep, ctx: StepContext) -> EngineRun:
             if isinstance(targets, pd.DataFrame) and not targets.empty:
                 tables["targets"] = targets[["revenue_target"]]
         data = _engine_data(ctx, step, tables)
-        return engines.run_step(step.model_copy(update={"params": params}), data)
+        run = engines.run_step(step.model_copy(update={"params": params}), data)
+        if fallback_note:
+            return EngineRun(run.result, run.report.model_copy(update={"assumptions": (fallback_note, *run.report.assumptions)}))
+        return run
 
     if tool == "python.scenario":
         if bind.get("unsupported") is not None and "panel_from" not in bind:
+            missing = sorted(set(DATASET_TABLES["price_panel"]) - ctx.warehouse.tables)
+            if any(item.get("target") == "price" for item in bind["unsupported"]) and missing:
+                return fail(f"A price change needs a fitted demand elasticity, and this database has no price history to fit "
+                            f"it on (missing: {', '.join(missing)}). No figure is invented. These are V2 synthetic tables: "
+                            f"build them with `python scripts/build_v2.py` and point the backend at the result with DS_AGENT_DB.")
             described = "; ".join(item.get("source_phrase", "") for item in bind["unsupported"]) or "the stated change"
             return fail(f"Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). "
                         f"'{described}' has no fitted relationship to perturb, so no figure is invented.")

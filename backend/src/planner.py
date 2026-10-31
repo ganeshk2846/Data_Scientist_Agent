@@ -41,6 +41,7 @@ from contracts.v2 import (
 from engines.diagnostic import DiagnosticParams
 from engines.forecast import ForecastEngineParams
 from engines.impact import ImpactEngineParams
+from engines.prep import SHOCK_OUTCOMES
 from engines.prescriptive import PrescriptiveParams
 from engines.scenario import ScenarioEngineParams
 from pydantic import Field, ValidationError
@@ -422,9 +423,12 @@ class Planner:
         elif draft.keys.get(f"anomaly:{metric}") or (period.end.year - period.start.year) * 12 + period.end.month - period.start.month == 1:
             anomaly = draft.keys.get(f"anomaly:{metric}") or draft.add(
                 f"anomaly:{metric}", "python.anomaly", {"metric": metric, "grain": "month", "test_window": period},
-                produces="analyst_output", purpose=f"Expected {metric} for {_label(period)} from its own history.", depends_on=(series,))
+                produces="analyst_output", purpose=f"Expected {metric} for {_label(period)} from its own history.", depends_on=(series,),
+                optional=True)
+            # Without an expected value (short history) the gap is sized against the previous window (V2-ANS-1).
             draft.add(f"impact:{metric}", "python.impact", {
-                "metric": metric, "unit": unit, "basis": "anomaly_gap", "bind": {"anomaly_from": anomaly}},
+                "metric": metric, "unit": unit, "basis": "anomaly_gap",
+                "bind": {"anomaly_from": anomaly, "current": period, "baseline": comparison}},
                 produces="analyst_output", purpose=f"Size the gap between actual and expected {metric}, in {unit}.",
                 depends_on=(series, anomaly))
         else:
@@ -462,6 +466,27 @@ class Planner:
     def _plan_scenario(self, draft, resolved, entities, special, use_analytical, metric) -> None:
         caps = self.capabilities
         params = list(entities.scenario_params)
+        shocks = [item for item in params if item.kind == "multiplicative" and item.applies_to is None and item.target in SHOCK_OUTCOMES]
+        if shocks and len(shocks) == len(params) and len({SHOCK_OUTCOMES[item.target][0] for item in shocks}) == 1:
+            # A stated multiplier on a governed metric needs no fitted response: it is applied to the measured
+            # totals of the last 3 complete months and sized by the impact engine (scope.md X1, X3, X5, X8).
+            anchor = _month(caps.anchor)
+            window = Period(start=_add_months(anchor, -2), end=_add_months(anchor, 1))
+            inputs = list(dict.fromkeys(name for item in shocks for name in SHOCK_OUTCOMES[item.target][1]))
+            totals = {name: draft.add(f"total:{name}", "sql", {
+                "kind": "metric", "metric_id": name, "grain": "month", "period": window, "summary": "trend",
+                "filters": [_filter(item) for item in resolved.filters]},
+                produces="rows", purpose=f"Monthly {name} over the last 3 complete months: the measured scenario baseline.")
+                for name in inputs}
+            outcome = SHOCK_OUTCOMES[shocks[0].target][0]
+            draft.add("scenario:shock", "python.impact", {
+                "metric": outcome, "unit": "R$", "current_period": "current", "baseline_period": "baseline",
+                "bind": {"shock_from": totals, "shocks": [[item.target, item.value] for item in shocks]}},
+                produces="analyst_output",
+                purpose="Apply the stated change to the measured baseline: a mechanical what-if, not a fitted response.",
+                depends_on=tuple(totals.values()))
+            draft.covered.append("scenario")
+            return
         target_metric = "revenue"
         series = self._series(draft, target_metric, resolved.model_copy(update={"filters": ()}), use_analytical)
         anchor = _month(caps.anchor)

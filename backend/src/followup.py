@@ -68,6 +68,9 @@ _PREVIOUS_PERIOD = re.compile(r"\b(?:previous|prior|last)\s+(?:month|period)\b|\
 _FORECAST = re.compile(r"\b(?:forecast|predict|project)\w*\b|\bwhat(?:'s| is| will)\b.*\bnext\b", re.IGNORECASE)
 _BREAKDOWN = re.compile(r"\bbreak\w*\s+(?:it|that|this|them)?\s*down\b|\bsplit\s+(?:it|that|this)\b|\bdrill\s+down\b",
                         re.IGNORECASE)
+#: A judgement about the prior figure ("why is that so low?") implies a norm to compare it with (scope.md 6.1 reference).
+_JUDGEMENT = re.compile(r"\bso\s+(?:low|high|weak|strong|bad|good|small|big)\b|\b(?:lower|higher|weaker|stronger|worse|better)\s+than\s+(?:usual|normal|expected)\b",
+                        re.IGNORECASE)
 _RANK = re.compile(r"\b(top|bottom|highest|lowest|biggest|largest|best|worst)(?:\s+(\d{1,2}))?\b", re.IGNORECASE)
 _PLURALS = {"category": "categories", "city": "cities"}
 _MONTHS = {name: index for index, name in enumerate(
@@ -427,6 +430,15 @@ def rewrite(message: str, context: ContextState | None, *, extractor, registry=N
             and prior_intent == "descriptive" and period is not None and comparison is None and _months(period) > 1:
         # U2: "why?" after a multi-month total has no change to explain yet.
         prior_year = _shift(period, -12)
+        if _JUDGEMENT.search(message):
+            # A reference with a judgement ("so low") is answered against the like-for-like window a year earlier,
+            # and the comparison is part of the restated question (V2-ANS-1, 6.3 rule 2).
+            slots["comparison_period"] = prior_year
+            effective = render(intent="diagnostic", metric=metric_label, filters=slots["filters"], dimensions=slots["dimensions"],
+                               period=period, comparison=prior_year, grain=grain, anchor=anchor)
+            ordered = tuple(name for name in SLOTS if name in inherited and _present(slots[name]))
+            return Rewrite(kind="followup", text=effective, shape="reference", effective_text=effective,
+                           patch=_minimal_patch(extractor, effective, slots), inherited_fields=ordered, intent="diagnostic", **common)
         last_month = Period(start=_add_months(period.end, -1), end=period.end)
         year_slots = {**slots, "comparison_period": prior_year}
         month_slots = {**slots, "period": last_month}

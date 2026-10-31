@@ -1,0 +1,201 @@
+# V2 end-to-end evaluation bank for scripts/eval_v2.py.
+#
+# Written from spec/v2/scope.md (sections 3-7) and data/SYNTHETIC_GROUND_TRUTH.md,
+# NOT from the code under test and NOT copied from backend/tests/data/question_bank_v2.yaml.
+# Where the spec and the implementation disagree the spec wins here (e.g. D10 and
+# X10 expect a refusal, scope.md 3.1 and 3.7).
+#
+# Do not edit expectations to make a run score higher. A case may only change
+# when the spec it cites changes; say so in the commit message.
+#
+# Fields per case
+#   id        scope.md reference (extra cases use an E-/R- prefix and cite their source)
+#   question  the exact text sent to POST /api/v2/ask, in a fresh session
+#   intent    expected primary intent (scope.md 1.1); "clarify" for a clarification
+#   intents   compound only: every intent the answer must cover (scope.md 4)
+#   outcome   answer | clarify | refuse
+#   layer     R (real Olist tables) | S (synthetic tables) | R+S, as tagged in scope.md
+#   must_answer  scope.md 7 hard gate (V2-ANS-2)
+#   key_sql   reference SQL written against the governed definitions in semantics/metrics.md;
+#             the scalar it returns must appear among the answer's numbers. A list means
+#             "any of" (used where the spec allows either an aligned or a full window).
+#   checks    spec-derived assertions implemented in eval_v2.py (see CHECKS there)
+#   plant     planted effect the answer must recover (diagnostic) - scored against
+#             data/SYNTHETIC_GROUND_TRUTH.md through the `plants` table below
+#   recover   case-level cause tokens replacing the plant's (used where the outcome IS the planted
+#             fact, so the cause is where it happened - the E2-stockout categories)
+#   premise   the change the question asserts ("why did X drop"), recomputed by reference SQL as
+#             current window minus the previous period. A plant is only scored when the premise
+#             holds on the database under test: the plants live in synthetic tables, so a real
+#             metric need not move with them, and an answer cannot recover a drop that is not there.
+
+plants:
+  # Tokens transcribed from data/SYNTHETIC_GROUND_TRUTH.md. cause = the fact rows with
+  # "Cause? yes" (table, column, dimension values); confounder = the "confounder" rows.
+  # An answer recovers a plant when its conclusion or a claim names a cause token; it
+  # misattributes when a co-movement/driver claim names a confounder token and no cause token.
+  E1: {cause: [paid_search, marketing_spend, marketing spend], confounder: [social]}
+  E2: {cause: [stockout, inventory_daily], confounder: [seasonal, black friday, black-friday]}
+  E3: {cause: [promotion, promotions, discount_pct, discount], confounder: [boleto]}
+  E4: {cause: [jadlog, delivery_sla, actual_days, sla_breach, delivery delay], confounder: [freight]}
+  E5: {cause: [price_history, list price, elasticity], confounder: [competitor]}
+
+cases:
+  # ------------------------------------------------------------ discovery (3.1)
+  - {id: D1, question: "What data do you have?", intent: discovery, outcome: answer, layer: R+S, must_answer: true, checks: [names_synthetic]}
+  - {id: D2, question: "Which metrics can you calculate?", intent: discovery, outcome: answer, layer: R+S}
+  - {id: D3, question: "What time period does the data cover?", intent: discovery, outcome: answer, layer: R+S}
+  - {id: D4, question: "Can I break revenue down by region?", intent: discovery, outcome: answer, layer: R}
+  - {id: D5, question: "What dimensions are available for AOV?", intent: discovery, outcome: answer, layer: R}
+  - {id: D6, question: "How is revenue defined here?", intent: discovery, outcome: answer, layer: R}
+  - {id: D7, question: "What's the difference between GMV and revenue?", intent: discovery, outcome: answer, layer: R}
+  - {id: D8, question: "Do you have marketing or traffic data?", intent: discovery, outcome: answer, layer: S, checks: [names_synthetic]}
+  - {id: D9, question: "How many customers are in the database?", intent: discovery, outcome: answer, layer: R,
+     key_sql: ["SELECT COUNT(*) FROM customers", "SELECT COUNT(DISTINCT customer_unique_id) FROM customers"]}
+  - {id: D10, question: "Do you have customer age or gender?", intent: discovery, outcome: refuse, layer: "-", checks: [names_missing_age_gender]}
+
+  # -------------------------------------------------------------- clarify (3.2)
+  - {id: C1, question: "Summarize revenue", intent: clarify, outcome: clarify}
+  - {id: C2, question: "How are sales doing?", intent: clarify, outcome: clarify}
+  - {id: C3, question: "Show me the top states", intent: clarify, outcome: clarify}
+  - {id: C4, question: "Why did it drop?", intent: clarify, outcome: clarify}
+  - {id: C5, question: "Compare the two biggest regions", intent: clarify, outcome: clarify}
+  - {id: C6, question: "What about last month?", intent: clarify, outcome: clarify}
+  - {id: C7, question: "Revenue by category - recent", intent: clarify, outcome: clarify}
+  - {id: C8, question: "Is freight expensive?", intent: clarify, outcome: clarify}
+  - {id: C9, question: "Give me the numbers for SP", intent: clarify, outcome: clarify}
+  - {id: C10, question: "Show growth", intent: clarify, outcome: clarify}
+
+  # ---------------------------------------------------------- descriptive (3.3)
+  - {id: S1, question: "How many orders were there in August 2018?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT COUNT(DISTINCT order_id) FROM orders WHERE order_purchase_timestamp >= '2018-08-01' AND order_purchase_timestamp < '2018-09-01'"}
+  - {id: S2, question: "What was revenue in 2017?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' AND o.order_purchase_timestamp < '2018-01-01'"}
+  - {id: S3, question: "What was GMV by customer state in 2018?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: ["SELECT SUM(i.price + i.freight_value) s FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-09-01' GROUP BY c.customer_state ORDER BY s DESC LIMIT 1",
+               "SELECT SUM(i.price + i.freight_value) s FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2019-01-01' GROUP BY c.customer_state ORDER BY s DESC LIMIT 1"]}
+  - {id: S4, question: "How did revenue in 2018 compare to 2017?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: ["SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-09-01'",
+               "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2019-01-01'"]}
+  - {id: S5, question: "What are the spikes across all months?", intent: descriptive, outcome: answer, layer: R+S, must_answer: true}
+  - {id: S6, question: "Which product categories had the highest GMV in 2017?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT SUM(i.price + i.freight_value) s FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN products p ON p.product_id = i.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' AND o.order_purchase_timestamp < '2018-01-01' GROUP BY p.product_category_name ORDER BY s DESC LIMIT 1"}
+  - {id: S7, question: "What was the cancellation rate by month in 2018?", intent: descriptive, outcome: answer, layer: R}
+  - {id: S8, question: "How many unique customers ordered in Q2 2018?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT COUNT(DISTINCT c.customer_unique_id) FROM orders o JOIN customers c ON c.customer_id = o.customer_id WHERE o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-07-01'"}
+  - {id: S9, question: "What was the average review score by state in 2018?", intent: descriptive, outcome: answer, layer: R}
+  - {id: S10, question: "What was marketing spend by channel in 2018?", intent: descriptive, outcome: answer, layer: S, checks: [names_synthetic],
+     key_sql: ["SELECT SUM(spend) s FROM marketing_spend WHERE date >= '2018-01-01' AND date < '2019-01-01' GROUP BY channel ORDER BY s DESC LIMIT 1",
+               "SELECT SUM(spend) s FROM marketing_spend WHERE date >= '2018-01-01' AND date < '2018-09-01' GROUP BY channel ORDER BY s DESC LIMIT 1"]}
+
+  # ----------------------------------------------------------- diagnostic (3.4)
+  - {id: G1, question: "Why did revenue drop in the top category in April 2018?", intent: diagnostic, outcome: answer, layer: R+S, must_answer: true, plant: E1, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(i.price + i.freight_value) FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN products p ON p.product_id = i.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-05-01' AND p.product_category_name = (SELECT p2.product_category_name FROM order_items i2 JOIN orders o2 ON o2.order_id = i2.order_id JOIN products p2 ON p2.product_id = i2.product_id WHERE o2.order_status NOT IN ('canceled','unavailable') AND o2.order_purchase_timestamp >= '2018-01-01' AND o2.order_purchase_timestamp < '2018-09-01' GROUP BY 1 ORDER BY SUM(i2.price + i2.freight_value) DESC LIMIT 1)) - (SELECT SUM(i.price + i.freight_value) FROM order_items i JOIN orders o ON o.order_id = i.order_id JOIN products p ON p.product_id = i.product_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-03-01' AND o.order_purchase_timestamp < '2018-04-01' AND p.product_category_name = (SELECT p2.product_category_name FROM order_items i2 JOIN orders o2 ON o2.order_id = i2.order_id JOIN products p2 ON p2.product_id = i2.product_id WHERE o2.order_status NOT IN ('canceled','unavailable') AND o2.order_purchase_timestamp >= '2018-01-01' AND o2.order_purchase_timestamp < '2018-09-01' GROUP BY 1 ORDER BY SUM(i2.price + i2.freight_value) DESC LIMIT 1))"}}
+  - {id: G2, question: "Was order count unusual in August 2018?", intent: diagnostic, outcome: answer, layer: R}
+  - {id: G3, question: "Why did order count fall in December 2017?", intent: diagnostic, outcome: answer, layer: R+S, plant: E2, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT COUNT(DISTINCT order_id) FROM orders WHERE order_purchase_timestamp >= '2017-12-01' AND order_purchase_timestamp < '2018-01-01') - (SELECT COUNT(DISTINCT order_id) FROM orders WHERE order_purchase_timestamp >= '2017-11-01' AND order_purchase_timestamp < '2017-12-01')"}}
+  - {id: G4, question: "Why did AOV fall in January 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E3, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-02-01') - (SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-12-01' AND o.order_purchase_timestamp < '2018-01-01')"}}
+  - {id: G5, question: "Why did review scores drop in June 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E4, checks: [no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT AVG(r.review_score) FROM order_reviews r JOIN orders o ON o.order_id = r.order_id WHERE o.order_purchase_timestamp >= '2018-06-01' AND o.order_purchase_timestamp < '2018-07-01') - (SELECT AVG(r.review_score) FROM order_reviews r JOIN orders o ON o.order_id = r.order_id WHERE o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01')"}}
+  - {id: G6, question: "What drove the GMV change between Q1 and Q2 2018?", intent: diagnostic, outcome: answer, layer: R}
+  - {id: G7, question: "Why is AOV higher for boleto than credit card?", intent: diagnostic, outcome: answer, layer: R}
+  - {id: G8, question: "Which states drove the revenue decline in May 2018?", intent: diagnostic, outcome: answer, layer: R+S, plant: E1,
+     premise: {direction: down, sql: "SELECT (SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01') - (SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-04-01' AND o.order_purchase_timestamp < '2018-05-01')"}}
+  - {id: G9, question: "Why did cancellations rise in 2018 versus 2017?", intent: diagnostic, outcome: answer, layer: R+S}
+  - {id: G10, question: "Did the carrier cause the delivery delays?", intent: diagnostic, outcome: answer, layer: S, plant: E4, checks: [no_causal_claim]}
+  # The ground truth names synthetic outcome columns for each plant (sessions for E1,
+  # stockout_flag for E2, conversion_rate for E3, late-delivery returns for E4), so the
+  # same "why" is also asked about the outcome the plant was written to.
+  - {id: E-G1s, question: "Why did web sessions drop in April 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E1, checks: [names_synthetic, no_causal_claim],
+     premise: {direction: down, sql: "SELECT (SELECT SUM(sessions) FROM web_traffic WHERE date >= '2018-04-01' AND date < '2018-05-01') - (SELECT SUM(sessions) FROM web_traffic WHERE date >= '2018-03-01' AND date < '2018-04-01')"}}
+  - {id: E-G3s, question: "Why did the stockout rate spike in December 2017?", intent: diagnostic, outcome: answer, layer: S, plant: E2, checks: [names_synthetic],
+     recover: [cama_mesa_banho, beleza_saude, esporte_lazer],
+     premise: {direction: up, sql: "SELECT (SELECT AVG(stockout_flag) FROM inventory_daily WHERE date >= '2017-12-01' AND date < '2018-01-01') - (SELECT AVG(stockout_flag) FROM inventory_daily WHERE date >= '2017-11-01' AND date < '2017-12-01')"}}
+  - {id: E-G4s, question: "Why did conversion rate rise in January 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E3, checks: [names_synthetic],
+     premise: {direction: up, sql: "SELECT (SELECT SUM(sessions * conversion_rate) / SUM(sessions) FROM web_traffic WHERE date >= '2018-01-01' AND date < '2018-02-01') - (SELECT SUM(sessions * conversion_rate) / SUM(sessions) FROM web_traffic WHERE date >= '2017-12-01' AND date < '2018-01-01')"}}
+  - {id: E-G5s, question: "Why did the return rate rise in June 2018?", intent: diagnostic, outcome: answer, layer: S, plant: E4, checks: [names_synthetic],
+     premise: {direction: up, sql: "SELECT (SELECT COUNT(r.order_item_id) * 1.0 / COUNT(i.order_item_id) FROM order_items i JOIN orders o ON o.order_id = i.order_id LEFT JOIN returns r ON r.order_id = i.order_id AND r.order_item_id = i.order_item_id WHERE o.order_status = 'delivered' AND o.order_purchase_timestamp >= '2018-06-01' AND o.order_purchase_timestamp < '2018-07-01') - (SELECT COUNT(r.order_item_id) * 1.0 / COUNT(i.order_item_id) FROM order_items i JOIN orders o ON o.order_id = i.order_id LEFT JOIN returns r ON r.order_id = i.order_id AND r.order_item_id = i.order_item_id WHERE o.order_status = 'delivered' AND o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01')"}}
+
+  # --------------------------------------------------------------- impact (3.5)
+  - {id: I1, question: "How much did the April 2018 drop cost us?", intent: impact, outcome: answer, layer: R+S, must_answer: true}
+  - {id: I2, question: "What is SP worth to us?", intent: impact, outcome: answer, layer: R}
+  - {id: I3, question: "How much revenue is exposed to the top 3 categories?", intent: impact, outcome: answer, layer: R}
+  - {id: I4, question: "What would closing the cancellation gap be worth?", intent: impact, outcome: answer, layer: R}
+  - {id: I5, question: "What was the return on the marketing spend we cut?", intent: impact, outcome: answer, layer: S, checks: [names_synthetic, no_causal_claim]}
+  - {id: I6, question: "Which state's revenue decline mattered most in 2018?", intent: impact, outcome: answer, layer: R}
+  - {id: I7, question: "How far are we off the regional targets?", intent: impact, outcome: answer, layer: S, checks: [names_synthetic]}
+  - {id: I8, question: "How much of 2018 GMV came from repeat customers?", intent: impact, outcome: answer, layer: R}
+  - {id: I9, question: "What are the stockouts costing us?", intent: impact, outcome: answer, layer: S, checks: [names_synthetic]}
+  - {id: I10, question: "How big is the 2018 revenue shortfall versus 2017?", intent: impact, outcome: answer, layer: R}
+
+  # ------------------------------------------------------------- forecast (3.6)
+  - {id: F1, question: "Forecast revenue for the next 3 months", intent: forecast, outcome: answer, layer: R, must_answer: true, checks: [anchor_2018_08, has_interval]}
+  - {id: F2, question: "Where is order count heading?", intent: forecast, outcome: answer, layer: R, checks: [anchor_2018_08, has_interval]}
+  - {id: F3, question: "Forecast GMV for the next quarter", intent: forecast, outcome: answer, layer: R, checks: [anchor_2018_08, has_interval]}
+  - {id: F4, question: "What is the expected AOV next month?", intent: forecast, outcome: answer, layer: R, checks: [anchor_2018_08]}
+  - {id: F5, question: "Project revenue for SP over the next 6 months", intent: forecast, outcome: answer, layer: R, checks: [anchor_2018_08, has_interval]}
+  - {id: F6, question: "Will cancellations keep rising?", intent: forecast, outcome: answer, layer: R}
+  - {id: F7, question: "How many customers will we have next quarter?", intent: forecast, outcome: answer, layer: R}
+  - {id: F8, question: "Forecast review scores for the next 3 months", intent: forecast, outcome: answer, layer: R}
+  - {id: F9, question: "What will revenue be in 2020?", intent: forecast, outcome: answer, layer: R}
+  - {id: F10, question: "Forecast revenue for the next 3 months by category", intent: forecast, outcome: answer, layer: R}
+
+  # ------------------------------------------------------------- scenario (3.7)
+  - {id: X1, question: "What if freight costs rise 10%?", intent: scenario, outcome: answer, layer: R}
+  - {id: X2, question: "What if we lose SP entirely?", intent: scenario, outcome: answer, layer: R}
+  - {id: X3, question: "What if the cancellation rate halved?", intent: scenario, outcome: answer, layer: R}
+  - {id: X4, question: "What if credit card share grew to 85%?", intent: scenario, outcome: answer, layer: R}
+  - {id: X5, question: "What if AOV improved 5% next quarter?", intent: scenario, outcome: answer, layer: R}
+  - {id: X6, question: "What if we raise prices 5%?", intent: scenario, outcome: answer, layer: S, must_answer: true, plant: E5, checks: [names_synthetic]}
+  - {id: X7, question: "What if we restored the marketing spend we cut?", intent: scenario, outcome: answer, layer: S}
+  - {id: X8, question: "What if order volume grew 10% but AOV fell 5%?", intent: scenario, outcome: answer, layer: R}
+  - {id: X9, question: "What if we eliminated the stockouts?", intent: scenario, outcome: answer, layer: S}
+  - {id: X10, question: "What if we launched in Argentina?", intent: scenario, outcome: refuse, layer: "-"}
+
+  # --------------------------------------------------------- prescriptive (3.8)
+  - {id: P1, question: "Which customer segment should we target?", intent: prescriptive, outcome: answer, layer: S, must_answer: true, checks: [has_options, names_synthetic]}
+  - {id: P2, question: "What should we do about the April revenue decline?", intent: prescriptive, outcome: answer, layer: R+S, checks: [has_options]}
+  - {id: P3, question: "Where should we focus to grow GMV next quarter?", intent: prescriptive, outcome: answer, layer: R+S, checks: [has_options]}
+  - {id: P4, question: "Which states should we prioritise?", intent: prescriptive, outcome: answer, layer: R+S, checks: [has_options]}
+  - {id: P5, question: "How do we reduce cancellations?", intent: prescriptive, outcome: answer, layer: R+S, checks: [has_options]}
+  - {id: P6, question: "What should we do about the delivery delays?", intent: prescriptive, outcome: answer, layer: S, checks: [has_options]}
+  - {id: P7, question: "Which categories deserve more inventory?", intent: prescriptive, outcome: answer, layer: S, checks: [has_options]}
+  - {id: P8, question: "Should we run the promotion again?", intent: prescriptive, outcome: answer, layer: S, checks: [has_options]}
+  - {id: P9, question: "Should we match competitor prices?", intent: prescriptive, outcome: answer, layer: S, checks: [has_options]}
+  - {id: P10, question: "What should I watch next month?", intent: prescriptive, outcome: answer, layer: R+S}
+
+  # ------------------------------------------------------------- compound (4)
+  - {id: K1, question: "How does revenue trend look today and what will it be in 3 months?", intent: descriptive, intents: [descriptive, forecast], outcome: answer, layer: R, must_answer: true}
+  - {id: K2, question: "Was August unusual, and why?", intent: diagnostic, intents: [diagnostic], outcome: answer, layer: R}
+  - {id: K3, question: "Why did revenue fall and what should we do?", intent: diagnostic, intents: [diagnostic, impact, prescriptive], outcome: answer, layer: R+S}
+  - {id: K4, question: "What's our biggest state and what happens if we lose it?", intent: descriptive, intents: [descriptive, scenario], outcome: answer, layer: R}
+  - {id: K5, question: "Show me revenue by category and forecast the top three", intent: descriptive, intents: [descriptive, forecast], outcome: answer, layer: R}
+  - {id: K6, question: "Is the cancellation rate rising, why, and what is it costing us?", intent: diagnostic, intents: [diagnostic, impact], outcome: answer, layer: R}
+  - {id: K7, question: "Compare 2017 and 2018 and tell me what to watch", intent: descriptive, intents: [descriptive, prescriptive], outcome: answer, layer: R}
+  - {id: K8, question: "What data do you have on freight, and is it unusual this year?", intent: discovery, intents: [discovery, diagnostic], outcome: answer, layer: R}
+  - {id: K9, question: "Forecast revenue and tell me what happens if freight rises 10%", intent: forecast, intents: [forecast, scenario], outcome: answer, layer: R}
+  - {id: K10, question: "Why did August fall, what did it cost, and what should we do?", intent: diagnostic, intents: [diagnostic, impact, prescriptive], outcome: answer, layer: R+S}
+
+  # ---------------------------------------------------------------- vague (5)
+  # scope.md 5: "resolve what is resolvable, ask about exactly one thing, and state the default".
+  - {id: V1, question: "Summarize revenue", intent: clarify, outcome: clarify}
+  - {id: V2, question: "How's business?", intent: clarify, outcome: clarify}
+  - {id: V3, question: "Anything unusual?", intent: clarify, outcome: clarify}
+  - {id: V4, question: "Give me an overview", intent: clarify, outcome: clarify}
+  - {id: V5, question: "What's wrong?", intent: clarify, outcome: clarify}
+  - {id: V6, question: "Tell me about SP", intent: clarify, outcome: clarify}
+  - {id: V7, question: "Recent performance", intent: clarify, outcome: clarify}
+  - {id: V8, question: "Best and worst", intent: clarify, outcome: clarify}
+  - {id: V9, question: "Is growth good?", intent: clarify, outcome: clarify}
+  - {id: V10, question: "Break it down", intent: clarify, outcome: clarify}
+
+  # ----------------------------------------- V1 regression chips (scope.md 3.3 note)
+  # Questions the V1 UI shipped as verified chips; V2 must keep answering them.
+  - {id: R-1, question: "What was revenue in May 2018?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT SUM(p.payment_value) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-05-01' AND o.order_purchase_timestamp < '2018-06-01'"}
+  - {id: R-2, question: "What was the average order value in 2018?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: ["SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2018-09-01'",
+               "SELECT SUM(p.payment_value) * 1.0 / COUNT(DISTINCT o.order_id) FROM order_payments p JOIN orders o ON o.order_id = p.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2018-01-01' AND o.order_purchase_timestamp < '2019-01-01'"]}
+  - {id: R-3, question: "What was total freight value in 2017?", intent: descriptive, outcome: answer, layer: R,
+     key_sql: "SELECT SUM(i.freight_value) FROM order_items i JOIN orders o ON o.order_id = i.order_id WHERE o.order_status NOT IN ('canceled','unavailable') AND o.order_purchase_timestamp >= '2017-01-01' AND o.order_purchase_timestamp < '2018-01-01'"}

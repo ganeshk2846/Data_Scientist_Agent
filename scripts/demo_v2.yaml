@@ -1,0 +1,86 @@
+# The V2 demo, in presentation order (docs/DEMO_SCRIPT.md). Replayed live by scripts/verify_demo.py.
+#
+# Every step must pass live execution before it may stay in the demo. A step sends `q` to
+# POST /api/v2/ask in its scene's session; `reply: default` answers the previous clarification
+# with its stated default option. `expect` is the status the step must return, and `intent` the
+# primary intent. `hero_chips` must equal SUGGESTIONS in
+# frontend/web/src/components/ask/SuggestionChips.tsx, in order, and every chip must be the
+# first step of a scene here (a question that needs no earlier turn) - so a chip is always a
+# question that just passed live. The chips lead with WHY (verify-features asserts the first two
+# start with "Why"); the script below runs in narrative order.
+
+hero_chips:
+  - "Why did revenue drop in the top category in April 2018?"
+  - "Why did order count fall in December 2017?"
+  - "Did the carrier cause the delivery delays?"
+  - "How far are we off the regional targets?"
+  - "Forecast revenue for the next 3 months"
+  - "What if we raise prices 5%?"
+  - "Which customer segment should we target?"
+  - "How does revenue trend look today and what will it be in 3 months?"
+  - "What data do you have?"
+  - "How many orders were there in August 2018?"
+  - "How did revenue in 2018 compare to 2017?"
+  - "Was order count unusual in August 2018?"
+
+scenes:
+  - id: discovery
+    title: "What data do you have?"
+    steps:
+      - {q: "What data do you have?", expect: answered, intent: discovery}
+  - id: what
+    title: "WHAT - a governed figure"
+    steps:
+      - {q: "How many orders were there in August 2018?", expect: answered, intent: descriptive}
+  - id: why
+    title: "WHY - the diagnostic, with the planted marketing cut"
+    steps:
+      - {q: "Why did revenue drop in the top category in April 2018?", expect: answered, intent: diagnostic}
+  - id: why-stockouts
+    title: "WHY - stockouts, not the seasonal peak"
+    steps:
+      - {q: "Why did order count fall in December 2017?", expect: answered, intent: diagnostic}
+  - id: so-what
+    title: "SO WHAT - the gap to target in R$"
+    steps:
+      - {q: "How far are we off the regional targets?", expect: answered, intent: impact}
+  - id: specificity
+    title: "WHY, with a comparison group - difference-in-differences"
+    steps:
+      - {q: "Did the carrier cause the delivery delays?", expect: answered, intent: diagnostic}
+  - id: what-next
+    title: "WHAT NEXT - forecast with an interval"
+    steps:
+      - {q: "Forecast revenue for the next 3 months", expect: answered, intent: forecast}
+  - id: what-if
+    title: "WHAT IF - fitted price elasticity"
+    steps:
+      - {q: "What if we raise prices 5%?", expect: answered, intent: scenario}
+  - id: now-what
+    title: "NOW WHAT - ranked options"
+    steps:
+      - {q: "Which customer segment should we target?", expect: answered, intent: prescriptive}
+  - id: compound
+    title: "Two intents in one question"
+    steps:
+      - {q: "How does revenue trend look today and what will it be in 3 months?", expect: answered, intent: descriptive}
+  - id: follow-ups
+    title: "A conversation - follow-ups inherit, visibly"
+    steps:
+      - {q: "What was revenue in 2018?", expect: answered, intent: descriptive}
+      - {q: "What about SP?", expect: answered, intent: descriptive}
+      - {q: "And RJ?", expect: answered, intent: descriptive}
+      - {q: "Forecast that", expect: answered, intent: forecast}
+  - id: clarify
+    title: "Clarification - one question, a stated default"
+    steps:
+      - {q: "How are sales doing?", expect: clarify}
+      - {q: "Use the default", reply: default, expect: answered, intent: descriptive}
+  - id: v1-unusual
+    title: "V1 questions still answer - an anomaly check"
+    steps:
+      - {q: "Was order count unusual in August 2018?", expect: answered, intent: diagnostic}
+  - id: v1-compare
+    title: "V1 questions still answer - a comparison"
+    steps:
+      - {q: "How did revenue in 2018 compare to 2017?", expect: answered, intent: descriptive}

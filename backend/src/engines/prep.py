@@ -31,14 +31,30 @@ def daily_list_price(price_history: pd.DataFrame, products: pd.DataFrame, dates:
     index = _dates(dates)
     history = price_history.merge(products[["product_id", "product_category_name"]], on="product_id", how="inner")
     history = history.dropna(subset=["product_category_name"]).sort_values(["product_id", "date"], kind="mergesort")
+    history = history.assign(date=history["date"].astype(str).str[:10]).drop_duplicates(["product_id", "date"], keep="last")
+    if history.empty or not len(index):
+        return pd.DataFrame(columns=["date", "category", "list_price"])
+    # Each product's last price on or before a day is its list price that day. A price change takes effect on the
+    # first panel day on or after it, so the category's running sum of price changes (and count of products priced
+    # so far) gives the same mean as carrying every product forward, without a product x day grid.
+    position = np.searchsorted(index.to_numpy(dtype=str), history["date"].to_numpy(dtype=str), side="left")
+    keep = position < len(index)
+    previous = history.groupby("product_id", sort=False)["price"].shift(1)
+    events = pd.DataFrame({
+        "category": history["product_category_name"].to_numpy()[keep],
+        "position": position[keep],
+        "delta": (history["price"] - previous.fillna(0.0)).to_numpy(dtype=float)[keep],
+        "first": previous.isna().to_numpy()[keep].astype(float),
+    })
+    # A product whose first change falls after the panel still carries nothing, exactly as before.
+    totals = events.groupby(["category", "position"], sort=True)[["delta", "first"]].sum()
     frames = []
-    for product_id, rows in history.groupby("product_id", sort=True):
-        steps = rows.assign(date=rows["date"].astype(str).str[:10]).drop_duplicates("date", keep="last").set_index("date")["price"]
-        daily = steps.reindex(steps.index.union(index)).sort_index().ffill().reindex(index)
-        frames.append(pd.DataFrame({"date": index, "category": rows["product_category_name"].iloc[0], "product_id": product_id,
-                                    "list_price": daily.to_numpy(dtype=float)}))
-    panel = pd.concat(frames, ignore_index=True).dropna(subset=["list_price"])
-    return panel.groupby(["date", "category"], as_index=False)["list_price"].mean()
+    for category, rows in totals.groupby(level="category", sort=True):
+        steps = rows.droplevel("category").reindex(range(len(index)), fill_value=0.0).cumsum()
+        priced = steps["first"].to_numpy() > 0
+        frames.append(pd.DataFrame({"date": index[priced], "category": category,
+                                    "list_price": steps["delta"].to_numpy()[priced] / steps["first"].to_numpy()[priced]}))
+    return pd.concat(frames, ignore_index=True).sort_values(["date", "category"], kind="mergesort").reset_index(drop=True)
 
 
 def daily_discount(promotions: pd.DataFrame, dates: Iterable[str], categories: Iterable[str]) -> pd.DataFrame:
@@ -53,6 +69,63 @@ def daily_discount(promotions: pd.DataFrame, dates: Iterable[str], categories: I
             if key in discount.index:
                 discount[key] = max(discount[key], float(row.discount_pct))
     return discount.rename("discount_pct").reset_index()
+
+
+def monthly_promotion_intensity(promotions: pd.DataFrame, months: Iterable[str]) -> pd.DataFrame:
+    """Discount-weighted promotion days per calendar day, one row per month (0 when nothing ran).
+
+    Each promotion contributes ``discount_pct x days active in the month``;
+    the sum is divided by the days in the month. A sum and a ratio of input
+    rows only.
+    """
+    rows = []
+    for month in sorted({str(value)[:7] for value in months}):
+        first = pd.Timestamp(f"{month}-01")
+        last = first + pd.offsets.MonthEnd(0)
+        total = 0.0
+        for row in promotions.itertuples(index=False):
+            start = max(first, pd.Timestamp(str(row.start_date)[:10]))
+            end = min(last, pd.Timestamp(str(row.end_date)[:10]))
+            if end >= start:
+                total += float(row.discount_pct) * ((end - start).days + 1)
+        rows.append({"month": month, "promo_discount": total / last.day})
+    return pd.DataFrame(rows, columns=["month", "promo_discount"])
+
+
+#: Multiplicative what-ifs that can be applied to measured governed totals without any fitted response.
+#: Each maps the shocked metric to the outcome it is sized on and the measured inputs that outcome needs.
+SHOCK_OUTCOMES = {
+    "freight_value": ("freight_value", ("freight_value",)),
+    "revenue": ("revenue", ("revenue",)),
+    "gmv": ("gmv", ("gmv",)),
+    "aov": ("revenue", ("revenue",)),
+    "order_count": ("revenue", ("revenue",)),
+    "item_count": ("gmv", ("gmv",)),
+    "cancellation_rate": ("revenue", ("revenue", "cancellation_rate", "order_count", "aov")),
+}
+
+
+def shock_measurements(totals: dict[str, float], shocks: list[tuple[str, float]]) -> tuple[str, pd.DataFrame]:
+    """Baseline and shocked value of the outcome, from measured window totals and stated multipliers.
+
+    Revenue = orders x AOV, so order-count and AOV multipliers compose by product on revenue (orders or
+    AOV held fixed otherwise). A cancellation-rate multiplier ``k`` recovers ``(1 - k)`` of the cancelled
+    orders at the measured AOV - an upper bound, since a recovered order need not be an average one.
+    Products and sums of measured inputs only; nothing is estimated here (SAFE-8).
+    """
+    outcomes = {SHOCK_OUTCOMES[target][0] for target, _ in shocks}
+    if len(outcomes) != 1:
+        raise ValueError("every shock must size the same outcome")
+    outcome = outcomes.pop()
+    baseline = float(totals[outcome])
+    current = baseline
+    for target, multiplier in shocks:
+        if target == "cancellation_rate":
+            cancelled = totals["cancellation_rate"] * totals["order_count"]
+            current += (1.0 - multiplier) * cancelled * totals["aov"]
+        else:
+            current *= multiplier
+    return outcome, pd.DataFrame({"baseline": [baseline], "current": [current]})
 
 
 def category_sales(inventory: pd.DataFrame, list_price: pd.DataFrame, discount: pd.DataFrame) -> pd.DataFrame:
@@ -131,6 +204,7 @@ def frame(table: TableRef) -> pd.DataFrame:
 
 
 __all__ = [
+    "SHOCK_OUTCOMES",
     "as_table",
     "category_sales",
     "competitor_by_category",
@@ -138,4 +212,6 @@ __all__ = [
     "daily_list_price",
     "elasticity_panel",
     "frame",
+    "monthly_promotion_intensity",
+    "shock_measurements",
 ]
