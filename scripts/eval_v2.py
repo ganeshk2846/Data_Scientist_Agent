@@ -641,7 +641,7 @@ def render(run: dict[str, Any], baseline: dict[str, Any] | None) -> str:
             premise = "-" if "premise_change" not in plant else (
                 f"{'holds' if plant['premise_holds'] else 'FALSE'} ({change:+,.4g})" if change is not None else "no data")
             recovered = ("yes" if plant["recovered"] else "no") if plant["premise_holds"] else \
-                f"n/a ({'yes' if plant['recovered'] else 'no'} named)"
+                f"n/a (cause named: {'yes' if plant['recovered'] else 'no'})"
             lines.append(f"| {row['id']} | {plant['plant']} | {row['question']} | {row.get('status')} | {premise} | "
                          f"{recovered} | {'yes' if plant['misattributed'] else 'no'} | {', '.join(plant['cause_tokens']) or '-'} |")
         elif row.get("plant_expected"):
