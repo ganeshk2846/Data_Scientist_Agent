@@ -1,9 +1,9 @@
 {
  "meta": {
-  "label": "baseline (integrated, before fixes)",
-  "started": "2026-10-31 03:42",
+  "label": "baseline (integrated 6e81f89, before fixes)",
+  "started": "2026-10-31 04:17",
   "commit": "6e81f89",
-  "duration_s": 20.197029150999924,
+  "duration_s": 20.371722804,
   "base_url": "spawned by --serve",
   "database": {
    "path": "data/brazil_ecommerce_v2.sqlite",
@@ -23,7 +23,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": true,
-   "latency_ms": 39,
+   "latency_ms": 37,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -31,7 +31,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 31,
+   "server_latency_ms": 29,
    "steps": [
     "catalog:ok"
    ],
@@ -47,7 +47,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 12,
+   "latency_ms": 13,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -55,7 +55,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 4,
+   "server_latency_ms": 5,
    "steps": [
     "catalog:ok"
    ],
@@ -71,7 +71,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 35,
+   "latency_ms": 34,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -79,7 +79,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 30,
+   "server_latency_ms": 28,
    "steps": [
     "catalog:ok"
    ],
@@ -95,7 +95,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 12,
+   "latency_ms": 11,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -103,7 +103,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 5,
+   "server_latency_ms": 4,
    "steps": [
     "catalog:ok"
    ],
@@ -119,7 +119,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 9,
+   "latency_ms": 8,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -143,7 +143,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 9,
+   "latency_ms": 8,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -167,7 +167,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 13,
+   "latency_ms": 9,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -191,7 +191,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 42,
+   "latency_ms": 35,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -199,7 +199,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 37,
+   "server_latency_ms": 30,
    "steps": [
     "catalog:ok"
    ],
@@ -215,7 +215,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 39,
+   "latency_ms": 35,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -223,7 +223,7 @@
     "discovery"
    ],
    "has_chart": false,
-   "server_latency_ms": 33,
+   "server_latency_ms": 29,
    "steps": [
     "catalog:ok"
    ],
@@ -289,7 +289,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 10,
+   "latency_ms": 9,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -297,7 +297,7 @@
     "clarify"
    ],
    "has_chart": false,
-   "server_latency_ms": 4,
+   "server_latency_ms": 3,
    "steps": [],
    "stream_ok": true,
    "conclusion": "",
@@ -333,7 +333,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 8,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -385,7 +385,7 @@
     "clarify"
    ],
    "has_chart": false,
-   "server_latency_ms": 4,
+   "server_latency_ms": 2,
    "steps": [],
    "stream_ok": true,
    "conclusion": "",
@@ -421,7 +421,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 9,
+   "latency_ms": 8,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -443,7 +443,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 9,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -451,7 +451,7 @@
     "clarify"
    ],
    "has_chart": false,
-   "server_latency_ms": 2,
+   "server_latency_ms": 1,
    "steps": [],
    "stream_ok": true,
    "conclusion": "",
@@ -465,7 +465,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 9,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -487,7 +487,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 19,
+   "latency_ms": 16,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -495,7 +495,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 14,
+   "server_latency_ms": 12,
    "steps": [
     "sql:ok"
    ],
@@ -514,7 +514,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 20,
+   "latency_ms": 18,
    "reasons": [
     "key number 278,162.96 (reference SQL) not in the answer"
    ],
@@ -524,7 +524,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 14,
+   "server_latency_ms": 13,
    "steps": [
     "sql:ok"
    ],
@@ -543,7 +543,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 28,
+   "latency_ms": 24,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -551,7 +551,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 22,
+   "server_latency_ms": 19,
    "steps": [
     "sql:ok"
    ],
@@ -571,7 +571,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 27,
+   "latency_ms": 20,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -579,7 +579,7 @@
     "descriptive"
    ],
    "has_chart": false,
-   "server_latency_ms": 21,
+   "server_latency_ms": 15,
    "steps": [
     "sql:ok"
    ],
@@ -599,7 +599,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": true,
-   "latency_ms": 17,
+   "latency_ms": 16,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -607,7 +607,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 11,
+   "server_latency_ms": 9,
    "steps": [
     "analytical_table:ok"
    ],
@@ -623,7 +623,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 26,
+   "latency_ms": 22,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -631,7 +631,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 21,
+   "server_latency_ms": 17,
    "steps": [
     "sql:ok"
    ],
@@ -650,7 +650,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 25,
+   "latency_ms": 16,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -658,7 +658,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 18,
+   "server_latency_ms": 11,
    "steps": [
     "sql:ok"
    ],
@@ -674,7 +674,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 27,
+   "latency_ms": 21,
    "reasons": [
     "key number 993.00 (reference SQL) not in the answer"
    ],
@@ -684,7 +684,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 20,
+   "server_latency_ms": 16,
    "steps": [
     "sql:ok"
    ],
@@ -703,7 +703,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 29,
+   "latency_ms": 28,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -711,7 +711,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 22,
+   "server_latency_ms": 24,
    "steps": [
     "sql:ok"
    ],
@@ -727,26 +727,25 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 32,
-   "reasons": [
-    "key number 2,609,925.47 (reference SQL) not in the answer"
-   ],
+   "latency_ms": 24,
+   "reasons": [],
    "plant_expected": null,
    "status": "answered",
    "intents": [
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 25,
+   "server_latency_ms": 19,
    "steps": [
     "sql:ok"
    ],
    "stream_ok": true,
    "conclusion": "Marketing spend for paid_search was R$ 1,997,921. Marketing spend for social was R$ 1,466,762.51. Marketing spend for display was R$ 879,968.45. Marketing spend for email was R$ 587,322.78. Marketing spend for affiliate was R$ 587,127.07.",
    "key_numbers": [
-    2609925.47
+    2609925.47,
+    1997921.0
    ],
-   "category": "incorrect_answer"
+   "category": "correct"
   },
   {
    "id": "G1",
@@ -756,7 +755,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": true,
-   "latency_ms": 307,
+   "latency_ms": 242,
    "reasons": [
     "planted E1 cause not identified"
    ],
@@ -766,7 +765,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 297,
+   "server_latency_ms": 234,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -781,7 +780,9 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": -504.4899999999998,
+    "premise_holds": true
    },
    "category": "incorrect_answer"
   },
@@ -793,7 +794,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 204,
+   "latency_ms": 188,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -801,7 +802,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 195,
+   "server_latency_ms": 180,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -821,7 +822,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 382,
+   "latency_ms": 372,
    "reasons": [
     "planted E2 cause not identified"
    ],
@@ -831,7 +832,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 374,
+   "server_latency_ms": 364,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:insufficient_evidence",
@@ -846,7 +847,9 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": -93.0,
+    "premise_holds": true
    },
    "category": "incorrect_answer"
   },
@@ -858,9 +861,9 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 353,
+   "latency_ms": 393,
    "reasons": [
-    "planted E3 cause not identified"
+    "premise false on this database (measured change +1.39); E3 not scored"
    ],
    "plant_expected": "E3",
    "status": "answered",
@@ -868,7 +871,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 343,
+   "server_latency_ms": 384,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -883,9 +886,11 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": 1.3903540199174103,
+    "premise_holds": false
    },
-   "category": "incorrect_answer"
+   "category": "correct"
   },
   {
    "id": "G5",
@@ -895,9 +900,9 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 190,
+   "latency_ms": 180,
    "reasons": [
-    "planted E4 cause not identified"
+    "premise false on this database (measured change +0.1477); E4 not scored"
    ],
    "plant_expected": "E4",
    "status": "answered",
@@ -905,7 +910,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 181,
+   "server_latency_ms": 173,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -920,9 +925,11 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": 0.14765100671140896,
+    "premise_holds": false
    },
-   "category": "incorrect_answer"
+   "category": "correct"
   },
   {
    "id": "G6",
@@ -932,7 +939,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 384,
+   "latency_ms": 374,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -940,7 +947,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 375,
+   "server_latency_ms": 366,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -960,7 +967,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 211,
+   "latency_ms": 196,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -968,7 +975,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 203,
+   "server_latency_ms": 188,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -988,9 +995,9 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 224,
+   "latency_ms": 296,
    "reasons": [
-    "planted E1 cause not identified"
+    "premise false on this database (measured change +4,173); E1 not scored"
    ],
    "plant_expected": "E1",
    "status": "answered",
@@ -998,7 +1005,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 216,
+   "server_latency_ms": 287,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1013,9 +1020,11 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": 4172.82,
+    "premise_holds": false
    },
-   "category": "incorrect_answer"
+   "category": "correct"
   },
   {
    "id": "G9",
@@ -1025,7 +1034,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 558,
+   "latency_ms": 365,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1033,7 +1042,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 546,
+   "server_latency_ms": 357,
    "steps": [
     "analytical_table:ok",
     "analytical_table:ok",
@@ -1052,7 +1061,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 1565,
+   "latency_ms": 1246,
    "reasons": [],
    "plant_expected": "E4",
    "status": "answered",
@@ -1060,7 +1069,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 1553,
+   "server_latency_ms": 1236,
    "steps": [
     "sql:ok",
     "python.driver:ok",
@@ -1072,12 +1081,14 @@
     "plant": "E4",
     "recovered": true,
     "cause_tokens": [
-     "jadlog"
+     "jadlog",
+     "sla_breach"
     ],
     "misattributed": false,
     "confounder_tokens": [
      "freight"
-    ]
+    ],
+    "premise_holds": true
    },
    "category": "correct"
   },
@@ -1089,7 +1100,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 222,
+   "latency_ms": 223,
    "reasons": [
     "planted E1 cause not identified"
    ],
@@ -1099,7 +1110,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 210,
+   "server_latency_ms": 215,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1114,7 +1125,9 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": -114497.0,
+    "premise_holds": true
    },
    "category": "incorrect_answer"
   },
@@ -1126,7 +1139,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 380,
+   "latency_ms": 378,
    "reasons": [],
    "plant_expected": "E2",
    "status": "answered",
@@ -1134,7 +1147,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 372,
+   "server_latency_ms": 368,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1148,10 +1161,14 @@
     "plant": "E2",
     "recovered": true,
     "cause_tokens": [
-     "stockout"
+     "cama_mesa_banho",
+     "beleza_saude",
+     "esporte_lazer"
     ],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": 0.009015715467328364,
+    "premise_holds": true
    },
    "category": "correct"
   },
@@ -1163,9 +1180,8 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 423,
+   "latency_ms": 399,
    "reasons": [
-    "planted E3 cause not identified",
     "E3 confounder reported as the driver: ['boleto']"
    ],
    "plant_expected": "E3",
@@ -1174,7 +1190,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 413,
+   "server_latency_ms": 389,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1191,7 +1207,9 @@
     "misattributed": true,
     "confounder_tokens": [
      "boleto"
-    ]
+    ],
+    "premise_change": 0.0032805144789131296,
+    "premise_holds": true
    },
    "category": "incorrect_answer"
   },
@@ -1228,7 +1246,9 @@
     "recovered": false,
     "cause_tokens": [],
     "misattributed": false,
-    "confounder_tokens": []
+    "confounder_tokens": [],
+    "premise_change": 0.014361300075585788,
+    "premise_holds": true
    },
    "category": "incorrect_answer"
   },
@@ -1248,7 +1268,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 12,
+   "server_latency_ms": 13,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1266,7 +1286,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 22,
+   "latency_ms": 25,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1291,7 +1311,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 24,
+   "latency_ms": 27,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1299,7 +1319,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 15,
+   "server_latency_ms": 20,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok"
@@ -1324,7 +1344,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 14,
+   "server_latency_ms": 16,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok"
@@ -1341,7 +1361,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 20,
+   "latency_ms": 25,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1349,7 +1369,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 13,
+   "server_latency_ms": 18,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1367,7 +1387,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 23,
+   "latency_ms": 27,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1375,7 +1395,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 16,
+   "server_latency_ms": 19,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok"
@@ -1392,7 +1412,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 24,
+   "latency_ms": 25,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1400,7 +1420,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 17,
+   "server_latency_ms": 18,
    "steps": [
     "analytical_table:ok",
     "sql:ok",
@@ -1418,7 +1438,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 22,
+   "latency_ms": 25,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1426,7 +1446,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 15,
+   "server_latency_ms": 17,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok"
@@ -1451,7 +1471,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 13,
+   "server_latency_ms": 14,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -1469,7 +1489,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 22,
+   "latency_ms": 21,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1477,7 +1497,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 16,
+   "server_latency_ms": 14,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok"
@@ -1494,7 +1514,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": true,
-   "latency_ms": 14,
+   "latency_ms": 23,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1502,7 +1522,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 8,
+   "server_latency_ms": 11,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1518,7 +1538,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 15,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1542,7 +1562,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 20,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1550,7 +1570,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 8,
+   "server_latency_ms": 12,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1566,7 +1586,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 16,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1574,7 +1594,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 7,
+   "server_latency_ms": 11,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1590,7 +1610,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 807,
+   "latency_ms": 805,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1615,7 +1635,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 21,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1623,7 +1643,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 6,
+   "server_latency_ms": 11,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1639,7 +1659,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 17,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1647,7 +1667,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 9,
+   "server_latency_ms": 7,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1671,7 +1691,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 6,
+   "server_latency_ms": 7,
    "steps": [
     "analytical_table:ok"
    ],
@@ -1687,7 +1707,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 502,
+   "latency_ms": 594,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1695,7 +1715,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 496,
+   "server_latency_ms": 587,
    "steps": [
     "analytical_table:ok",
     "python.forecast:ok"
@@ -1712,7 +1732,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 493,
+   "latency_ms": 739,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1720,7 +1740,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 487,
+   "server_latency_ms": 732,
    "steps": [
     "analytical_table:ok",
     "python.forecast:ok"
@@ -1737,7 +1757,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 23,
+   "latency_ms": 42,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'what if freight costs rise 10%' has no fitted relationship to perturb, so no figure is "
    ],
@@ -1747,7 +1767,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 18,
+   "server_latency_ms": 36,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1765,7 +1785,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 41,
+   "latency_ms": 51,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -1773,7 +1793,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 35,
+   "server_latency_ms": 46,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1792,7 +1812,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 22,
+   "latency_ms": 21,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'halved' has no fitted relationship to perturb, so no figure is invented."
    ],
@@ -1802,7 +1822,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 17,
+   "server_latency_ms": 14,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1820,7 +1840,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 30,
+   "latency_ms": 24,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'grew to 85%' has no fitted relationship to perturb, so no figure is invented."
    ],
@@ -1830,7 +1850,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 24,
+   "server_latency_ms": 18,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1848,7 +1868,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 31,
+   "latency_ms": 22,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'what if aov improved 5%' has no fitted relationship to perturb, so no figure is invente"
    ],
@@ -1858,7 +1878,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 23,
+   "server_latency_ms": 16,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1876,7 +1896,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": true,
-   "latency_ms": 839,
+   "latency_ms": 671,
    "reasons": [],
    "plant_expected": "E5",
    "status": "answered",
@@ -1884,7 +1904,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 831,
+   "server_latency_ms": 663,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1896,11 +1916,12 @@
    "plant": {
     "plant": "E5",
     "recovered": true,
-    "cause_tokens": [
-     "elasticity"
-    ],
     "misattributed": false,
-    "confounder_tokens": []
+    "cause_tokens": [
+     "elasticity -1.61 (-2.25 to -0.97) vs planted -1.5"
+    ],
+    "confounder_tokens": [],
+    "premise_holds": true
    },
    "category": "correct"
   },
@@ -1912,7 +1933,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 23,
+   "latency_ms": 27,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'restored the marketing spend we cut' has no fitted relationship to perturb, so no figur"
    ],
@@ -1922,7 +1943,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 15,
+   "server_latency_ms": 17,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1940,7 +1961,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 24,
+   "latency_ms": 28,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'what if order volume grew 10%; but aov fell 5%' has no fitted relationship to perturb, "
    ],
@@ -1950,7 +1971,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 16,
+   "server_latency_ms": 22,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1968,7 +1989,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 24,
+   "latency_ms": 32,
    "reasons": [
     "Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'eliminated the stockouts' has no fitted relationship to perturb, so no figure is invent"
    ],
@@ -1978,7 +1999,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 15,
+   "server_latency_ms": 23,
    "steps": [
     "analytical_table:ok",
     "python.impact:ok",
@@ -1996,7 +2017,7 @@
    "expected_outcome": "refuse",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 8,
+   "latency_ms": 9,
    "reasons": [
     "expected refuse, got clarify (asked: \"I don't hold an Argentinian market. Would one of these help instead?\")"
    ],
@@ -2020,7 +2041,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": true,
-   "latency_ms": 488,
+   "latency_ms": 522,
    "reasons": [
     "0 ranked options, scope.md 3.8 requires 2-3 (REC-3)"
    ],
@@ -2030,7 +2051,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 481,
+   "server_latency_ms": 515,
    "steps": [
     "sql:ok",
     "python.segment:ok"
@@ -2047,7 +2068,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 223,
+   "latency_ms": 235,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2055,7 +2076,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 215,
+   "server_latency_ms": 227,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2077,7 +2098,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 220,
+   "latency_ms": 202,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2085,7 +2106,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 213,
+   "server_latency_ms": 195,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2107,7 +2128,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 196,
+   "latency_ms": 205,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2115,7 +2136,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 188,
+   "server_latency_ms": 198,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2137,7 +2158,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 197,
+   "latency_ms": 200,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2145,7 +2166,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 189,
+   "server_latency_ms": 192,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2167,7 +2188,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 1130,
+   "latency_ms": 1275,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2175,7 +2196,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 1120,
+   "server_latency_ms": 1263,
    "steps": [
     "sql:ok",
     "python.driver:ok",
@@ -2195,7 +2216,7 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 36,
+   "latency_ms": 35,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2203,7 +2224,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 31,
+   "server_latency_ms": 29,
    "steps": [
     "sql:ok",
     "python.segment:ok"
@@ -2220,7 +2241,37 @@
    "expected_outcome": "answer",
    "layer": "S",
    "must_answer": false,
-   "latency_ms": 197,
+   "latency_ms": 216,
+   "reasons": [],
+   "plant_expected": null,
+   "status": "answered",
+   "intents": [
+    "prescriptive"
+   ],
+   "has_chart": true,
+   "server_latency_ms": 209,
+   "steps": [
+    "analytical_table:ok",
+    "python.anomaly:ok",
+    "analytical_table:ok",
+    "sql:ok",
+    "python.driver:ok",
+    "catalog:ok",
+    "python.segment:ok"
+   ],
+   "stream_ok": true,
+   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
+   "category": "correct"
+  },
+  {
+   "id": "P9",
+   "question": "Should we match competitor prices?",
+   "section": "prescriptive",
+   "expected_intent": "prescriptive",
+   "expected_outcome": "answer",
+   "layer": "S",
+   "must_answer": false,
+   "latency_ms": 194,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2243,36 +2294,6 @@
    "category": "correct"
   },
   {
-   "id": "P9",
-   "question": "Should we match competitor prices?",
-   "section": "prescriptive",
-   "expected_intent": "prescriptive",
-   "expected_outcome": "answer",
-   "layer": "S",
-   "must_answer": false,
-   "latency_ms": 296,
-   "reasons": [],
-   "plant_expected": null,
-   "status": "answered",
-   "intents": [
-    "prescriptive"
-   ],
-   "has_chart": true,
-   "server_latency_ms": 288,
-   "steps": [
-    "analytical_table:ok",
-    "python.anomaly:ok",
-    "analytical_table:ok",
-    "sql:ok",
-    "python.driver:ok",
-    "catalog:ok",
-    "python.segment:ok"
-   ],
-   "stream_ok": true,
-   "conclusion": "Revenue was R$ 40,502.55 against an expected R$ 40,057.33, a deviation of 1.1%. The total change in revenue was R$ 1,084.03. customer_state=RJ accounts for R$ 1,172 of the change (concentration). customer_state=GO accounts for R$ -933.66 of the change (concentration). customer_state=SC accounts for ",
-   "category": "correct"
-  },
-  {
    "id": "P10",
    "question": "What should I watch next month?",
    "section": "prescriptive",
@@ -2280,7 +2301,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 23,
+   "latency_ms": 20,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2288,7 +2309,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 15,
+   "server_latency_ms": 13,
    "steps": [
     "analytical_table:ok",
     "catalog:ok",
@@ -2306,7 +2327,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": true,
-   "latency_ms": 658,
+   "latency_ms": 654,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2315,7 +2336,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 650,
+   "server_latency_ms": 648,
    "steps": [
     "sql:ok",
     "python.forecast:ok"
@@ -2332,7 +2353,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 215,
+   "latency_ms": 297,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2340,7 +2361,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 205,
+   "server_latency_ms": 288,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2360,7 +2381,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 230,
+   "latency_ms": 260,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2370,7 +2391,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 221,
+   "server_latency_ms": 240,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2393,7 +2414,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 47,
+   "latency_ms": 71,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2402,7 +2423,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 40,
+   "server_latency_ms": 61,
    "steps": [
     "analytical_table:ok",
     "analytical_table:ok",
@@ -2422,7 +2443,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 533,
+   "latency_ms": 708,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2431,7 +2452,7 @@
     "forecast"
    ],
    "has_chart": true,
-   "server_latency_ms": 527,
+   "server_latency_ms": 695,
    "steps": [
     "sql:ok",
     "analytical_table:ok",
@@ -2449,7 +2470,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 188,
+   "latency_ms": 180,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2458,7 +2479,7 @@
     "impact"
    ],
    "has_chart": true,
-   "server_latency_ms": 180,
+   "server_latency_ms": 172,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2479,7 +2500,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 30,
+   "latency_ms": 29,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2488,7 +2509,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 22,
+   "server_latency_ms": 21,
    "steps": [
     "sql:ok",
     "analytical_table:ok",
@@ -2507,7 +2528,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 407,
+   "latency_ms": 455,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2516,7 +2537,7 @@
     "diagnostic"
    ],
    "has_chart": true,
-   "server_latency_ms": 398,
+   "server_latency_ms": 447,
    "steps": [
     "catalog:ok",
     "analytical_table:ok",
@@ -2536,7 +2557,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 27,
+   "latency_ms": 31,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2545,7 +2566,7 @@
     "scenario"
    ],
    "has_chart": true,
-   "server_latency_ms": 20,
+   "server_latency_ms": 24,
    "steps": [
     "analytical_table:ok",
     "analytical_table:ok",
@@ -2564,7 +2585,7 @@
    "expected_outcome": "answer",
    "layer": "R+S",
    "must_answer": false,
-   "latency_ms": 191,
+   "latency_ms": 241,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2574,7 +2595,7 @@
     "prescriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 183,
+   "server_latency_ms": 233,
    "steps": [
     "analytical_table:ok",
     "python.anomaly:ok",
@@ -2619,7 +2640,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 7,
+   "latency_ms": 8,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2641,7 +2662,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 7,
+   "latency_ms": 8,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2663,7 +2684,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 14,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2707,7 +2728,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 11,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2729,7 +2750,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 8,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2751,7 +2772,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 8,
+   "latency_ms": 6,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2759,7 +2780,7 @@
     "clarify"
    ],
    "has_chart": false,
-   "server_latency_ms": 2,
+   "server_latency_ms": 1,
    "steps": [],
    "stream_ok": true,
    "conclusion": "",
@@ -2773,7 +2794,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 7,
+   "latency_ms": 6,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2795,7 +2816,7 @@
    "expected_outcome": "clarify",
    "layer": "-",
    "must_answer": false,
-   "latency_ms": 8,
+   "latency_ms": 7,
    "reasons": [],
    "plant_expected": null,
    "status": "clarify",
@@ -2817,7 +2838,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 19,
+   "latency_ms": 21,
    "reasons": [],
    "plant_expected": null,
    "status": "answered",
@@ -2825,7 +2846,7 @@
     "descriptive"
    ],
    "has_chart": true,
-   "server_latency_ms": 13,
+   "server_latency_ms": 14,
    "steps": [
     "sql:ok"
    ],
@@ -2872,7 +2893,7 @@
    "expected_outcome": "answer",
    "layer": "R",
    "must_answer": false,
-   "latency_ms": 21,
+   "latency_ms": 20,
    "reasons": [
     "key number 46,131.75 (reference SQL) not in the answer"
    ],
@@ -2909,7 +2930,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 20,
+     "latency_ms": 19,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -2923,7 +2944,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 25,
+     "latency_ms": 28,
      "has_chart": true,
      "must_answer": true,
      "inherited": [
@@ -2948,7 +2969,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 19,
+     "latency_ms": 18,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -2962,7 +2983,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 14,
+     "latency_ms": 15,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -2983,7 +3004,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 18,
+     "latency_ms": 22,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -2997,7 +3018,7 @@
      "intents": [
       "diagnostic"
      ],
-     "latency_ms": 201,
+     "latency_ms": 266,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3022,7 +3043,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 26,
+     "latency_ms": 27,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3036,7 +3057,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 14,
+     "latency_ms": 19,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3057,7 +3078,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 18,
+     "latency_ms": 20,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3071,7 +3092,7 @@
      "intents": [
       "forecast"
      ],
-     "latency_ms": 18,
+     "latency_ms": 20,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3095,7 +3116,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 17,
+     "latency_ms": 21,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3109,7 +3130,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 19,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3133,7 +3154,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 24,
+     "latency_ms": 29,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3147,7 +3168,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 50,
+     "latency_ms": 39,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3173,7 +3194,7 @@
      "intents": [
       "diagnostic"
      ],
-     "latency_ms": 419,
+     "latency_ms": 400,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3189,7 +3210,7 @@
      "intents": [
       "impact"
      ],
-     "latency_ms": 25,
+     "latency_ms": 23,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3214,7 +3235,7 @@
      "intents": [
       "forecast"
      ],
-     "latency_ms": 16,
+     "latency_ms": 15,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3230,7 +3251,7 @@
      "intents": [
       "scenario"
      ],
-     "latency_ms": 26,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3265,7 +3286,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 32,
+     "latency_ms": 27,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3283,7 +3304,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 25,
+     "latency_ms": 41,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3301,7 +3322,7 @@
      "intents": [
       "diagnostic"
      ],
-     "latency_ms": 454,
+     "latency_ms": 417,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3326,7 +3347,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 20,
+     "latency_ms": 21,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3342,7 +3363,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 22,
+     "latency_ms": 25,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3380,7 +3401,7 @@
      "intents": [
       "diagnostic"
      ],
-     "latency_ms": 203,
+     "latency_ms": 194,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3406,7 +3427,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 20,
+     "latency_ms": 22,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3420,7 +3441,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 35,
+     "latency_ms": 27,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3445,7 +3466,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 25,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3459,7 +3480,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 29,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3483,7 +3504,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 35,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3497,7 +3518,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 42,
+     "latency_ms": 38,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3522,7 +3543,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 22,
+     "latency_ms": 43,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3538,7 +3559,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 15,
+     "latency_ms": 26,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3559,7 +3580,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 20,
+     "latency_ms": 22,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3573,7 +3594,7 @@
      "intents": [
       "forecast"
      ],
-     "latency_ms": 761,
+     "latency_ms": 773,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3598,7 +3619,7 @@
      "intents": [
       "diagnostic"
      ],
-     "latency_ms": 247,
+     "latency_ms": 272,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3612,7 +3633,7 @@
      "intents": [
       "impact"
      ],
-     "latency_ms": 30,
+     "latency_ms": 25,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3637,7 +3658,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 11,
+     "latency_ms": 9,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3651,7 +3672,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 24,
+     "latency_ms": 26,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3672,7 +3693,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 10,
+     "latency_ms": 13,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3709,7 +3730,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 9,
+     "latency_ms": 10,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3723,7 +3744,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 26,
+     "latency_ms": 33,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3744,7 +3765,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 10,
+     "latency_ms": 11,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3758,7 +3779,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 19,
+     "latency_ms": 24,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3772,7 +3793,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 26,
+     "latency_ms": 34,
      "has_chart": true,
      "must_answer": false,
      "inherited": [
@@ -3797,7 +3818,7 @@
      "intents": [
       "descriptive"
      ],
-     "latency_ms": 20,
+     "latency_ms": 23,
      "has_chart": true,
      "must_answer": false,
      "inherited": []
@@ -3825,7 +3846,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 8,
+     "latency_ms": 10,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3846,7 +3867,7 @@
      "intents": [
       "clarify"
      ],
-     "latency_ms": 11,
+     "latency_ms": 10,
      "has_chart": false,
      "must_answer": false,
      "inherited": []
@@ -3864,7 +3885,7 @@
     "step_finished",
     "step_started"
    ],
-   "latency_ms": 25,
+   "latency_ms": 28,
    "keys_match": true
   },
   {
@@ -3876,7 +3897,7 @@
     "step_finished",
     "step_started"
    ],
-   "latency_ms": 29,
+   "latency_ms": 37,
    "keys_match": true
   },
   {
@@ -3888,7 +3909,7 @@
     "step_finished",
     "step_started"
    ],
-   "latency_ms": 23,
+   "latency_ms": 28,
    "keys_match": true
   }
  ]
