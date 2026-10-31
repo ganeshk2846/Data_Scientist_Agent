@@ -309,6 +309,17 @@ def _sentences(step, result: ToolResult, report: EngineReport, claims: Claims, r
         tested = [row for row in ranked if row[1] == "correlation"]
         if tested and not significant:
             out.append("No candidate driver co-moved significantly once the multiple-testing correction was applied.")
+        moved = [row for row in ranked if row[1] == "window_change" and "in the direction expected" in str(row[11])]
+        for row in moved[:2]:
+            name = str(row[0]).replace("_", " ")
+            if row[10] is not None:
+                say(f"In the window, {name} was {{}} against its trailing median at a lag of {{}} periods, an unusual level for it "
+                    f"(robust z {{}}); the timing is consistent with the change and is not evidence of a cause.",
+                    [(row[10], "%", 1), (float(row[9]), "", 0), (row[2], "", 1)], grade=1, kind="consistent_with")
+            else:
+                say(f"In the window, {name} sat at an unusual level at a lag of {{}} periods (robust z {{}}); "
+                    f"the timing is consistent with the change and is not evidence of a cause.",
+                    [(float(row[9]), "", 0), (row[2], "", 1)], grade=1, kind="consistent_with")
         demoted = [row for row in tested if "reallocation" in str(row[11])]
         for row in demoted[:1]:
             out.append(f"{row[0]} moved in the same window but is a reallocation within an unchanged total, so it is not treated as the driver.")

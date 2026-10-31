@@ -55,6 +55,27 @@ def daily_discount(promotions: pd.DataFrame, dates: Iterable[str], categories: I
     return discount.rename("discount_pct").reset_index()
 
 
+def monthly_promotion_intensity(promotions: pd.DataFrame, months: Iterable[str]) -> pd.DataFrame:
+    """Discount-weighted promotion days per calendar day, one row per month (0 when nothing ran).
+
+    Each promotion contributes ``discount_pct x days active in the month``;
+    the sum is divided by the days in the month. A sum and a ratio of input
+    rows only.
+    """
+    rows = []
+    for month in sorted({str(value)[:7] for value in months}):
+        first = pd.Timestamp(f"{month}-01")
+        last = first + pd.offsets.MonthEnd(0)
+        total = 0.0
+        for row in promotions.itertuples(index=False):
+            start = max(first, pd.Timestamp(str(row.start_date)[:10]))
+            end = min(last, pd.Timestamp(str(row.end_date)[:10]))
+            if end >= start:
+                total += float(row.discount_pct) * ((end - start).days + 1)
+        rows.append({"month": month, "promo_discount": total / last.day})
+    return pd.DataFrame(rows, columns=["month", "promo_discount"])
+
+
 def category_sales(inventory: pd.DataFrame, list_price: pd.DataFrame, discount: pd.DataFrame) -> pd.DataFrame:
     """Category-day panel: units sold and effective price = list price x (1 - discount)."""
     panel = inventory[["date", "category", "units_sold", "stockout_flag"]].copy()
@@ -138,4 +159,5 @@ __all__ = [
     "daily_list_price",
     "elasticity_panel",
     "frame",
+    "monthly_promotion_intensity",
 ]
