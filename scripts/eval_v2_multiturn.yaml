@@ -1,0 +1,146 @@
+# V2 multi-turn scripts for scripts/eval_v2.py (spec/v2/scope.md 6, 3.2, 7).
+#
+# Each script runs in its own fresh session_id. Expectations come from the spec
+# (the U-table in 6.2, the follow-up shapes in 6.1, clarify rules in 3.2), not
+# from observed behaviour.
+#
+# Per turn
+#   q         text sent to POST /api/v2/ask
+#   reply     "default" | "first" - send q as a reply to the previous turn's
+#             clarification (clarification_of + that option_id, CL-6)
+#   expect    outcome  answer | clarify | refuse
+#             intent   expected primary intent
+#             metric   expected resolved_question.metric_id
+#             filters  {dimension: [values]} that must be in resolved_question.filters
+#             no_filters  true: resolved_question.filters must be empty
+#             period   "YYYY-MM..YYYY-MM" inclusive, resolved_question.period
+#             inherits true: resolved_question.inherited_fields must be non-empty (6.3 rule 2)
+#             dimensions  dimensions that must be resolved
+
+scripts:
+  - id: U1
+    ref: "6.2 U1 / must-answer 4"
+    must_answer_turns: [2]
+    turns:
+      - {q: "What was revenue in 2018?", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "What about SP?", expect: {outcome: answer, intent: descriptive, metric: revenue, filters: {customer_state: [SP]}, inherits: true}}
+  - id: U2
+    ref: "6.2 U2 - 'why' after a single total must clarify"
+    turns:
+      - {q: "What was revenue in 2018?", expect: {outcome: answer, intent: descriptive}}
+      - {q: "Why?", expect: {outcome: clarify}}
+  - id: U3
+    ref: "6.2 U3"
+    turns:
+      - {q: "Revenue fell in August 2018.", expect: {outcome: answer}}
+      - {q: "Why?", expect: {outcome: answer, intent: diagnostic, metric: revenue, period: "2018-08..2018-08", inherits: true}}
+  - id: U4
+    ref: "6.2 U4 - forecast of 27 series clarifies down or forecasts the aggregate"
+    turns:
+      - {q: "What's revenue by state?", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "Forecast that", expect: {outcome: [answer, clarify], intent: [forecast, clarify]}}
+  - id: U5
+    ref: "6.2 U5"
+    turns:
+      - {q: "Revenue monthly in 2018", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "Forecast that", expect: {outcome: answer, intent: forecast, metric: revenue, inherits: true}}
+  - id: U6
+    ref: "6.2 U6"
+    turns:
+      - {q: "Order count in August 2018", expect: {outcome: answer, intent: descriptive, metric: order_count}}
+      - {q: "And July?", expect: {outcome: answer, intent: descriptive, metric: order_count, period: "2018-07..2018-07", inherits: true}}
+  - id: U7
+    ref: "6.2 U7"
+    turns:
+      - {q: "GMV by category in 2018", expect: {outcome: answer, intent: descriptive, metric: gmv}}
+      - {q: "Just the top 5", expect: {outcome: answer, intent: descriptive, metric: gmv, inherits: true}}
+  - id: U8
+    ref: "6.2 U8"
+    turns:
+      - {q: "Why did revenue spike in Nov 2017?", expect: {outcome: answer, intent: diagnostic, metric: revenue}}
+      - {q: "What did it add?", expect: {outcome: answer, intent: impact, metric: revenue, inherits: true}}
+  - id: U9
+    ref: "6.2 U9"
+    turns:
+      - {q: "Forecast revenue", expect: {outcome: answer, intent: forecast, metric: revenue}}
+      - {q: "What if freight rises 10%?", expect: {outcome: answer, intent: scenario}}
+  - id: U10
+    ref: "6.2 U10 - the third turn inherits from the second; the fourth escalates and keeps RJ"
+    turns:
+      - {q: "Revenue in 2018", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "What about SP?", expect: {outcome: answer, metric: revenue, filters: {customer_state: [SP]}, inherits: true}}
+      - {q: "And RJ?", expect: {outcome: answer, metric: revenue, filters: {customer_state: [RJ]}, inherits: true}}
+      - {q: "Why is RJ lower?", expect: {outcome: answer, intent: diagnostic, metric: revenue, filters: {customer_state: [RJ]}, inherits: true}}
+  # ---- the remaining 6.1 shapes
+  - id: M-window
+    ref: "6.1 window shift"
+    turns:
+      - {q: "What was GMV in 2018?", expect: {outcome: answer, intent: descriptive, metric: gmv}}
+      - {q: "And last year?", expect: {outcome: answer, intent: descriptive, metric: gmv, period: "2017-01..2017-12", inherits: true}}
+  - id: M-why
+    ref: "6.1 intent escalation 'Why?' after a change"
+    turns:
+      - {q: "How did revenue in August 2018 compare to July 2018?", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "Why?", expect: {outcome: answer, intent: diagnostic, metric: revenue, inherits: true}}
+  - id: M-drill
+    ref: "6.1 drill-down"
+    turns:
+      - {q: "What was GMV in 2018?", expect: {outcome: answer, intent: descriptive, metric: gmv}}
+      - {q: "Break that down by category", expect: {outcome: answer, intent: descriptive, metric: gmv, dimensions: [product_category], inherits: true}}
+  - id: M-grain
+    ref: "6.1 grain change"
+    turns:
+      - {q: "Revenue monthly in 2018", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "Weekly instead", expect: {outcome: answer, intent: descriptive, metric: revenue, inherits: true}}
+  - id: M-metric
+    ref: "6.1 metric swap"
+    turns:
+      - {q: "What was revenue by state in 2018?", expect: {outcome: answer, intent: descriptive, metric: revenue}}
+      - {q: "Same for GMV", expect: {outcome: answer, intent: descriptive, metric: gmv, inherits: true}}
+  - id: M-ref
+    ref: "6.1 reference"
+    turns:
+      - {q: "What was the average review score in 2018?", expect: {outcome: answer, intent: descriptive, metric: review_score}}
+      - {q: "Why is that number so low?", expect: {outcome: answer, intent: diagnostic, metric: review_score, inherits: true}}
+  - id: M-forecast-filter
+    ref: "6.1 intent escalation 'Forecast that' with an inherited filter"
+    turns:
+      - {q: "What was revenue in SP in 2018?", expect: {outcome: answer, intent: descriptive, metric: revenue, filters: {customer_state: [SP]}}}
+      - {q: "Forecast that", expect: {outcome: answer, intent: forecast, metric: revenue, filters: {customer_state: [SP]}, inherits: true}}
+  - id: M-why-impact
+    ref: "6.1 escalation chain: why -> so what"
+    turns:
+      - {q: "Why did revenue drop in April 2018?", expect: {outcome: answer, intent: diagnostic, metric: revenue}}
+      - {q: "How much did that cost us?", expect: {outcome: answer, intent: impact, metric: revenue, inherits: true}}
+  # ---- clarification flows (3.2, CL-4, CL-6)
+  - id: CL-option
+    ref: "3.2 C1 - choosing an offered option answers the original question"
+    turns:
+      - {q: "Summarize revenue", expect: {outcome: clarify}}
+      - {q: "Last 12 complete months", reply: first, expect: {outcome: answer, intent: descriptive, metric: revenue, period: "2017-09..2018-08"}}
+  - id: CL-default
+    ref: "3.2 - accepting the stated default answers the question"
+    turns:
+      - {q: "How are sales doing?", expect: {outcome: clarify}}
+      - {q: "Use the default", reply: default, expect: {outcome: answer, metric: revenue}}
+  - id: CL-text
+    ref: "3.2 C3 - a free-text reply resolves the asked slot"
+    turns:
+      - {q: "Show me the top states", expect: {outcome: clarify}}
+      - {q: "by revenue in 2018", reply: text, expect: {outcome: [answer, clarify]}}
+  - id: CL-then-follow
+    ref: "3.2 + 6.1 - a clarified answer is context for the next follow-up"
+    turns:
+      - {q: "Summarize revenue", expect: {outcome: clarify}}
+      - {q: "Last 12 complete months", reply: first, expect: {outcome: answer, metric: revenue}}
+      - {q: "What about RJ?", expect: {outcome: answer, metric: revenue, filters: {customer_state: [RJ]}, inherits: true}}
+  - id: RESET
+    ref: "6.3 rule 1 - after a new topic there is no context to inherit"
+    turns:
+      - {q: "What was revenue in 2018?", expect: {outcome: answer, metric: revenue}}
+      - {q: "New topic", expect: {outcome: [answer, clarify]}}
+      - {q: "What about SP?", expect: {outcome: clarify}}
+  - id: COLD
+    ref: "6.3 rule 1 / C6 - a follow-up with no prior turn clarifies"
+    turns:
+      - {q: "And last year?", expect: {outcome: clarify}}
