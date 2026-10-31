@@ -12,7 +12,8 @@ produced by [`scripts/eval_v2.py`](../scripts/eval_v2.py). The section between t
 | Key numbers vs. reference SQL (11 cases) | yes - against the fixture's own rows | **no** |
 | Planted effects E1-E5 recovered | yes - the plants exist only in synthetic tables | not applicable (plants are synthetic by design) |
 | V1 `/api/ask` envelope shape and SSE event names | yes | **no** |
-| Backend test suite | 1077 passed, 49 skipped | the 49 skipped tests are the ones that need the real snapshot |
+| Backend test suite | 1084 passed, 49 skipped | the 49 skipped tests are the ones that need the real snapshot |
+| Same 107 questions and 24 scripts on a **real-scale stand-in** (the fixture generator at 32,951 products and 99,500 orders, scratch only) | 101/107 correct, 23/24 scripts, 9/9 must-answer | **no** - still generated data, only the volume is real |
 
 **The real Olist snapshot (`brazil_ecommerce.sqlite`, 99,441 orders) is not in this
 environment** - it is not committed (README section 5) and was not obtainable here.
@@ -42,7 +43,7 @@ no merge commit was needed and `main` was not modified.
 
 | Check | Before integration (`0baba20`) | Integrated baseline (`6e81f89`) | Final |
 | --- | --- | --- | --- |
-| `pytest` (backend) | 494 passed, 47 skipped | 1058 passed, 49 skipped | 1077 passed, 49 skipped |
+| `pytest` (backend) | 494 passed, 47 skipped | 1058 passed, 49 skipped | 1084 passed, 49 skipped |
 | `npm run typecheck` (frontend) | - | pass | pass |
 | `npm run build` (frontend) | - | pass | pass |
 
@@ -93,9 +94,9 @@ Raw per-case results: [`docs/eval_v2/baseline.json`](eval_v2/baseline.json),
 
 <!-- BEGIN GENERATED: scripts/eval_v2.py -->
 
-## Results - after fixes
+## Results - after fixes (incl. X6 scale fix and demo wording)
 
-- Run at 2026-10-31 04:21 UTC on commit `5835b03`; 22 s wall clock.
+- Run at 2026-10-31 05:33 UTC on commit `afa3e04`; 22 s wall clock.
 - Backend: live uvicorn, `POST /api/v2/ask` + `GET /api/v2/runs/{id}` (spawned by --serve).
 - Database: `data/brazil_ecommerce_v2.sqlite` - 4,975 orders, sha256 `9eb8579c853953a7...`, snapshot `v2-20261030` - **seeded Olist-shaped FIXTURE + synthetic layer (not the real Olist data)**.
 - Local model (Ollama): **unavailable** - every run used the deterministic fallbacks.
@@ -131,18 +132,18 @@ Denominators are cases in the section. *Routed* = expected outcome class and int
 
 | Section | Cases | Correct | Routed | Answered | Chart (of answered) | Clarified | Latency p50/p95/max ms | Server p50 ms |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| discovery | 10 | 9/10 (90%) | 9/10 (90%) | 9/10 (90%) | 0/9 (0%) | 1/10 (10%) | 14 / 43 / 43 | 6 |
-| clarify | 10 | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 0/0 (-) | 10/10 (100%) | 9 / 18 / 18 | 3 |
-| descriptive | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 9/10 (90%) | 0/10 (0%) | 29 / 35 / 35 | 21 |
-| diagnostic | 14 | 14/14 (100%) | 14/14 (100%) | 14/14 (100%) | 14/14 (100%) | 0/14 (0%) | 343 / 473 / 1196 | 334 |
-| impact | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 23 / 32 / 32 | 17 |
-| forecast | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 18 / 770 / 770 | 12 |
-| scenario | 10 | 6/10 (60%) | 9/10 (90%) | 6/10 (60%) | 6/6 (100%) | 1/10 (10%) | 25 / 865 / 865 | 20 |
-| prescriptive | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 286 / 1121 / 1121 | 279 |
-| compound | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 239 / 651 / 651 | 229 |
-| vague | 10 | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 0/0 (-) | 10/10 (100%) | 8 / 10 / 10 | 2 |
-| v1_regression | 3 | 3/3 (100%) | 3/3 (100%) | 3/3 (100%) | 3/3 (100%) | 0/3 (0%) | 44 / 53 / 53 | 38 |
-| **all** | 107 | 102/107 (95%) | 105/107 (98%) | 82/107 (77%) | 72/82 (88%) | 22/107 (21%) | 29 / 565 / 1196 | |
+| discovery | 10 | 9/10 (90%) | 9/10 (90%) | 9/10 (90%) | 0/9 (0%) | 1/10 (10%) | 12 / 48 / 48 | 5 |
+| clarify | 10 | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 0/0 (-) | 10/10 (100%) | 11 / 17 / 17 | 3 |
+| descriptive | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 9/10 (90%) | 0/10 (0%) | 27 / 33 / 33 | 21 |
+| diagnostic | 14 | 14/14 (100%) | 14/14 (100%) | 14/14 (100%) | 14/14 (100%) | 0/14 (0%) | 371 / 518 / 1320 | 362 |
+| impact | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 25 / 27 / 27 | 16 |
+| forecast | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 15 / 757 / 757 | 9 |
+| scenario | 10 | 6/10 (60%) | 9/10 (90%) | 6/10 (60%) | 6/6 (100%) | 1/10 (10%) | 26 / 542 / 542 | 20 |
+| prescriptive | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 264 / 1095 / 1095 | 256 |
+| compound | 10 | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 281 / 710 / 710 | 265 |
+| vague | 10 | 10/10 (100%) | 10/10 (100%) | 0/10 (0%) | 0/0 (-) | 10/10 (100%) | 9 / 10 / 10 | 2 |
+| v1_regression | 3 | 3/3 (100%) | 3/3 (100%) | 3/3 (100%) | 3/3 (100%) | 0/3 (0%) | 34 / 38 / 38 | 27 |
+| **all** | 107 | 102/107 (95%) | 105/107 (98%) | 82/107 (77%) | 72/82 (88%) | 22/107 (21%) | 27 / 542 / 1320 | |
 
 ### Failure taxonomy (single-turn)
 
@@ -227,127 +228,127 @@ Plants scored: 8/8 recovered where the premise holds; 3 not scored (premise fals
 | RESET | 6.3 rule 1 - after a new topic there is no context to inherit | 3/3 | pass | - |
 | COLD | 6.3 rule 1 / C6 - a follow-up with no prior turn clarifies | 1/1 | pass | - |
 
-Turn categories: correct 50, routing_failure 0, execution_failure 0, insufficient_evidence 0, incorrect_answer 1; turn latency p50/p95/max 27 / 473 / 772 ms.
+Turn categories: correct 50, routing_failure 0, execution_failure 0, insufficient_evidence 0, incorrect_answer 1; turn latency p50/p95/max 29 / 504 / 818 ms.
 
 ### V1 regression (`POST /api/ask`)
 
 | Question | Status | SSE events | V1 envelope keys | Latency ms |
 | --- | --- | --- | --- | --- |
-| How many orders were there in August 2018? | answered | answer, step_finished, step_started | match | 28 |
-| How did revenue in 2018 compare to 2017? | answered | answer, step_finished, step_started | match | 24 |
-| Was order count unusual in August 2018? | answered | answer, step_finished, step_started | match | 27 |
+| How many orders were there in August 2018? | answered | answer, step_finished, step_started | match | 26 |
+| How did revenue in 2018 compare to 2017? | answered | answer, step_finished, step_started | match | 35 |
+| Was order count unusual in August 2018? | answered | answer, step_finished, step_started | match | 23 |
 
 ### Every single-turn case
 
 | Ref | Expected | Got | Category | Latency ms | Reason |
 | --- | --- | --- | --- | --- | --- |
-| D1 | answer/discovery | answered/discovery | correct | 37 | - |
-| D2 | answer/discovery | answered/discovery | correct | 12 | - |
-| D3 | answer/discovery | answered/discovery | correct | 38 | - |
-| D4 | answer/discovery | answered/discovery | correct | 14 | - |
+| D1 | answer/discovery | answered/discovery | correct | 48 | - |
+| D2 | answer/discovery | answered/discovery | correct | 14 | - |
+| D3 | answer/discovery | answered/discovery | correct | 36 | - |
+| D4 | answer/discovery | answered/discovery | correct | 11 | - |
 | D5 | answer/discovery | answered/discovery | correct | 9 | - |
-| D6 | answer/discovery | answered/discovery | correct | 10 | - |
-| D7 | answer/discovery | answered/discovery | correct | 15 | - |
-| D8 | answer/discovery | answered/discovery | correct | 35 | - |
-| D9 | answer/discovery | answered/discovery | correct | 43 | - |
+| D6 | answer/discovery | answered/discovery | correct | 9 | - |
+| D7 | answer/discovery | answered/discovery | correct | 9 | - |
+| D8 | answer/discovery | answered/discovery | correct | 36 | - |
+| D9 | answer/discovery | answered/discovery | correct | 37 | - |
 | D10 | refuse/discovery | clarify/clarify | routing_failure | 9 | expected refuse, got clarify (asked: "I don't hold customer age, customer gender. Would one of these help instead?") |
-| C1 | clarify/clarify | clarify/clarify | correct | 18 | - |
-| C2 | clarify/clarify | clarify/clarify | correct | 14 | - |
-| C3 | clarify/clarify | clarify/clarify | correct | 7 | - |
-| C4 | clarify/clarify | clarify/clarify | correct | 7 | - |
-| C5 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| C6 | clarify/clarify | clarify/clarify | correct | 9 | - |
-| C7 | clarify/clarify | clarify/clarify | correct | 11 | - |
-| C8 | clarify/clarify | clarify/clarify | correct | 10 | - |
-| C9 | clarify/clarify | clarify/clarify | correct | 9 | - |
-| C10 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| S1 | answer/descriptive | answered/descriptive | correct | 35 | - |
-| S2 | answer/descriptive | answered/descriptive | correct | 30 | - |
-| S3 | answer/descriptive | answered/descriptive | correct | 27 | - |
-| S4 | answer/descriptive | answered/descriptive | correct | 21 | - |
-| S5 | answer/descriptive | answered/descriptive | correct | 17 | - |
-| S6 | answer/descriptive | answered/descriptive | correct | 31 | - |
-| S7 | answer/descriptive | answered/descriptive | correct | 23 | - |
+| C1 | clarify/clarify | clarify/clarify | correct | 17 | - |
+| C2 | clarify/clarify | clarify/clarify | correct | 10 | - |
+| C3 | clarify/clarify | clarify/clarify | correct | 8 | - |
+| C4 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| C5 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| C6 | clarify/clarify | clarify/clarify | correct | 12 | - |
+| C7 | clarify/clarify | clarify/clarify | correct | 12 | - |
+| C8 | clarify/clarify | clarify/clarify | correct | 12 | - |
+| C9 | clarify/clarify | clarify/clarify | correct | 10 | - |
+| C10 | clarify/clarify | clarify/clarify | correct | 13 | - |
+| S1 | answer/descriptive | answered/descriptive | correct | 29 | - |
+| S2 | answer/descriptive | answered/descriptive | correct | 32 | - |
+| S3 | answer/descriptive | answered/descriptive | correct | 33 | - |
+| S4 | answer/descriptive | answered/descriptive | correct | 27 | - |
+| S5 | answer/descriptive | answered/descriptive | correct | 24 | - |
+| S6 | answer/descriptive | answered/descriptive | correct | 24 | - |
+| S7 | answer/descriptive | answered/descriptive | correct | 25 | - |
 | S8 | answer/descriptive | answered/descriptive | correct | 32 | - |
-| S9 | answer/descriptive | answered/descriptive | correct | 29 | - |
-| S10 | answer/descriptive | answered/descriptive | correct | 29 | - |
-| G1 | answer/diagnostic | answered/diagnostic | correct | 291 | - |
-| G2 | answer/diagnostic | answered/diagnostic | correct | 260 | - |
-| G3 | answer/diagnostic | answered/diagnostic | correct | 434 | - |
-| G4 | answer/diagnostic | answered/diagnostic | correct | 473 | premise false on this database (measured change +1.39); E3 not scored |
-| G5 | answer/diagnostic | answered/diagnostic | correct | 231 | premise false on this database (measured change +0.1477); E4 not scored |
-| G6 | answer/diagnostic | answered/diagnostic | correct | 419 | - |
-| G7 | answer/diagnostic | answered/diagnostic | correct | 258 | - |
-| G8 | answer/diagnostic | answered/diagnostic | correct | 238 | premise false on this database (measured change +4,173); E1 not scored |
-| G9 | answer/diagnostic | answered/diagnostic | correct | 426 | - |
-| G10 | answer/diagnostic | answered/diagnostic | correct | 1196 | - |
-| E-G1s | answer/diagnostic | answered/diagnostic | correct | 281 | - |
-| E-G3s | answer/diagnostic | answered/diagnostic | correct | 395 | - |
-| E-G4s | answer/diagnostic | answered/diagnostic | correct | 431 | - |
-| E-G5s | answer/diagnostic | answered/diagnostic | correct | 241 | - |
-| I1 | answer/impact | answered/impact | correct | 19 | - |
-| I2 | answer/impact | answered/impact | correct | 22 | - |
-| I3 | answer/impact | answered/impact | correct | 22 | - |
-| I4 | answer/impact | answered/impact | correct | 20 | - |
-| I5 | answer/impact | answered/impact | correct | 19 | - |
-| I6 | answer/impact | answered/impact | correct | 24 | - |
-| I7 | answer/impact | answered/impact | correct | 24 | - |
-| I8 | answer/impact | answered/impact | correct | 30 | - |
-| I9 | answer/impact | answered/impact | correct | 28 | - |
-| I10 | answer/impact | answered/impact | correct | 32 | - |
-| F1 | answer/forecast | answered/forecast | correct | 19 | - |
-| F2 | answer/forecast | answered/forecast | correct | 15 | - |
-| F3 | answer/forecast | answered/forecast | correct | 26 | - |
-| F4 | answer/forecast | answered/forecast | correct | 18 | - |
-| F5 | answer/forecast | answered/forecast | correct | 770 | - |
-| F6 | answer/forecast | answered/forecast | correct | 13 | - |
-| F7 | answer/forecast | answered/forecast | correct | 11 | - |
-| F8 | answer/forecast | answered/forecast | correct | 12 | - |
-| F9 | answer/forecast | answered/forecast | correct | 543 | - |
-| F10 | answer/forecast | answered/forecast | correct | 552 | - |
-| X1 | answer/scenario | answered/scenario | correct | 25 | - |
-| X2 | answer/scenario | answered/scenario | correct | 41 | - |
-| X3 | answer/scenario | answered/scenario | correct | 55 | - |
+| S9 | answer/descriptive | answered/descriptive | correct | 28 | - |
+| S10 | answer/descriptive | answered/descriptive | correct | 27 | - |
+| G1 | answer/diagnostic | answered/diagnostic | correct | 321 | - |
+| G2 | answer/diagnostic | answered/diagnostic | correct | 278 | - |
+| G3 | answer/diagnostic | answered/diagnostic | correct | 469 | - |
+| G4 | answer/diagnostic | answered/diagnostic | correct | 456 | premise false on this database (measured change +1.39); E3 not scored |
+| G5 | answer/diagnostic | answered/diagnostic | correct | 227 | premise false on this database (measured change +0.1477); E4 not scored |
+| G6 | answer/diagnostic | answered/diagnostic | correct | 518 | - |
+| G7 | answer/diagnostic | answered/diagnostic | correct | 290 | - |
+| G8 | answer/diagnostic | answered/diagnostic | correct | 339 | premise false on this database (measured change +4,173); E1 not scored |
+| G9 | answer/diagnostic | answered/diagnostic | correct | 482 | - |
+| G10 | answer/diagnostic | answered/diagnostic | correct | 1320 | - |
+| E-G1s | answer/diagnostic | answered/diagnostic | correct | 275 | - |
+| E-G3s | answer/diagnostic | answered/diagnostic | correct | 403 | - |
+| E-G4s | answer/diagnostic | answered/diagnostic | correct | 410 | - |
+| E-G5s | answer/diagnostic | answered/diagnostic | correct | 244 | - |
+| I1 | answer/impact | answered/impact | correct | 25 | - |
+| I2 | answer/impact | answered/impact | correct | 25 | - |
+| I3 | answer/impact | answered/impact | correct | 27 | - |
+| I4 | answer/impact | answered/impact | correct | 26 | - |
+| I5 | answer/impact | answered/impact | correct | 23 | - |
+| I6 | answer/impact | answered/impact | correct | 25 | - |
+| I7 | answer/impact | answered/impact | correct | 25 | - |
+| I8 | answer/impact | answered/impact | correct | 23 | - |
+| I9 | answer/impact | answered/impact | correct | 20 | - |
+| I10 | answer/impact | answered/impact | correct | 23 | - |
+| F1 | answer/forecast | answered/forecast | correct | 16 | - |
+| F2 | answer/forecast | answered/forecast | correct | 14 | - |
+| F3 | answer/forecast | answered/forecast | correct | 21 | - |
+| F4 | answer/forecast | answered/forecast | correct | 15 | - |
+| F5 | answer/forecast | answered/forecast | correct | 757 | - |
+| F6 | answer/forecast | answered/forecast | correct | 15 | - |
+| F7 | answer/forecast | answered/forecast | correct | 13 | - |
+| F8 | answer/forecast | answered/forecast | correct | 13 | - |
+| F9 | answer/forecast | answered/forecast | correct | 537 | - |
+| F10 | answer/forecast | answered/forecast | correct | 528 | - |
+| X1 | answer/scenario | answered/scenario | correct | 29 | - |
+| X2 | answer/scenario | answered/scenario | correct | 40 | - |
+| X3 | answer/scenario | answered/scenario | correct | 57 | - |
 | X4 | answer/scenario | insufficient_evidence/scenario | insufficient_evidence | 24 | Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'grew to 85%' has no fitted relationship to perturb, so no figure is invented. |
-| X5 | answer/scenario | answered/scenario | correct | 24 | - |
-| X6 | answer/scenario | answered/scenario | correct | 865 | - |
-| X7 | answer/scenario | insufficient_evidence/scenario | insufficient_evidence | 25 | Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'restored the marketing spend we cut' has no fitted relationship to perturb, so no figur |
-| X8 | answer/scenario | answered/scenario | correct | 26 | - |
-| X9 | answer/scenario | insufficient_evidence/scenario | insufficient_evidence | 34 | Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'eliminated the stockouts' has no fitted relationship to perturb, so no figure is invent |
-| X10 | refuse/scenario | clarify/clarify | routing_failure | 16 | expected refuse, got clarify (asked: "I don't hold an Argentinian market. Would one of these help instead?") |
-| P1 | answer/prescriptive | answered/prescriptive | correct | 446 | - |
-| P2 | answer/prescriptive | answered/prescriptive | correct | 314 | - |
-| P3 | answer/prescriptive | answered/prescriptive | correct | 287 | - |
-| P4 | answer/prescriptive | answered/prescriptive | correct | 287 | - |
-| P5 | answer/prescriptive | answered/prescriptive | correct | 243 | - |
-| P6 | answer/prescriptive | answered/prescriptive | correct | 1121 | - |
-| P7 | answer/prescriptive | answered/prescriptive | correct | 36 | - |
-| P8 | answer/prescriptive | answered/prescriptive | correct | 286 | - |
-| P9 | answer/prescriptive | answered/prescriptive | correct | 246 | - |
-| P10 | answer/prescriptive | answered/prescriptive | correct | 18 | - |
-| K1 | answer/descriptive | answered/descriptive,forecast | correct | 651 | - |
-| K2 | answer/diagnostic | answered/diagnostic | correct | 248 | - |
-| K3 | answer/diagnostic | answered/diagnostic,impact,prescriptive | correct | 231 | - |
-| K4 | answer/descriptive | answered/descriptive,scenario | correct | 59 | - |
-| K5 | answer/descriptive | answered/descriptive,forecast | correct | 565 | - |
-| K6 | answer/diagnostic | answered/diagnostic,impact | correct | 224 | - |
+| X5 | answer/scenario | answered/scenario | correct | 27 | - |
+| X6 | answer/scenario | answered/scenario | correct | 542 | - |
+| X7 | answer/scenario | insufficient_evidence/scenario | insufficient_evidence | 23 | Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'restored the marketing spend we cut' has no fitted relationship to perturb, so no figur |
+| X8 | answer/scenario | answered/scenario | correct | 24 | - |
+| X9 | answer/scenario | insufficient_evidence/scenario | insufficient_evidence | 26 | Only price-change scenarios have a fitted response in this build (a demand elasticity fitted from past prices). 'eliminated the stockouts' has no fitted relationship to perturb, so no figure is invent |
+| X10 | refuse/scenario | clarify/clarify | routing_failure | 8 | expected refuse, got clarify (asked: "I don't hold an Argentinian market. Would one of these help instead?") |
+| P1 | answer/prescriptive | answered/prescriptive | correct | 340 | - |
+| P2 | answer/prescriptive | answered/prescriptive | correct | 287 | - |
+| P3 | answer/prescriptive | answered/prescriptive | correct | 248 | - |
+| P4 | answer/prescriptive | answered/prescriptive | correct | 295 | - |
+| P5 | answer/prescriptive | answered/prescriptive | correct | 279 | - |
+| P6 | answer/prescriptive | answered/prescriptive | correct | 1095 | - |
+| P7 | answer/prescriptive | answered/prescriptive | correct | 44 | - |
+| P8 | answer/prescriptive | answered/prescriptive | correct | 245 | - |
+| P9 | answer/prescriptive | answered/prescriptive | correct | 249 | - |
+| P10 | answer/prescriptive | answered/prescriptive | correct | 22 | - |
+| K1 | answer/descriptive | answered/descriptive,forecast | correct | 710 | - |
+| K2 | answer/diagnostic | answered/diagnostic | correct | 296 | - |
+| K3 | answer/diagnostic | answered/diagnostic,impact,prescriptive | correct | 298 | - |
+| K4 | answer/descriptive | answered/descriptive,scenario | correct | 51 | - |
+| K5 | answer/descriptive | answered/descriptive,forecast | correct | 581 | - |
+| K6 | answer/diagnostic | answered/diagnostic,impact | correct | 245 | - |
 | K7 | answer/descriptive | answered/descriptive,prescriptive | correct | 35 | - |
-| K8 | answer/discovery | answered/discovery,diagnostic | correct | 508 | - |
-| K9 | answer/forecast | answered/forecast,scenario | correct | 30 | - |
-| K10 | answer/diagnostic | answered/diagnostic,impact,prescriptive | correct | 248 | - |
+| K8 | answer/discovery | answered/discovery,diagnostic | correct | 479 | - |
+| K9 | answer/forecast | answered/forecast,scenario | correct | 33 | - |
+| K10 | answer/diagnostic | answered/diagnostic,impact,prescriptive | correct | 267 | - |
 | V1 | clarify/clarify | clarify/clarify | correct | 10 | - |
-| V2 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| V3 | clarify/clarify | clarify/clarify | correct | 8 | - |
+| V2 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| V3 | clarify/clarify | clarify/clarify | correct | 10 | - |
 | V4 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| V5 | clarify/clarify | clarify/clarify | correct | 9 | - |
-| V6 | clarify/clarify | clarify/clarify | correct | 7 | - |
-| V7 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| V8 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| V9 | clarify/clarify | clarify/clarify | correct | 8 | - |
-| V10 | clarify/clarify | clarify/clarify | correct | 7 | - |
-| R-1 | answer/descriptive | answered/descriptive | correct | 28 | - |
-| R-2 | answer/descriptive | answered/descriptive | correct | 44 | - |
-| R-3 | answer/descriptive | answered/descriptive | correct | 53 | - |
+| V5 | clarify/clarify | clarify/clarify | correct | 8 | - |
+| V6 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| V7 | clarify/clarify | clarify/clarify | correct | 10 | - |
+| V8 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| V9 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| V10 | clarify/clarify | clarify/clarify | correct | 9 | - |
+| R-1 | answer/descriptive | answered/descriptive | correct | 30 | - |
+| R-2 | answer/descriptive | answered/descriptive | correct | 38 | - |
+| R-3 | answer/descriptive | answered/descriptive | correct | 34 | - |
 
 <!-- END GENERATED: scripts/eval_v2.py -->
 
@@ -363,9 +364,24 @@ Turn categories: correct 50, routing_failure 0, execution_failure 0, insufficien
 | Now what | The must-answer "Which customer segment should we target?" returned no options. | 2-3 ranked options from the engine's clusters, with assumptions, trade-offs, monitoring and what would change the ranking. | P1 |
 | What if | Every non-price what-if was `insufficient_evidence`. | A stated multiplier on a governed metric is applied to measured totals of the last 3 complete months and sized by the impact engine, labelled a mechanical what-if. | X1, X3, X5, X8 |
 
-Each fix has regression tests in `backend/tests/test_window_screen.py` and
-`backend/tests/test_v2_answer_fixes.py` (19 new tests, all on the real pipeline over
-the seeded build). No existing test, assertion or skip marker was changed.
+### Second round: X6 at real scale, and the demo answers read in full
+
+| Area | Failure | Fix | Cases |
+| --- | --- | --- | --- |
+| What if (must-answer X6) | "What if we raise prices 5%?" returned `insufficient_evidence` at the real catalogue size: `prep.daily_list_price` looped over 32,951 products (~80 s), the plan's 60 s budget skipped the baseline step and the scenario with it. The fixture's 260 products hid it. | Vectorised list-price panel (81 s -> 0.35 s, identical output within 3e-14); X6 now answers in ~1.5 s at that scale, elasticity -1.64 (interval -1.83 to -1.45; planted -1.5). | X6 at scale |
+| What if, no synthetic tables | With `DS_AGENT_DB` unset there is no price history; the refusal said "only price-change scenarios have a fitted response" in reply to a price change. | Still no figure; the reason names the missing tables and how to build them. | - |
+| Compound K1 | The trend total introduced in round one used the forecast's extended fit history: "Revenue for 2017-09 to 2018-08 was R$ 615,120.84" where the window alone is R$ 471,889.80. | The total uses the asked window (`summary_period`). | K1 wording |
+| Wording | "Revenue for total was ... against the comparison window"; "Gmv"/"Aov"; "no candidate co-moved" next to a named candidate. | Both windows named; acronyms kept; the sentence says which test found nothing. | S4, G-cases |
+
+The status-only grade did not catch the K1 total or the wording; reading every demo
+answer did. The demo itself is in [`DEMO_SCRIPT.md`](DEMO_SCRIPT.md), replayed by
+`scripts/verify_demo.py` (18/18 steps on the fixture build and on the real-scale
+stand-in).
+
+Each fix has regression tests in `backend/tests/test_window_screen.py`,
+`backend/tests/test_v2_answer_fixes.py` and `backend/tests/test_price_panel_scale.py`
+(26 new tests, on the real pipeline over the seeded build). No existing test,
+assertion or skip marker was changed.
 
 ## Still not working
 
@@ -376,6 +392,9 @@ the seeded build). No existing test, assertion or skip marker was changed.
 | M-window | incorrect_answer | "And last year?" after "GMV in 2018" resolves to Jan-Aug 2017 (aligned to 2018's complete months) instead of all of 2017. Defensible as a like-for-like window, but it is not what the expectation (a plain window shift, 6.1) says, and the answer does not state the alignment. |
 | G4, G5, G8 | not scored | On the fixture the asserted drop did not happen. Whether E3/E4/E1 are recoverable through these real metrics can only be checked on the real snapshot. |
 | Discovery | - | Discovery answers carry no chart (0/9 answered); scope.md does not require one. |
+| I9 (real-scale stand-in only) | insufficient_evidence | "What are the stockouts costing us?" finds a zero baseline at that volume. |
+| I2 | graded correct, answers poorly | "What is SP worth to us?" answers with a change against a baseline rather than SP's share - the routing-only grade does not see it. |
+| Browser gates | not run | `npm run verify:features`, `verify:live` and a click-through of the hero chips could not run: the project's Playwright 1.64.1 expects Chromium revision 1248 and this environment has 1243. The demo was verified over the API the UI uses; typecheck and build are clean. |
 
 Known limits of this evaluation: 65 cases are graded on routing and status only; the
 plant tokens are a text match on the conclusion and claims; the elasticity check uses
